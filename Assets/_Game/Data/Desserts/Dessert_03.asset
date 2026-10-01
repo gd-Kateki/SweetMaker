@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf60f1d34eddfa4a9e7ccfa00c1fefe, type: 3}
+  m_Name: Dessert_03
+  m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
+  tier: 3
+  displayName: Cupcake
+  color: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 5577445525568095810, guid: e63c233df7aa05341953cde1159c80ab, type: 3}
+  canSpawnFromOven: 1
+  spawnWeight: 10
