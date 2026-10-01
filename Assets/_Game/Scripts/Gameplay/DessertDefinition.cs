@@ -11,8 +11,11 @@ public class DessertDefinition : ScriptableObject
     [SerializeField] private string displayName = "Dessert";
 
     [Header("Visual")]
-    [SerializeField] private Color color = Color.white;
     [SerializeField] private Sprite sprite;
+    [SerializeField] private Color color = Color.white;
+
+    [Range(0.1f, 2f)]
+    [SerializeField] private float visualScale = 0.8f;
 
     [Header("Oven")]
     [SerializeField] private bool canSpawnFromOven = true;
@@ -22,8 +25,11 @@ public class DessertDefinition : ScriptableObject
 
     public int Tier => tier;
     public string DisplayName => displayName;
+
     public Sprite Sprite => sprite;
+    public Color Color => color;
+    public float VisualScale => visualScale;
+
     public bool CanSpawnFromOven => canSpawnFromOven;
     public float SpawnWeight => spawnWeight;
-    public Color Color => color;
 }

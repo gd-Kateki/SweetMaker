@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 6
   displayName: Cheesecake
-  color: {r: 1, g: 1, b: 1, a: 1}
   sprite: {fileID: 3010103503655691094, guid: 5082d5cd6dd043a4a9fbf181857563f0, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
   canSpawnFromOven: 1
   spawnWeight: 1

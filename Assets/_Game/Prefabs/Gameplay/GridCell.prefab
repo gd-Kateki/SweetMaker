@@ -107,6 +107,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridCell
   contentPoint: {fileID: 0}
+  cellRenderer: {fileID: 7741511590299954215}
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  validColor: {r: 0, g: 1, b: 0, a: 1}
+  mergeColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  invalidColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!61 &5069362092966815183
 BoxCollider2D:
   m_ObjectHideFlags: 0

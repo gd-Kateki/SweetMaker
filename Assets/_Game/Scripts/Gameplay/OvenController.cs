@@ -2,16 +2,22 @@ using UnityEngine;
 
 public class OvenController : MonoBehaviour
 {
-    [SerializeField] private DessertSpawner dessertSpawner;
+    [Header("References")]
+    [SerializeField]
+    private OvenManager ovenManager;
 
     private void OnMouseDown()
     {
-        if (dessertSpawner == null)
+        if (ovenManager == null)
         {
-            Debug.LogError("OvenController: DessertSpawner is not assigned.");
+            Debug.LogError(
+                "OvenController: OvenManager " +
+                "is not assigned."
+            );
+
             return;
         }
 
-        dessertSpawner.TrySpawnRandomDessert();
+        ovenManager.RequestSpawn();
     }
 }
