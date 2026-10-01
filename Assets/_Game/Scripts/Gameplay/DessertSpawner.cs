@@ -98,6 +98,14 @@ public class DessertSpawner : MonoBehaviour
         if (dessert == null)
             return false;
 
+        DessertAnimator dessertAnimator =
+            dessert.GetComponent<DessertAnimator>();
+
+        if (dessertAnimator != null)
+        {
+            dessertAnimator.PlaySpawnPop();
+        }
+
         gridManager.NotifyBoardChanged();
 
         GameplayEvents.RaiseDessertSpawned(
@@ -105,7 +113,8 @@ public class DessertSpawner : MonoBehaviour
         );
 
         Debug.Log(
-            $"Spawned {definitionToSpawn.DisplayName} " +
+            $"Spawned " +
+            $"{definitionToSpawn.DisplayName} " +
             $"in {cell.name}."
         );
 
@@ -139,7 +148,8 @@ public class DessertSpawner : MonoBehaviour
         if (dessertPrefab == null)
         {
             Debug.LogError(
-                "DessertSpawner: Dessert prefab is missing."
+                "DessertSpawner: " +
+                "Dessert prefab is missing."
             );
 
             return null;
@@ -148,7 +158,8 @@ public class DessertSpawner : MonoBehaviour
         if (dessertContainer == null)
         {
             Debug.LogError(
-                "DessertSpawner: Dessert container is missing."
+                "DessertSpawner: " +
+                "Dessert container is missing."
             );
 
             return null;
@@ -228,14 +239,16 @@ public class DessertSpawner : MonoBehaviour
         {
             Debug.LogError(
                 "DessertSpawner: " +
-                "No valid next dessert could be prepared."
+                "No valid next dessert " +
+                "could be prepared."
             );
 
             return;
         }
+
         GameplayEvents.RaiseNextDessertChanged(
-    nextDessert
-);
+            nextDessert
+        );
 
         Debug.Log(
             $"OVEN PREVIEW | Next dessert: " +
@@ -313,7 +326,8 @@ public class DessertSpawner : MonoBehaviour
         if (gridManager == null)
         {
             Debug.LogError(
-                "DessertSpawner: GridManager is missing."
+                "DessertSpawner: " +
+                "GridManager is missing."
             );
 
             return false;
@@ -322,7 +336,8 @@ public class DessertSpawner : MonoBehaviour
         if (dessertPrefab == null)
         {
             Debug.LogError(
-                "DessertSpawner: Dessert prefab is missing."
+                "DessertSpawner: " +
+                "Dessert prefab is missing."
             );
 
             return false;
@@ -331,7 +346,8 @@ public class DessertSpawner : MonoBehaviour
         if (dessertContainer == null)
         {
             Debug.LogError(
-                "DessertSpawner: Dessert container is missing."
+                "DessertSpawner: " +
+                "Dessert container is missing."
             );
 
             return false;

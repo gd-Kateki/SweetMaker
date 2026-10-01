@@ -1,10 +1,19 @@
 using UnityEngine;
 
+[RequireComponent(typeof(OvenAnimator))]
 public class OvenController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
     private OvenManager ovenManager;
+
+    private OvenAnimator ovenAnimator;
+
+    private void Awake()
+    {
+        ovenAnimator =
+            GetComponent<OvenAnimator>();
+    }
 
     private void OnMouseDown()
     {
@@ -16,6 +25,16 @@ public class OvenController : MonoBehaviour
             );
 
             return;
+        }
+
+        if (!ovenManager.CanUseOven)
+        {
+            return;
+        }
+
+        if (ovenAnimator != null)
+        {
+            ovenAnimator.PlayPress();
         }
 
         ovenManager.RequestSpawn();

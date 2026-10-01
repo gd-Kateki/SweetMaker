@@ -22,9 +22,20 @@ public class DessertAnimator : MonoBehaviour
     [SerializeField]
     private float mergePopDuration = 0.15f;
 
+    [Header("Spawn Pop")]
+    [SerializeField]
+    private float spawnStartMultiplier = 0.65f;
+
+    [SerializeField]
+    private float spawnPopMultiplier = 1.12f;
+
+    [SerializeField]
+    private float spawnPopDuration = 0.18f;
+
     private Coroutine movementCoroutine;
     private Coroutine popCoroutine;
     private Coroutine squishCoroutine;
+    private Coroutine spawnCoroutine;
 
     public void MoveTo(
         Vector3 targetPosition)
@@ -109,6 +120,32 @@ public class DessertAnimator : MonoBehaviour
             );
     }
 
+    public void PlaySpawnPop()
+    {
+        Dessert dessert =
+            GetComponent<Dessert>();
+
+        if (dessert == null ||
+            dessert.Visual == null)
+        {
+            return;
+        }
+
+        if (spawnCoroutine != null)
+        {
+            StopCoroutine(
+                spawnCoroutine
+            );
+        }
+
+        spawnCoroutine =
+            StartCoroutine(
+                SpawnPopRoutine(
+                    dessert.Visual
+                )
+            );
+    }
+
     private void StopMovement()
     {
         if (movementCoroutine == null)
@@ -154,7 +191,6 @@ public class DessertAnimator : MonoBehaviour
                     elapsed / duration
                 );
 
-            // Cubic ease-out.
             float easedT =
                 1f -
                 Mathf.Pow(
@@ -307,5 +343,93 @@ public class DessertAnimator : MonoBehaviour
             normalScale;
 
         popCoroutine = null;
+    }
+
+    private IEnumerator SpawnPopRoutine(
+        Transform visual)
+    {
+        Vector3 normalScale =
+            visual.localScale;
+
+        Vector3 startScale =
+            normalScale *
+            spawnStartMultiplier;
+
+        Vector3 popScale =
+            normalScale *
+            spawnPopMultiplier;
+
+        visual.localScale =
+            startScale;
+
+        float firstDuration =
+            spawnPopDuration * 0.65f;
+
+        float secondDuration =
+            spawnPopDuration * 0.35f;
+
+        if (spawnPopDuration <= 0f)
+        {
+            visual.localScale =
+                normalScale;
+
+            spawnCoroutine = null;
+
+            yield break;
+        }
+
+        float elapsed = 0f;
+
+        while (elapsed < firstDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float t =
+                Mathf.Clamp01(
+                    elapsed / firstDuration
+                );
+
+            float easedT =
+                1f -
+                Mathf.Pow(
+                    1f - t,
+                    3f
+                );
+
+            visual.localScale =
+                Vector3.LerpUnclamped(
+                    startScale,
+                    popScale,
+                    easedT
+                );
+
+            yield return null;
+        }
+
+        elapsed = 0f;
+
+        while (elapsed < secondDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float t =
+                Mathf.Clamp01(
+                    elapsed / secondDuration
+                );
+
+            visual.localScale =
+                Vector3.Lerp(
+                    popScale,
+                    normalScale,
+                    t
+                );
+
+            yield return null;
+        }
+
+        visual.localScale =
+            normalScale;
+
+        spawnCoroutine = null;
     }
 }
