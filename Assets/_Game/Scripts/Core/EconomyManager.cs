@@ -3,27 +3,43 @@ using UnityEngine;
 
 public class EconomyManager : MonoBehaviour
 {
-    public static EconomyManager Instance
-    {
-        get;
-        private set;
-    }
+    public static EconomyManager Instance { get; private set; }
 
-    [Header("Prototype Economy")]
+    [Header("Economy")]
+    [Min(0)]
     [SerializeField]
     private int startingCash = 0;
 
+    [Header("References")]
     [SerializeField]
     private OrderManager orderManager;
 
-    [Header("Runtime")]
     [SerializeField]
+    private PlayerProgressionManager progressionManager;
+
     private int currentCash;
+
+    // ==================================================
+    // EVENTS
+    // ==================================================
 
     public event Action<int> CashChanged;
 
+    // ==================================================
+    // PUBLIC STATE
+    // ==================================================
+
     public int CurrentCash =>
         currentCash;
+
+    public float CurrentMoneyMultiplier =>
+        progressionManager != null
+            ? progressionManager.MoneyMultiplier
+            : 1f;
+
+    // ==================================================
+    // UNITY
+    // ==================================================
 
     private void Awake()
     {
@@ -45,11 +61,7 @@ public class EconomyManager : MonoBehaviour
 
     private void Start()
     {
-        if (orderManager == null)
-        {
-            orderManager =
-                FindFirstObjectByType<OrderManager>();
-        }
+        ResolveReferences();
 
         if (orderManager == null)
         {
@@ -57,20 +69,15 @@ public class EconomyManager : MonoBehaviour
                 "EconomyManager: OrderManager " +
                 "could not be found."
             );
+
+            return;
         }
-        else
-        {
-            orderManager.OrderCompleted +=
-                HandleOrderCompleted;
-        }
+
+        orderManager.OrderCompleted +=
+            HandleOrderCompleted;
 
         CashChanged?.Invoke(
             currentCash
-        );
-
-        Debug.Log(
-            $"ECONOMY | Starting Cash: " +
-            $"${currentCash}"
         );
     }
 
@@ -88,43 +95,92 @@ public class EconomyManager : MonoBehaviour
         }
     }
 
-    private void HandleOrderCompleted(
-        CustomerOrder completedOrder)
+    private void ResolveReferences()
     {
-        if (completedOrder == null)
-            return;
-
-        int reward =
-            completedOrder.CashReward;
-
-        if (reward <= 0)
+        if (orderManager == null)
         {
-            Debug.Log(
-                $"ECONOMY | " +
-                $"{completedOrder.DisplayName} " +
-                "has no cash reward."
-            );
-
-            return;
+            orderManager =
+                FindFirstObjectByType<
+                    OrderManager>();
         }
 
-        AddCash(
-            reward
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
+    }
+
+    // ==================================================
+    // ORDER REWARDS
+    // ==================================================
+
+    /// <summary>
+    /// Calculates the actual amount of cash the player
+    /// should receive for an order after applying the
+    /// current Money Multiplier progression.
+    ///
+    /// CustomerOrder.CashReward always remains the
+    /// unmodified base reward.
+    /// </summary>
+    public int CalculateOrderReward(
+        CustomerOrder order)
+    {
+        if (order == null)
+            return 0;
+
+        float multiplier =
+            CurrentMoneyMultiplier;
+
+        float multipliedReward =
+            order.CashReward *
+            multiplier;
+
+        return Mathf.RoundToInt(
+            multipliedReward
         );
     }
+
+    public float GetCurrentMoneyMultiplier()
+    {
+        return CurrentMoneyMultiplier;
+    }
+
+    private void HandleOrderCompleted(
+        CustomerOrder order)
+    {
+        if (order == null)
+            return;
+
+        int finalReward =
+            CalculateOrderReward(
+                order
+            );
+
+        AddCash(
+            finalReward
+        );
+
+        Debug.Log(
+            $"ORDER REWARD | " +
+            $"Order #{order.OrderId} | " +
+            $"Base: ${order.CashReward} | " +
+            $"Multiplier: " +
+            $"x{CurrentMoneyMultiplier:0.##} | " +
+            $"Final: ${finalReward}"
+        );
+    }
+
+    // ==================================================
+    // CASH
+    // ==================================================
 
     public void AddCash(
         int amount)
     {
         if (amount <= 0)
-        {
-            Debug.LogWarning(
-                "EconomyManager: Cannot add " +
-                "zero or negative cash."
-            );
-
             return;
-        }
 
         currentCash +=
             amount;
@@ -134,8 +190,9 @@ public class EconomyManager : MonoBehaviour
         );
 
         Debug.Log(
-            $"ECONOMY | +${amount} | " +
-            $"Balance: ${currentCash}"
+            $"CASH ADDED | " +
+            $"+${amount} | " +
+            $"Total: ${currentCash}"
         );
     }
 
@@ -152,26 +209,11 @@ public class EconomyManager : MonoBehaviour
     public bool TrySpendCash(
         int amount)
     {
-        if (amount <= 0)
-        {
-            Debug.LogWarning(
-                "EconomyManager: Spend amount " +
-                "must be greater than zero."
-            );
-
+        if (amount < 0)
             return false;
-        }
 
         if (!CanAfford(amount))
-        {
-            Debug.Log(
-                $"ECONOMY | Cannot afford " +
-                $"${amount}. " +
-                $"Balance: ${currentCash}"
-            );
-
             return false;
-        }
 
         currentCash -=
             amount;
@@ -181,35 +223,32 @@ public class EconomyManager : MonoBehaviour
         );
 
         Debug.Log(
-            $"ECONOMY | -${amount} | " +
-            $"Balance: ${currentCash}"
+            $"CASH SPENT | " +
+            $"-${amount} | " +
+            $"Total: ${currentCash}"
         );
 
         return true;
     }
 
-    [ContextMenu("Debug Cash")]
-    private void DebugCash()
+    // ==================================================
+    // DEBUG
+    // ==================================================
+
+    [ContextMenu("Debug Economy")]
+    private void DebugEconomy()
     {
         Debug.Log(
-            $"ECONOMY | Current Cash: " +
-            $"${currentCash}"
+            $"ECONOMY | " +
+            $"Cash: ${currentCash} | " +
+            $"Money Multiplier: " +
+            $"x{CurrentMoneyMultiplier:0.##}"
         );
     }
 
     [ContextMenu("Debug Add $100")]
     private void DebugAddCash()
     {
-        AddCash(
-            100
-        );
-    }
-
-    [ContextMenu("Debug Spend $50")]
-    private void DebugSpendCash()
-    {
-        TrySpendCash(
-            50
-        );
+        AddCash(100);
     }
 }

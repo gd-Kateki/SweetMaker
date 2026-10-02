@@ -11,6 +11,12 @@ public class OrderDetailsUI : MonoBehaviour
     [SerializeField]
     private GridManager gridManager;
 
+    [SerializeField]
+    private EconomyManager economyManager;
+
+    [SerializeField]
+    private PlayerProgressionManager progressionManager;
+
     [Header("Panel")]
     [SerializeField]
     private GameObject overlay;
@@ -38,8 +44,12 @@ public class OrderDetailsUI : MonoBehaviour
     [SerializeField]
     private Button confirmButton;
 
-    // -1 means no customer is selected.
+    // -1 means no customer is currently selected.
     private int selectedCustomerIndex = -1;
+
+    // ==================================================
+    // PUBLIC STATE
+    // ==================================================
 
     public bool IsOpen =>
         overlay != null &&
@@ -47,6 +57,10 @@ public class OrderDetailsUI : MonoBehaviour
 
     public int SelectedCustomerIndex =>
         selectedCustomerIndex;
+
+    // ==================================================
+    // UNITY
+    // ==================================================
 
     private void Awake()
     {
@@ -70,8 +84,7 @@ public class OrderDetailsUI : MonoBehaviour
         ResolveReferences();
         SubscribeToEvents();
 
-        // The details panel should not be visible
-        // when gameplay begins.
+        // Order details should start closed.
         Close();
     }
 
@@ -94,6 +107,10 @@ public class OrderDetailsUI : MonoBehaviour
         }
     }
 
+    // ==================================================
+    // REFERENCES
+    // ==================================================
+
     private void ResolveReferences()
     {
         if (orderManager == null)
@@ -109,7 +126,25 @@ public class OrderDetailsUI : MonoBehaviour
                 FindFirstObjectByType<
                     GridManager>();
         }
+
+        if (economyManager == null)
+        {
+            economyManager =
+                FindFirstObjectByType<
+                    EconomyManager>();
+        }
+
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
     }
+
+    // ==================================================
+    // EVENT SUBSCRIPTIONS
+    // ==================================================
 
     private void SubscribeToEvents()
     {
@@ -119,27 +154,41 @@ public class OrderDetailsUI : MonoBehaviour
                 "OrderDetailsUI: " +
                 "OrderManager could not be found."
             );
+        }
+        else
+        {
+            orderManager.OrderStateChanged +=
+                HandleOrderStateChanged;
 
-            return;
+            orderManager.CustomerOrderChanged +=
+                HandleCustomerOrderChanged;
         }
 
-        orderManager.OrderStateChanged +=
-            HandleOrderStateChanged;
-
-        orderManager.CustomerOrderChanged +=
-            HandleCustomerOrderChanged;
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged +=
+                    HandleUpgradeLevelChanged;
+        }
     }
 
     private void UnsubscribeFromEvents()
     {
-        if (orderManager == null)
-            return;
+        if (orderManager != null)
+        {
+            orderManager.OrderStateChanged -=
+                HandleOrderStateChanged;
 
-        orderManager.OrderStateChanged -=
-            HandleOrderStateChanged;
+            orderManager.CustomerOrderChanged -=
+                HandleCustomerOrderChanged;
+        }
 
-        orderManager.CustomerOrderChanged -=
-            HandleCustomerOrderChanged;
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged -=
+                    HandleUpgradeLevelChanged;
+        }
     }
 
     // ==================================================
@@ -175,7 +224,8 @@ public class OrderDetailsUI : MonoBehaviour
         {
             Debug.LogWarning(
                 $"OrderDetailsUI: Customer " +
-                $"{customerIndex + 1} has no order."
+                $"{customerIndex + 1} " +
+                "has no active order."
             );
 
             return;
@@ -235,6 +285,10 @@ public class OrderDetailsUI : MonoBehaviour
             return;
         }
 
+        // ----------------------------------------------
+        // HEADER
+        // ----------------------------------------------
+
         if (orderTitleText != null)
         {
             orderTitleText.text =
@@ -247,15 +301,35 @@ public class OrderDetailsUI : MonoBehaviour
                 $"Order #{order.OrderId}";
         }
 
+        // ----------------------------------------------
+        // REQUIREMENTS
+        // ----------------------------------------------
+
         RefreshRequirements(
             order
         );
 
+        // ----------------------------------------------
+        // FINAL REWARD
+        // ----------------------------------------------
+
         if (rewardAmountText != null)
         {
+            int displayedReward =
+                economyManager != null
+                    ? economyManager
+                        .CalculateOrderReward(
+                            order
+                        )
+                    : order.CashReward;
+
             rewardAmountText.text =
-                $"${order.CashReward}";
+                $"${displayedReward}";
         }
+
+        // ----------------------------------------------
+        // CONFIRM
+        // ----------------------------------------------
 
         if (confirmButton != null)
         {
@@ -273,7 +347,7 @@ public class OrderDetailsUI : MonoBehaviour
         if (requirementRows == null)
             return;
 
-        // Start with every row hidden.
+        // Hide all available UI rows first.
         foreach (
             OrderRequirementRowUI row
             in requirementRows)
@@ -318,15 +392,17 @@ public class OrderDetailsUI : MonoBehaviour
         {
             Debug.LogWarning(
                 $"Order #{order.OrderId} has " +
-                $"{requirements.Count} requirements, " +
-                $"but OrderDetailsUI only has " +
-                $"{requirementRows.Length} rows."
+                $"{requirements.Count} " +
+                $"requirements, but " +
+                $"OrderDetailsUI only has " +
+                $"{requirementRows.Length} " +
+                $"requirement rows."
             );
         }
     }
 
     // ==================================================
-    // EVENTS
+    // ORDER EVENTS
     // ==================================================
 
     private void HandleOrderStateChanged()
@@ -354,12 +430,42 @@ public class OrderDetailsUI : MonoBehaviour
     }
 
     // ==================================================
+    // PROGRESSION EVENTS
+    // ==================================================
+
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
+    {
+        if (type !=
+            UpgradeType.MoneyMultiplier)
+        {
+            return;
+        }
+
+        if (!IsOpen)
+            return;
+
+        Refresh();
+
+        Debug.Log(
+            $"ORDER DETAILS | " +
+            $"Money Multiplier upgraded " +
+            $"to Level {newLevel} | " +
+            $"Reward display refreshed."
+        );
+    }
+
+    // ==================================================
     // CONFIRM
     // ==================================================
 
     private void HandleConfirmClicked()
     {
         if (selectedCustomerIndex < 0)
+            return;
+
+        if (orderManager == null)
             return;
 
         int customerIndex =
@@ -391,7 +497,8 @@ public class OrderDetailsUI : MonoBehaviour
         Debug.Log(
             $"ORDER DETAILS CONFIRMED | " +
             $"Customer {customerIndex + 1} | " +
-            $"Completed Order #{completedOrderId}"
+            $"Completed Order " +
+            $"#{completedOrderId}"
         );
 
         Close();

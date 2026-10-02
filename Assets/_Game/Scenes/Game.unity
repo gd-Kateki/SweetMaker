@@ -2576,7 +2576,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EconomyManager
   startingCash: 0
   orderManager: {fileID: 1354598266}
-  currentCash: 0
+  progressionManager: {fileID: 572666584}
 --- !u!1 &572666582
 GameObject:
   m_ObjectHideFlags: 0
@@ -5232,6 +5232,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OrderDetailsUI
   orderManager: {fileID: 1354598266}
   gridManager: {fileID: 64600239}
+  economyManager: {fileID: 549741773}
+  progressionManager: {fileID: 572666584}
   overlay: {fileID: 1395192558}
   orderTitleText: {fileID: 373534311}
   orderNumberText: {fileID: 276639109}
