@@ -12,27 +12,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 076e6ff35b93f564da53f2eaef012269, type: 3}
   m_Name: Upgrade_BoardSpace
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
-  upgradeType: 0
-  displayName: Upgrade
+  upgradeType: 1
+  displayName: Board Space
   levels:
   - level: 1
     intValue: 12
     floatValue: 0
+    upgradeCost: 0
   - level: 2
     intValue: 15
     floatValue: 0
+    upgradeCost: 0
   - level: 3
     intValue: 18
     floatValue: 0
+    upgradeCost: 0
   - level: 4
     intValue: 21
     floatValue: 0
+    upgradeCost: 0
   - level: 5
     intValue: 24
     floatValue: 0
+    upgradeCost: 0
   - level: 6
     intValue: 27
     floatValue: 0
+    upgradeCost: 0
   - level: 7
     intValue: 30
     floatValue: 0
+    upgradeCost: 0

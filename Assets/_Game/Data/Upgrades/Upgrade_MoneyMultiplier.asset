@@ -12,18 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 076e6ff35b93f564da53f2eaef012269, type: 3}
   m_Name: Upgrade_MoneyMultiplier
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
-  upgradeType: 0
-  displayName: Upgrade
+  upgradeType: 4
+  displayName: Money Multiplier
   levels:
   - level: 1
     intValue: 0
     floatValue: 1
+    upgradeCost: 0
   - level: 2
     intValue: 0
     floatValue: 1.2
+    upgradeCost: 0
   - level: 3
     intValue: 0
     floatValue: 1.5
+    upgradeCost: 0
   - level: 4
     intValue: 0
     floatValue: 2
+    upgradeCost: 0

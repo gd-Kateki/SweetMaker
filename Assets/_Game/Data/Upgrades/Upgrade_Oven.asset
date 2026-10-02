@@ -13,20 +13,25 @@ MonoBehaviour:
   m_Name: Upgrade_Oven
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeType: 0
-  displayName: Upgrade
+  displayName: Oven
   levels:
   - level: 1
     intValue: 8
     floatValue: 0
+    upgradeCost: 0
   - level: 2
     intValue: 12
     floatValue: 0
+    upgradeCost: 0
   - level: 3
     intValue: 16
     floatValue: 0
+    upgradeCost: 0
   - level: 4
     intValue: 20
     floatValue: 0
+    upgradeCost: 0
   - level: 5
     intValue: 25
     floatValue: 0
+    upgradeCost: 0
