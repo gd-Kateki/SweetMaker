@@ -56,6 +56,10 @@ public class DessertSpawner : MonoBehaviour
         PrepareNextDessert();
     }
 
+    // ==================================================
+    // NORMAL OVEN SPAWN
+    // ==================================================
+
     public bool TrySpawnRandomDessert()
     {
         if (!ValidateReferences())
@@ -118,10 +122,20 @@ public class DessertSpawner : MonoBehaviour
             $"in {cell.name}."
         );
 
+        /*
+         * The saved/restored dessert has now
+         * actually been consumed by the Oven.
+         *
+         * Roll the following dessert normally.
+         */
         PrepareNextDessert();
 
         return true;
     }
+
+    // ==================================================
+    // STANDARD BOARD SPAWN
+    // ==================================================
 
     public Dessert SpawnDessert(
         DessertDefinition definition,
@@ -208,6 +222,207 @@ public class DessertSpawner : MonoBehaviour
         return newDessert;
     }
 
+    // ==================================================
+    // SESSION RESTORATION
+    // ==================================================
+
+    public Dessert SpawnDessertOnBoardForRestore(
+        int tier,
+        GridCell cell)
+    {
+        if (cell == null)
+        {
+            Debug.LogWarning(
+                "RESTORE BOARD FAILED | " +
+                "GridCell is null."
+            );
+
+            return null;
+        }
+
+        DessertDefinition definition =
+            GetDefinitionByTier(tier);
+
+        if (definition == null)
+        {
+            Debug.LogError(
+                $"RESTORE BOARD FAILED | " +
+                $"No DessertDefinition exists " +
+                $"for Tier {tier}."
+            );
+
+            return null;
+        }
+
+        return SpawnDessert(
+            definition,
+            cell
+        );
+    }
+
+    public Dessert SpawnDessertOnShelfForRestore(
+        int tier,
+        ShelfSlot slot)
+    {
+        if (slot == null)
+        {
+            Debug.LogWarning(
+                "RESTORE SHELF FAILED | " +
+                "ShelfSlot is null."
+            );
+
+            return null;
+        }
+
+        if (!slot.IsUnlocked)
+        {
+            Debug.LogWarning(
+                $"RESTORE SHELF FAILED | " +
+                $"{slot.name} is locked."
+            );
+
+            return null;
+        }
+
+        if (!slot.IsEmpty)
+        {
+            Debug.LogWarning(
+                $"RESTORE SHELF FAILED | " +
+                $"{slot.name} is already occupied."
+            );
+
+            return null;
+        }
+
+        DessertDefinition definition =
+            GetDefinitionByTier(tier);
+
+        if (definition == null)
+        {
+            Debug.LogError(
+                $"RESTORE SHELF FAILED | " +
+                $"No DessertDefinition exists " +
+                $"for Tier {tier}."
+            );
+
+            return null;
+        }
+
+        if (dessertPrefab == null)
+        {
+            Debug.LogError(
+                "RESTORE SHELF FAILED | " +
+                "Dessert prefab is missing."
+            );
+
+            return null;
+        }
+
+        if (dessertContainer == null)
+        {
+            Debug.LogError(
+                "RESTORE SHELF FAILED | " +
+                "Dessert container is missing."
+            );
+
+            return null;
+        }
+
+        Dessert newDessert =
+            Instantiate(
+                dessertPrefab,
+                dessertContainer,
+                false
+            );
+
+        Transform dessertTransform =
+            newDessert.transform;
+
+        dessertTransform.localPosition =
+            Vector3.zero;
+
+        dessertTransform.localRotation =
+            Quaternion.identity;
+
+        dessertTransform.localScale =
+            Vector3.one;
+
+        newDessert.Initialize(
+            definition,
+            null
+        );
+
+        bool stored =
+            slot.TryStoreDessert(
+                newDessert,
+                true
+            );
+
+        if (!stored)
+        {
+            Debug.LogWarning(
+                $"RESTORE SHELF FAILED | " +
+                $"Could not store Tier {tier} " +
+                $"in {slot.name}."
+            );
+
+            Destroy(
+                newDessert.gameObject
+            );
+
+            return null;
+        }
+
+        newDessert.ApplyNormalRendering();
+
+        return newDessert;
+    }
+
+    // ==================================================
+    // NEXT DESSERT RESTORATION
+    // ==================================================
+
+    public bool RestoreNextDessert(
+        int tier)
+    {
+        DessertDefinition definition =
+            GetDefinitionByTier(tier);
+
+        if (definition == null)
+        {
+            Debug.LogWarning(
+                $"NEXT DESSERT RESTORE FAILED | " +
+                $"No DessertDefinition exists " +
+                $"for Tier {tier}."
+            );
+
+            return false;
+        }
+
+        nextDessert =
+            definition;
+
+        /*
+         * Tell the existing preview UI that the
+         * queued dessert changed.
+         */
+        GameplayEvents.RaiseNextDessertChanged(
+            nextDessert
+        );
+
+        Debug.Log(
+            $"NEXT DESSERT RESTORED | " +
+            $"{nextDessert.DisplayName} | " +
+            $"Tier {nextDessert.Tier}"
+        );
+
+        return true;
+    }
+
+    // ==================================================
+    // DEFINITION LOOKUP
+    // ==================================================
+
     public DessertDefinition GetDefinitionByTier(
         int tier)
     {
@@ -229,6 +444,10 @@ public class DessertSpawner : MonoBehaviour
 
         return null;
     }
+
+    // ==================================================
+    // NEXT DESSERT GENERATION
+    // ==================================================
 
     private void PrepareNextDessert()
     {
@@ -320,6 +539,10 @@ public class DessertSpawner : MonoBehaviour
             candidates.Count - 1
         ];
     }
+
+    // ==================================================
+    // VALIDATION
+    // ==================================================
 
     private bool ValidateReferences()
     {

@@ -80,6 +80,9 @@ public class OrderManager : MonoBehaviour
         CustomerOrders =>
             customerOrders;
 
+    public int NextOrderId =>
+    nextOrderId;
+
     // Alias useful for UI/general systems.
     public IReadOnlyList<CustomerOrder>
         ActiveOrders =>
@@ -306,6 +309,190 @@ public class OrderManager : MonoBehaviour
 
         NotifyOrderCollectionsChanged();
     }
+
+    // ==================================================
+// SESSION RESTORATION
+// ==================================================
+
+public bool RestoreCustomerOrders(
+    IReadOnlyList<CustomerOrderState>
+        savedOrders,
+    int savedNextOrderId)
+{
+    if (savedOrders == null)
+    {
+        Debug.LogWarning(
+            "ORDER RESTORE FAILED | " +
+            "Saved order list is null."
+        );
+
+        return false;
+    }
+
+    /*
+     * Start from four clean fixed slots.
+     */
+    InitializeCustomerSlots();
+
+    recentOrderDefinitions.Clear();
+
+    int highestRestoredOrderId = 0;
+
+    foreach (
+        CustomerOrderState state
+        in savedOrders)
+    {
+        if (state == null)
+            continue;
+
+        if (state.customerIndex < 0 ||
+            state.customerIndex >=
+                MaxCustomerSlots)
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE SKIPPED | " +
+                $"Invalid Customer Index " +
+                $"{state.customerIndex}."
+            );
+
+            continue;
+        }
+
+        if (!IsCustomerUnlocked(
+                state.customerIndex))
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE SKIPPED | " +
+                $"Customer " +
+                $"{state.customerIndex + 1} " +
+                "is currently locked."
+            );
+
+            continue;
+        }
+
+        if (state.definition == null)
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE SKIPPED | " +
+                $"Customer " +
+                $"{state.customerIndex + 1} " +
+                "has no order definition."
+            );
+
+            continue;
+        }
+
+        if (!state.definition.IsValid)
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE SKIPPED | " +
+                $"{state.definition.name} " +
+                "is invalid."
+            );
+
+            continue;
+        }
+
+        if (state.orderId <= 0)
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE SKIPPED | " +
+                $"Invalid Order ID " +
+                $"{state.orderId}."
+            );
+
+            continue;
+        }
+
+        CustomerOrder restoredOrder =
+            new CustomerOrder(
+                state.orderId,
+                state.definition
+            );
+
+        customerOrders[
+            state.customerIndex
+        ] = restoredOrder;
+
+        TrackRecentDefinition(
+            state.definition
+        );
+
+        if (state.orderId >
+            highestRestoredOrderId)
+        {
+            highestRestoredOrderId =
+                state.orderId;
+        }
+
+        Debug.Log(
+            $"ORDER RESTORED | " +
+            $"Customer " +
+            $"{state.customerIndex + 1} | " +
+            $"Order #{state.orderId} | " +
+            $"{state.definition.DisplayName}"
+        );
+
+        CustomerOrderChanged?.Invoke(
+            state.customerIndex,
+            restoredOrder
+        );
+    }
+
+    /*
+     * Never allow the sequence to move backwards.
+     *
+     * Example:
+     * restored #12 and #13
+     * → minimum next ID is #14.
+     */
+    int minimumNextOrderId =
+        highestRestoredOrderId + 1;
+
+    nextOrderId =
+        Mathf.Max(
+            1,
+            savedNextOrderId,
+            minimumNextOrderId
+        );
+
+    /*
+     * Normally every currently unlocked customer
+     * was captured.
+     *
+     * If one is unexpectedly absent/corrupt,
+     * generate only that missing slot so the
+     * OrderManager remains usable.
+     */
+    for (int i = 0;
+         i < ActiveCustomerCount;
+         i++)
+    {
+        if (customerOrders[i] == null)
+        {
+            Debug.LogWarning(
+                $"ORDER RESTORE | " +
+                $"Customer {i + 1} had no " +
+                "restorable order. " +
+                "Generating a replacement."
+            );
+
+            GenerateOrderForCustomer(i);
+        }
+    }
+
+    isFulfilling = false;
+
+    NotifyOrderCollectionsChanged();
+
+    Debug.Log(
+        $"ORDER SESSION RESTORED | " +
+        $"Next Order ID: #{nextOrderId}"
+    );
+
+    return true;
+}
 
     // ==================================================
     // ORDER GENERATION

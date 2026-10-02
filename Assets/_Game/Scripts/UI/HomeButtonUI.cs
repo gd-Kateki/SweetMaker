@@ -35,6 +35,35 @@ public class HomeButtonUI : MonoBehaviour
 
     private void HandleHomeClicked()
     {
+        // ------------------------------------------
+        // CAPTURE CURRENT MERGE SESSION
+        // ------------------------------------------
+
+        MergeSessionController sessionController =
+            FindFirstObjectByType<
+                MergeSessionController>();
+
+        if (sessionController != null)
+        {
+            sessionController.CaptureSession();
+
+            Debug.Log(
+                "HOME | Merge session captured."
+            );
+        }
+        else
+        {
+            Debug.LogWarning(
+                "HOME | MergeSessionController " +
+                "was not found. Session was " +
+                "not captured."
+            );
+        }
+
+        // ------------------------------------------
+        // NAVIGATE HOME
+        // ------------------------------------------
+
         if (SceneNavigationManager.Instance != null)
         {
             SceneNavigationManager.Instance
@@ -43,7 +72,6 @@ public class HomeButtonUI : MonoBehaviour
             return;
         }
 
-        // Editor/direct-scene fallback.
         SceneManager.LoadScene(
             SceneNavigationManager
                 .MainBakeryScene

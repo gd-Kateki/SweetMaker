@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class ShelfManager : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class ShelfManager : MonoBehaviour
     private ShelfSlot[] slots;
 
     public event Action ShelfChanged;
+    public IReadOnlyList<ShelfSlot> Slots => slots;
 
     public int TotalSlotCount
     {
