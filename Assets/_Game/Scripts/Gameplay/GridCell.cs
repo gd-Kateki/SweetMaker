@@ -179,13 +179,21 @@ public class GridCell : MonoBehaviour
     }
 
     public void RemoveDessert(
-        Dessert dessert)
-    {
-        if (currentDessert != dessert)
-            return;
+    Dessert dessert)
+{
+    if (currentDessert != dessert)
+        return;
 
-        currentDessert = null;
+    currentDessert = null;
+
+    if (dessert != null &&
+        dessert.CurrentCell == this)
+    {
+        dessert.SetCurrentCell(
+            null
+        );
     }
+}
 
     // --------------------------------------------------
     // HIGHLIGHT

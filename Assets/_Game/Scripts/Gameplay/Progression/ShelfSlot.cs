@@ -28,7 +28,6 @@ public class ShelfSlot : MonoBehaviour
         Color.red;
 
     private Dessert currentDessert;
-
     private bool isUnlocked;
 
     public bool IsUnlocked =>
@@ -59,14 +58,22 @@ public class ShelfSlot : MonoBehaviour
 
     private void Awake()
     {
+        ResolveReferences();
+        RefreshVisualState();
+    }
+
+    private void ResolveReferences()
+    {
         if (slotRenderer == null)
         {
             slotRenderer =
                 GetComponent<SpriteRenderer>();
         }
-
-        RefreshVisualState();
     }
+
+    // --------------------------------------------------
+    // PROGRESSION
+    // --------------------------------------------------
 
     public void SetUnlocked(
         bool unlocked)
@@ -88,8 +95,13 @@ public class ShelfSlot : MonoBehaviour
         RefreshVisualState();
     }
 
+    // --------------------------------------------------
+    // STORAGE
+    // --------------------------------------------------
+
     public bool TryStoreDessert(
-        Dessert dessert)
+        Dessert dessert,
+        bool snapToSlot = true)
     {
         if (dessert == null)
             return false;
@@ -100,12 +112,15 @@ public class ShelfSlot : MonoBehaviour
         currentDessert =
             dessert;
 
-        dessert.SetCurrentCell(
-            null
+        dessert.SetCurrentShelfSlot(
+            this
         );
 
-        dessert.transform.position =
-            ContentPosition;
+        if (snapToSlot)
+        {
+            dessert.transform.position =
+                ContentPosition;
+        }
 
         dessert.ApplyNormalRendering();
 
@@ -120,10 +135,23 @@ public class ShelfSlot : MonoBehaviour
         if (currentDessert != dessert)
             return;
 
-        currentDessert = null;
+        currentDessert =
+            null;
+
+        if (dessert != null &&
+            dessert.CurrentShelfSlot == this)
+        {
+            dessert.SetCurrentShelfSlot(
+                null
+            );
+        }
 
         RefreshVisualState();
     }
+
+    // --------------------------------------------------
+    // HIGHLIGHT
+    // --------------------------------------------------
 
     public void ShowValidHighlight()
     {

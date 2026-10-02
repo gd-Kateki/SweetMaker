@@ -21,6 +21,7 @@ public class Dessert : MonoBehaviour
     private int normalSortingOrder = 10;
 
     private GridCell currentCell;
+    private ShelfSlot currentShelfSlot;
 
     public DessertDefinition Definition =>
         definition;
@@ -30,8 +31,33 @@ public class Dessert : MonoBehaviour
             ? definition.Tier
             : -1;
 
+    public DessertLocationType LocationType
+    {
+        get
+        {
+            if (currentCell != null)
+                return DessertLocationType.Board;
+
+            if (currentShelfSlot != null)
+                return DessertLocationType.Shelf;
+
+            return DessertLocationType.None;
+        }
+    }
+
+    public bool IsOnBoard =>
+        LocationType ==
+        DessertLocationType.Board;
+
+    public bool IsOnShelf =>
+        LocationType ==
+        DessertLocationType.Shelf;
+
     public GridCell CurrentCell =>
         currentCell;
+
+    public ShelfSlot CurrentShelfSlot =>
+        currentShelfSlot;
 
     public Transform Visual =>
         visual;
@@ -47,30 +73,73 @@ public class Dessert : MonoBehaviour
         ResolveReferences();
     }
 
+    // --------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------
+
     public void Initialize(
         DessertDefinition newDefinition,
         GridCell cell)
     {
-        definition = newDefinition;
-        currentCell = cell;
+        definition =
+            newDefinition;
+
+        SetCurrentCell(
+            cell
+        );
 
         ResolveReferences();
         ApplyDefinition();
         ApplyNormalRendering();
     }
 
+    // --------------------------------------------------
+    // LOCATION
+    // --------------------------------------------------
+
     public void SetCurrentCell(
         GridCell cell)
     {
-        currentCell = cell;
+        currentCell =
+            cell;
+
+        if (cell != null)
+        {
+            currentShelfSlot =
+                null;
+        }
     }
+
+    public void SetCurrentShelfSlot(
+        ShelfSlot shelfSlot)
+    {
+        currentShelfSlot =
+            shelfSlot;
+
+        if (shelfSlot != null)
+        {
+            currentCell =
+                null;
+        }
+    }
+
+    public void ClearLocation()
+    {
+        currentCell = null;
+        currentShelfSlot = null;
+    }
+
+    // --------------------------------------------------
+    // RENDERING
+    // --------------------------------------------------
 
     public void ApplyNormalRendering()
     {
         if (spriteRenderer == null)
             return;
 
-        spriteRenderer.enabled = true;
+        spriteRenderer.enabled =
+            true;
 
         spriteRenderer.sortingLayerName =
             sortingLayerName;
@@ -85,7 +154,8 @@ public class Dessert : MonoBehaviour
         if (spriteRenderer == null)
             return;
 
-        spriteRenderer.enabled = true;
+        spriteRenderer.enabled =
+            true;
 
         spriteRenderer.sortingLayerName =
             sortingLayerName;
@@ -93,6 +163,10 @@ public class Dessert : MonoBehaviour
         spriteRenderer.sortingOrder =
             draggingOrder;
     }
+
+    // --------------------------------------------------
+    // REFERENCES
+    // --------------------------------------------------
 
     private void ResolveReferences()
     {
@@ -103,7 +177,8 @@ public class Dessert : MonoBehaviour
 
             if (foundVisual != null)
             {
-                visual = foundVisual;
+                visual =
+                    foundVisual;
             }
         }
 
@@ -111,24 +186,29 @@ public class Dessert : MonoBehaviour
             visual != null)
         {
             spriteRenderer =
-                visual.GetComponent<SpriteRenderer>();
+                visual.GetComponent<
+                    SpriteRenderer>();
         }
 
         if (spriteRenderer == null)
         {
             spriteRenderer =
-                GetComponentInChildren<SpriteRenderer>(
-                    true
-                );
+                GetComponentInChildren<
+                    SpriteRenderer>(true);
         }
     }
+
+    // --------------------------------------------------
+    // DEFINITION
+    // --------------------------------------------------
 
     private void ApplyDefinition()
     {
         if (definition == null)
         {
             Debug.LogError(
-                $"{name}: DessertDefinition is missing."
+                $"{name}: " +
+                "DessertDefinition is missing."
             );
 
             return;
@@ -137,7 +217,8 @@ public class Dessert : MonoBehaviour
         if (spriteRenderer == null)
         {
             Debug.LogError(
-                $"{name}: Dessert SpriteRenderer is missing."
+                $"{name}: " +
+                "Dessert SpriteRenderer is missing."
             );
 
             return;
@@ -146,7 +227,8 @@ public class Dessert : MonoBehaviour
         if (definition.Sprite == null)
         {
             Debug.LogError(
-                $"{definition.DisplayName} has no sprite assigned."
+                $"{definition.DisplayName} " +
+                "has no sprite assigned."
             );
         }
         else
@@ -161,7 +243,8 @@ public class Dessert : MonoBehaviour
         if (visual == null)
         {
             Debug.LogError(
-                $"{name}: Visual Transform is missing."
+                $"{name}: " +
+                "Visual Transform is missing."
             );
         }
         else
@@ -177,8 +260,6 @@ public class Dessert : MonoBehaviour
                 definition.VisualScale;
         }
 
-        // Keep all gameplay desserts on
-        // the same Z plane.
         Vector3 position =
             transform.position;
 
@@ -188,6 +269,45 @@ public class Dessert : MonoBehaviour
             position;
 
         name =
-            $"Dessert_{definition.DisplayName}";
+            $"Dessert_" +
+            $"{definition.DisplayName}";
+    }
+
+    // --------------------------------------------------
+    // DEBUG
+    // --------------------------------------------------
+
+    [ContextMenu("Debug Dessert Location")]
+    private void DebugDessertLocation()
+    {
+        string locationName;
+
+        switch (LocationType)
+        {
+            case DessertLocationType.Board:
+                locationName =
+                    currentCell != null
+                        ? currentCell.name
+                        : "Missing GridCell";
+                break;
+
+            case DessertLocationType.Shelf:
+                locationName =
+                    currentShelfSlot != null
+                        ? currentShelfSlot.name
+                        : "Missing ShelfSlot";
+                break;
+
+            default:
+                locationName = "None";
+                break;
+        }
+
+        Debug.Log(
+            $"DESSERT LOCATION | " +
+            $"{name} | " +
+            $"Type: {LocationType} | " +
+            $"Location: {locationName}"
+        );
     }
 }
