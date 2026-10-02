@@ -2735,6 +2735,7 @@ GameObject:
   - component: {fileID: 710452429}
   - component: {fileID: 710452428}
   - component: {fileID: 710452427}
+  - component: {fileID: 710452430}
   m_Layer: 0
   m_Name: CustomerButton_2
   m_TagString: Untagged
@@ -2844,6 +2845,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 710452425}
   m_CullTransparentMesh: 1
+--- !u!114 &710452430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 710452425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bc7eaacb349bda4999289a72ededc07, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerButtonUI
+  customerIndex: 1
+  button: {fileID: 710452427}
+  orderManager: {fileID: 1354598266}
+  orderDetailsUI: {fileID: 1297646559}
+  progressionManager: {fileID: 572666584}
+  canvasGroup: {fileID: 0}
 --- !u!1 &717280000
 GameObject:
   m_ObjectHideFlags: 0
@@ -3065,6 +3084,7 @@ GameObject:
   - component: {fileID: 772803945}
   - component: {fileID: 772803944}
   - component: {fileID: 772803943}
+  - component: {fileID: 772803946}
   m_Layer: 0
   m_Name: CustomerButton_4
   m_TagString: Untagged
@@ -3174,6 +3194,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 772803941}
   m_CullTransparentMesh: 1
+--- !u!114 &772803946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 772803941}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bc7eaacb349bda4999289a72ededc07, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerButtonUI
+  customerIndex: 3
+  button: {fileID: 772803943}
+  orderManager: {fileID: 1354598266}
+  orderDetailsUI: {fileID: 1297646559}
+  progressionManager: {fileID: 572666584}
+  canvasGroup: {fileID: 0}
 --- !u!1 &820819468
 GameObject:
   m_ObjectHideFlags: 0
@@ -4665,6 +4703,7 @@ GameObject:
   - component: {fileID: 1196295611}
   - component: {fileID: 1196295610}
   - component: {fileID: 1196295609}
+  - component: {fileID: 1196295612}
   m_Layer: 0
   m_Name: CustomerButton_3
   m_TagString: Untagged
@@ -4774,6 +4813,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1196295607}
   m_CullTransparentMesh: 1
+--- !u!114 &1196295612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1196295607}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bc7eaacb349bda4999289a72ededc07, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerButtonUI
+  customerIndex: 2
+  button: {fileID: 1196295609}
+  orderManager: {fileID: 1354598266}
+  orderDetailsUI: {fileID: 1297646559}
+  progressionManager: {fileID: 572666584}
+  canvasGroup: {fileID: 0}
 --- !u!1 &1215244308
 GameObject:
   m_ObjectHideFlags: 0
@@ -6856,6 +6913,8 @@ MonoBehaviour:
   button: {fileID: 1909917348}
   orderManager: {fileID: 1354598266}
   orderDetailsUI: {fileID: 1297646559}
+  progressionManager: {fileID: 572666584}
+  canvasGroup: {fileID: 0}
 --- !u!1 &1943658401
 GameObject:
   m_ObjectHideFlags: 0

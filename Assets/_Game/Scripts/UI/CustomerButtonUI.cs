@@ -22,12 +22,36 @@ public class CustomerButtonUI : MonoBehaviour
     [SerializeField]
     private OrderDetailsUI orderDetailsUI;
 
+    [SerializeField]
+    private PlayerProgressionManager
+        progressionManager;
+
+    [Header("Visibility")]
+    [SerializeField]
+    private CanvasGroup canvasGroup;
+
+    public int CustomerIndex =>
+        customerIndex;
+
     private void Awake()
     {
         if (button == null)
         {
             button =
                 GetComponent<Button>();
+        }
+
+        if (canvasGroup == null)
+        {
+            canvasGroup =
+                GetComponent<CanvasGroup>();
+
+            if (canvasGroup == null)
+            {
+                canvasGroup =
+                    gameObject.AddComponent<
+                        CanvasGroup>();
+            }
         }
     }
 
@@ -42,6 +66,8 @@ public class CustomerButtonUI : MonoBehaviour
             );
         }
 
+        SubscribeToEvents();
+
         Refresh();
     }
 
@@ -53,6 +79,8 @@ public class CustomerButtonUI : MonoBehaviour
                 HandleClicked
             );
         }
+
+        UnsubscribeFromEvents();
     }
 
     private void ResolveReferences()
@@ -70,27 +98,142 @@ public class CustomerButtonUI : MonoBehaviour
                 FindFirstObjectByType<
                     OrderDetailsUI>();
         }
+
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
     }
 
-    public void Refresh()
+    // ==================================================
+    // EVENTS
+    // ==================================================
+
+    private void SubscribeToEvents()
     {
-        if (button == null ||
-            orderManager == null)
+        if (orderManager != null)
+        {
+            orderManager.CustomerOrderChanged +=
+                HandleCustomerOrderChanged;
+
+            orderManager.ActiveOrdersChanged +=
+                HandleActiveOrdersChanged;
+        }
+
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged +=
+                    HandleUpgradeLevelChanged;
+        }
+    }
+
+    private void UnsubscribeFromEvents()
+    {
+        if (orderManager != null)
+        {
+            orderManager.CustomerOrderChanged -=
+                HandleCustomerOrderChanged;
+
+            orderManager.ActiveOrdersChanged -=
+                HandleActiveOrdersChanged;
+        }
+
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged -=
+                    HandleUpgradeLevelChanged;
+        }
+    }
+
+    private void HandleCustomerOrderChanged(
+        int changedCustomerIndex,
+        CustomerOrder order)
+    {
+        if (changedCustomerIndex !=
+            customerIndex)
         {
             return;
         }
 
-        bool available =
+        Refresh();
+    }
+
+    private void HandleActiveOrdersChanged()
+    {
+        Refresh();
+    }
+
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
+    {
+        if (type != UpgradeType.Customer)
+            return;
+
+        Refresh();
+    }
+
+    // ==================================================
+    // VISIBILITY
+    // ==================================================
+
+    public void Refresh()
+    {
+        if (orderManager == null)
+        {
+            SetVisible(false);
+            return;
+        }
+
+        bool unlocked =
             orderManager.IsCustomerUnlocked(
                 customerIndex
-            ) &&
+            );
+
+        SetVisible(
+            unlocked
+        );
+
+        if (!unlocked)
+            return;
+
+        CustomerOrder order =
             orderManager.GetOrderForCustomer(
                 customerIndex
-            ) != null;
+            );
 
-        button.interactable =
-            available;
+        if (button != null)
+        {
+            button.interactable =
+                order != null;
+        }
     }
+
+    private void SetVisible(
+        bool visible)
+    {
+        if (canvasGroup == null)
+            return;
+
+        canvasGroup.alpha =
+            visible
+                ? 1f
+                : 0f;
+
+        canvasGroup.interactable =
+            visible;
+
+        canvasGroup.blocksRaycasts =
+            visible;
+    }
+
+    // ==================================================
+    // CLICK
+    // ==================================================
 
     private void HandleClicked()
     {
