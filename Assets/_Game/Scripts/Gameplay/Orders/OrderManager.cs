@@ -8,9 +8,15 @@ public class OrderManager : MonoBehaviour
     [SerializeField]
     private GridManager gridManager;
 
+    [Header("Progression")]
+    [SerializeField]
+    private PlayerProgressionManager
+        progressionManager;
+
     [Header("Prototype Order Pool")]
     [SerializeField]
-    private CustomerOrderDefinition[] orderPool;
+    private CustomerOrderDefinition[]
+        orderPool;
 
     private CustomerOrder activeOrder;
 
@@ -19,8 +25,11 @@ public class OrderManager : MonoBehaviour
 
     private bool isFulfilling;
 
-    public event Action ActiveOrderChanged;
-    public event Action OrderStateChanged;
+    public event Action
+        ActiveOrderChanged;
+
+    public event Action
+        OrderStateChanged;
 
     public event Action<CustomerOrder>
         OrderFulfillmentStarted;
@@ -54,19 +63,16 @@ public class OrderManager : MonoBehaviour
             if (gridManager == null)
                 return false;
 
-            return activeOrder.CanFulfill(
-                gridManager
-            );
+            return activeOrder
+                .CanFulfill(
+                    gridManager
+                );
         }
     }
 
     private void Start()
     {
-        if (gridManager == null)
-        {
-            gridManager =
-                FindFirstObjectByType<GridManager>();
-        }
+        ResolveReferences();
 
         if (gridManager == null)
         {
@@ -78,8 +84,23 @@ public class OrderManager : MonoBehaviour
             return;
         }
 
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "OrderManager: " +
+                "PlayerProgressionManager " +
+                "could not be found."
+            );
+
+            return;
+        }
+
         gridManager.BoardChanged +=
             HandleBoardChanged;
+
+        progressionManager
+            .UpgradeLevelChanged +=
+                HandleUpgradeLevelChanged;
 
         GenerateNewOrder();
     }
@@ -91,7 +112,35 @@ public class OrderManager : MonoBehaviour
             gridManager.BoardChanged -=
                 HandleBoardChanged;
         }
+
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged -=
+                    HandleUpgradeLevelChanged;
+        }
     }
+
+    private void ResolveReferences()
+    {
+        if (gridManager == null)
+        {
+            gridManager =
+                FindFirstObjectByType<
+                    GridManager>();
+        }
+
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
+    }
+
+    // --------------------------------------------------
+    // ORDER GENERATION
+    // --------------------------------------------------
 
     public void GenerateNewOrder()
     {
@@ -104,7 +153,8 @@ public class OrderManager : MonoBehaviour
         if (definition == null)
         {
             Debug.LogError(
-                "OrderManager: No valid order " +
+                "OrderManager: No valid and " +
+                "currently unlocked order " +
                 "exists in the order pool."
             );
 
@@ -147,6 +197,20 @@ public class OrderManager : MonoBehaviour
             return;
         }
 
+        if (!IsOrderUnlocked(
+                definition))
+        {
+            Debug.LogWarning(
+                $"ORDER LOCKED | " +
+                $"{definition.DisplayName} " +
+                "requires dessert tiers " +
+                "above the current Oven " +
+                "progression."
+            );
+
+            return;
+        }
+
         activeOrder =
             new CustomerOrder(
                 definition
@@ -168,6 +232,143 @@ public class OrderManager : MonoBehaviour
 
         EvaluateActiveOrder();
     }
+
+    private CustomerOrderDefinition
+        GetRandomValidOrder()
+    {
+        if (orderPool == null ||
+            orderPool.Length == 0)
+        {
+            return null;
+        }
+
+        List<CustomerOrderDefinition>
+            validOrders =
+                new List<
+                    CustomerOrderDefinition>();
+
+        foreach (
+            CustomerOrderDefinition definition
+            in orderPool)
+        {
+            if (definition == null)
+                continue;
+
+            if (!definition.IsValid)
+                continue;
+
+            if (!IsOrderUnlocked(
+                    definition))
+            {
+                continue;
+            }
+
+            validOrders.Add(
+                definition
+            );
+        }
+
+        if (validOrders.Count == 0)
+        {
+            return null;
+        }
+
+        // Avoid immediately repeating the
+        // same order when alternatives exist.
+        if (validOrders.Count > 1 &&
+            previousOrderDefinition != null)
+        {
+            validOrders.Remove(
+                previousOrderDefinition
+            );
+        }
+
+        if (validOrders.Count == 0)
+        {
+            if (previousOrderDefinition != null &&
+                IsOrderUnlocked(
+                    previousOrderDefinition))
+            {
+                return
+                    previousOrderDefinition;
+            }
+
+            return null;
+        }
+
+        int randomIndex =
+            UnityEngine.Random.Range(
+                0,
+                validOrders.Count
+            );
+
+        return validOrders[
+            randomIndex
+        ];
+    }
+
+    // --------------------------------------------------
+    // PROGRESSION FILTER
+    // --------------------------------------------------
+
+    private bool IsOrderUnlocked(
+        CustomerOrderDefinition definition)
+    {
+        if (definition == null ||
+            !definition.IsValid)
+        {
+            return false;
+        }
+
+        if (progressionManager == null)
+            return false;
+
+        foreach (
+            OrderRequirement requirement
+            in definition.Requirements)
+        {
+            if (requirement == null ||
+                requirement.Dessert == null)
+            {
+                return false;
+            }
+
+            int tier =
+                requirement.Dessert.Tier;
+
+            if (!progressionManager
+                    .IsDessertTierUnlocked(
+                        tier))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
+    {
+        if (type != UpgradeType.Oven)
+            return;
+
+        Debug.Log(
+            $"ORDER PROGRESSION | " +
+            $"Oven Level {newLevel} | " +
+            $"Maximum Order Tier: " +
+            $"T{progressionManager.MaxUnlockedDessertTier}"
+        );
+
+        // Existing customer remains untouched.
+        // The expanded tier pool applies to
+        // future generated orders.
+    }
+
+    // --------------------------------------------------
+    // FULFILLMENT
+    // --------------------------------------------------
 
     public bool TryFulfillActiveOrder()
     {
@@ -201,14 +402,16 @@ public class OrderManager : MonoBehaviour
             return false;
         }
 
-        if (!activeOrder.TryGetDessertsForFulfillment(
-                gridManager,
-                out List<Dessert> dessertsToConsume))
+        if (!activeOrder
+                .TryGetDessertsForFulfillment(
+                    gridManager,
+                    out List<Dessert>
+                        dessertsToConsume))
         {
             Debug.Log(
                 $"ORDER | " +
                 $"{activeOrder.DisplayName} " +
-                $"cannot be fulfilled yet."
+                "cannot be fulfilled yet."
             );
 
             return false;
@@ -223,11 +426,7 @@ public class OrderManager : MonoBehaviour
             completedOrder
         );
 
-        /*
-         * Logical board state is cleared first.
-         * This keeps the grid authoritative even
-         * if visual destruction happens later.
-         */
+        // Clear logical occupancy first.
         foreach (
             Dessert dessert
             in dessertsToConsume)
@@ -250,6 +449,7 @@ public class OrderManager : MonoBehaviour
             );
         }
 
+        // Then remove the visual objects.
         foreach (
             Dessert dessert
             in dessertsToConsume)
@@ -264,7 +464,8 @@ public class OrderManager : MonoBehaviour
 
         activeOrder = null;
 
-        gridManager.NotifyBoardChanged();
+        gridManager
+            .NotifyBoardChanged();
 
         Debug.Log(
             $"ORDER COMPLETED | " +
@@ -286,67 +487,9 @@ public class OrderManager : MonoBehaviour
         return true;
     }
 
-    private CustomerOrderDefinition
-        GetRandomValidOrder()
-    {
-        if (orderPool == null ||
-            orderPool.Length == 0)
-        {
-            return null;
-        }
-
-        List<CustomerOrderDefinition>
-            validOrders =
-                new List<CustomerOrderDefinition>();
-
-        foreach (
-            CustomerOrderDefinition definition
-            in orderPool)
-        {
-            if (definition == null)
-                continue;
-
-            if (!definition.IsValid)
-                continue;
-
-            validOrders.Add(
-                definition
-            );
-        }
-
-        if (validOrders.Count == 0)
-        {
-            return null;
-        }
-
-        /*
-         * If multiple valid orders exist,
-         * avoid immediately repeating the
-         * previous order.
-         */
-        if (validOrders.Count > 1 &&
-            previousOrderDefinition != null)
-        {
-            validOrders.Remove(
-                previousOrderDefinition
-            );
-        }
-
-        if (validOrders.Count == 0)
-        {
-            return previousOrderDefinition;
-        }
-
-        int randomIndex =
-            UnityEngine.Random.Range(
-                0,
-                validOrders.Count
-            );
-
-        return validOrders[
-            randomIndex
-        ];
-    }
+    // --------------------------------------------------
+    // BOARD EVALUATION
+    // --------------------------------------------------
 
     private void HandleBoardChanged()
     {
@@ -378,6 +521,10 @@ public class OrderManager : MonoBehaviour
         OrderStateChanged?.Invoke();
     }
 
+    // --------------------------------------------------
+    // DEBUG
+    // --------------------------------------------------
+
     [ContextMenu("Generate New Order")]
     private void DebugGenerateNewOrder()
     {
@@ -405,9 +552,57 @@ public class OrderManager : MonoBehaviour
         Debug.Log(
             $"ORDER | " +
             $"{activeOrder.DisplayName} | " +
-            $"Reward: ${activeOrder.CashReward} | " +
+            $"Reward: " +
+            $"${activeOrder.CashReward} | " +
             $"Can Fulfill: " +
             $"{CanFulfillActiveOrder}"
         );
+    }
+
+    [ContextMenu("Debug Eligible Orders")]
+    private void DebugEligibleOrders()
+    {
+        if (orderPool == null ||
+            orderPool.Length == 0)
+        {
+            Debug.Log(
+                "ORDER POOL | Empty."
+            );
+
+            return;
+        }
+
+        Debug.Log(
+            $"ORDER POOL | " +
+            $"Current Max Tier: " +
+            $"T{progressionManager.MaxUnlockedDessertTier}"
+        );
+
+        foreach (
+            CustomerOrderDefinition definition
+            in orderPool)
+        {
+            if (definition == null)
+            {
+                Debug.Log(
+                    "ORDER POOL | " +
+                    "NULL | Eligible: False"
+                );
+
+                continue;
+            }
+
+            bool eligible =
+                definition.IsValid &&
+                IsOrderUnlocked(
+                    definition
+                );
+
+            Debug.Log(
+                $"ORDER POOL | " +
+                $"{definition.DisplayName} | " +
+                $"Eligible: {eligible}"
+            );
+        }
     }
 }

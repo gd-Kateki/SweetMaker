@@ -21,8 +21,13 @@ public class GridManager : MonoBehaviour
     [SerializeField]
     private GridCell cellPrefab;
 
-    private readonly List<GridCell> cells =
-        new List<GridCell>();
+    [SerializeField]
+    private PlayerProgressionManager
+        progressionManager;
+
+    private readonly List<GridCell>
+        cells =
+            new List<GridCell>();
 
     public event Action BoardChanged;
 
@@ -32,15 +37,43 @@ public class GridManager : MonoBehaviour
     public int CellCount =>
         cells.Count;
 
+    public int UnlockedCellCount
+    {
+        get
+        {
+            int count = 0;
+
+            foreach (
+                GridCell cell
+                in cells)
+            {
+                if (cell != null &&
+                    cell.IsUnlocked)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
+    public int LockedCellCount =>
+        CellCount -
+        UnlockedCellCount;
+
     public int OccupiedCellCount
     {
         get
         {
             int count = 0;
 
-            foreach (GridCell cell in cells)
+            foreach (
+                GridCell cell
+                in cells)
             {
                 if (cell != null &&
+                    cell.IsUnlocked &&
                     !cell.IsEmpty)
                 {
                     count++;
@@ -52,19 +85,66 @@ public class GridManager : MonoBehaviour
     }
 
     public int EmptyCellCount =>
-        CellCount - OccupiedCellCount;
+        UnlockedCellCount -
+        OccupiedCellCount;
 
     public bool HasEmptyCell =>
         EmptyCellCount > 0;
 
     public bool IsFull =>
-        CellCount > 0 &&
+        UnlockedCellCount > 0 &&
         EmptyCellCount == 0;
 
     private void Awake()
     {
         GenerateGrid();
     }
+
+    private void Start()
+    {
+        ResolveProgressionManager();
+
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "GridManager: " +
+                "PlayerProgressionManager " +
+                "could not be found."
+            );
+
+            return;
+        }
+
+        progressionManager
+            .UpgradeLevelChanged +=
+                HandleUpgradeLevelChanged;
+
+        ApplyBoardProgression();
+    }
+
+    private void OnDestroy()
+    {
+        if (progressionManager != null)
+        {
+            progressionManager
+                .UpgradeLevelChanged -=
+                    HandleUpgradeLevelChanged;
+        }
+    }
+
+    private void ResolveProgressionManager()
+    {
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
+    }
+
+    // --------------------------------------------------
+    // GRID GENERATION
+    // --------------------------------------------------
 
     private void GenerateGrid()
     {
@@ -107,13 +187,17 @@ public class GridManager : MonoBehaviour
                     );
 
                 newCell.name =
-                    $"Cell_{row + 1}_{column + 1}";
+                    $"Cell_{row + 1}_" +
+                    $"{column + 1}";
 
-                newCell.transform.localPosition =
-                    position;
+                newCell.transform
+                    .localPosition =
+                        position;
 
-                newCell.transform.localScale =
-                    Vector3.one * cellSize;
+                newCell.transform
+                    .localScale =
+                        Vector3.one *
+                        cellSize;
 
                 cells.Add(
                     newCell
@@ -132,45 +216,128 @@ public class GridManager : MonoBehaviour
              i--)
         {
             Destroy(
-                transform.GetChild(i).gameObject
+                transform
+                    .GetChild(i)
+                    .gameObject
             );
         }
     }
+
+    // --------------------------------------------------
+    // BOARD PROGRESSION
+    // --------------------------------------------------
+
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
+    {
+        if (type !=
+            UpgradeType.BoardSpace)
+        {
+            return;
+        }
+
+        ApplyBoardProgression();
+
+        Debug.Log(
+            $"BOARD UPGRADE | " +
+            $"Level {newLevel} | " +
+            $"Unlocked Cells: " +
+            $"{UnlockedCellCount}"
+        );
+    }
+
+    private void ApplyBoardProgression()
+    {
+        if (progressionManager == null)
+            return;
+
+        int requestedUnlockedCells =
+            progressionManager
+                .ActiveBoardCells;
+
+        int unlockedCells =
+            Mathf.Clamp(
+                requestedUnlockedCells,
+                0,
+                cells.Count
+            );
+
+        for (int i = 0;
+             i < cells.Count;
+             i++)
+        {
+            GridCell cell =
+                cells[i];
+
+            if (cell == null)
+                continue;
+
+            bool shouldBeUnlocked =
+                i < unlockedCells;
+
+            cell.SetUnlocked(
+                shouldBeUnlocked
+            );
+        }
+
+        NotifyBoardChanged();
+
+        Debug.Log(
+            $"BOARD PROGRESSION | " +
+            $"Level " +
+            $"{progressionManager.BoardSpaceLevel} | " +
+            $"Unlocked: " +
+            $"{UnlockedCellCount}/{CellCount}"
+        );
+    }
+
+    // --------------------------------------------------
+    // EMPTY CELL LOOKUP
+    // --------------------------------------------------
 
     public bool TryGetEmptyCell(
-    out GridCell emptyCell)
-{
-    List<GridCell> emptyCells =
-        new List<GridCell>();
-
-    foreach (GridCell cell in cells)
+        out GridCell emptyCell)
     {
-        if (cell != null &&
-            cell.IsEmpty)
+        List<GridCell> emptyCells =
+            new List<GridCell>();
+
+        foreach (
+            GridCell cell
+            in cells)
         {
-            emptyCells.Add(
-                cell
-            );
+            if (cell != null &&
+                cell.IsAvailable)
+            {
+                emptyCells.Add(
+                    cell
+                );
+            }
         }
+
+        if (emptyCells.Count == 0)
+        {
+            emptyCell = null;
+            return false;
+        }
+
+        int randomIndex =
+            UnityEngine.Random.Range(
+                0,
+                emptyCells.Count
+            );
+
+        emptyCell =
+            emptyCells[
+                randomIndex
+            ];
+
+        return true;
     }
 
-    if (emptyCells.Count == 0)
-    {
-        emptyCell = null;
-        return false;
-    }
-
-    int randomIndex =
-        UnityEngine.Random.Range(
-            0,
-            emptyCells.Count
-        );
-
-    emptyCell =
-        emptyCells[randomIndex];
-
-    return true;
-}
+    // --------------------------------------------------
+    // MERGE CHECK
+    // --------------------------------------------------
 
     public bool HasAvailableMerge()
     {
@@ -182,6 +349,7 @@ public class GridManager : MonoBehaviour
                 cells[i];
 
             if (firstCell == null ||
+                !firstCell.IsUnlocked ||
                 firstCell.IsEmpty)
             {
                 continue;
@@ -201,13 +369,15 @@ public class GridManager : MonoBehaviour
                     cells[j];
 
                 if (secondCell == null ||
+                    !secondCell.IsUnlocked ||
                     secondCell.IsEmpty)
                 {
                     continue;
                 }
 
                 Dessert secondDessert =
-                    secondCell.CurrentDessert;
+                    secondCell
+                        .CurrentDessert;
 
                 if (secondDessert == null)
                     continue;
@@ -223,17 +393,27 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
+    // --------------------------------------------------
+    // EVENTS
+    // --------------------------------------------------
+
     public void NotifyBoardChanged()
     {
         BoardChanged?.Invoke();
     }
+
+    // --------------------------------------------------
+    // DEBUG
+    // --------------------------------------------------
 
     [ContextMenu("Debug Board State")]
     private void DebugBoardState()
     {
         Debug.Log(
             $"BOARD STATE | " +
-            $"Cells: {CellCount} | " +
+            $"Total: {CellCount} | " +
+            $"Unlocked: {UnlockedCellCount} | " +
+            $"Locked: {LockedCellCount} | " +
             $"Occupied: {OccupiedCellCount} | " +
             $"Empty: {EmptyCellCount} | " +
             $"Full: {IsFull} | " +
