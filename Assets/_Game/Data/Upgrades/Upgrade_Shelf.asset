@@ -18,15 +18,20 @@ MonoBehaviour:
   - level: 1
     intValue: 1
     floatValue: 0
+    upgradeCost: 0
   - level: 2
     intValue: 2
     floatValue: 0
+    upgradeCost: 100
   - level: 3
     intValue: 3
     floatValue: 0
+    upgradeCost: 200
   - level: 4
     intValue: 4
     floatValue: 0
+    upgradeCost: 300
   - level: 5
     intValue: 5
     floatValue: 0
+    upgradeCost: 400

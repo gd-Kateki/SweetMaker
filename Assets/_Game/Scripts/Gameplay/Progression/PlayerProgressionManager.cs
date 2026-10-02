@@ -9,7 +9,12 @@ public class PlayerProgressionManager : MonoBehaviour
         private set;
     }
 
+    // ==================================================
+    // UPGRADE DEFINITIONS
+    // ==================================================
+
     [Header("Upgrade Definitions")]
+
     [SerializeField]
     private UpgradeDefinition ovenUpgrade;
 
@@ -25,7 +30,12 @@ public class PlayerProgressionManager : MonoBehaviour
     [SerializeField]
     private UpgradeDefinition moneyMultiplierUpgrade;
 
+    // ==================================================
+    // RUNTIME LEVELS
+    // ==================================================
+
     [Header("Runtime Levels")]
+
     [SerializeField]
     private int ovenLevel = 1;
 
@@ -41,8 +51,16 @@ public class PlayerProgressionManager : MonoBehaviour
     [SerializeField]
     private int moneyMultiplierLevel = 1;
 
+    // ==================================================
+    // EVENTS
+    // ==================================================
+
     public event Action<UpgradeType, int>
         UpgradeLevelChanged;
+
+    // ==================================================
+    // LEVEL PROPERTIES
+    // ==================================================
 
     public int OvenLevel =>
         ovenLevel;
@@ -58,6 +76,10 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public int MoneyMultiplierLevel =>
         moneyMultiplierLevel;
+
+    // ==================================================
+    // GAMEPLAY VALUES
+    // ==================================================
 
     public int MaxUnlockedDessertTier =>
         GetIntValue(
@@ -89,28 +111,29 @@ public class PlayerProgressionManager : MonoBehaviour
             moneyMultiplierLevel
         );
 
+    // ==================================================
+    // UNITY
+    // ==================================================
+
     private void Awake()
+{
+    if (Instance != null && Instance != this)
     {
-        if (Instance != null &&
-            Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-
-        ValidateDefinitions();
-        ClampRuntimeLevels();
+        Destroy(gameObject);
+        return;
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-        {
-            Instance = null;
-        }
-    }
+    Instance = this;
+
+    DontDestroyOnLoad(gameObject);
+
+    ValidateDefinitions();
+    ClampRuntimeLevels();
+}
+
+    // ==================================================
+    // LEVEL LOOKUP
+    // ==================================================
 
     public int GetLevel(
         UpgradeType type)
@@ -162,9 +185,80 @@ public class PlayerProgressionManager : MonoBehaviour
             maxLevel;
     }
 
-    // --------------------------------------------------
+    // ==================================================
+    // DEFINITION LOOKUP
+    // ==================================================
+
+    /// <summary>
+    /// Returns the UpgradeDefinition associated with
+    /// the supplied upgrade type.
+    ///
+    /// This is public so systems such as the
+    /// UpgradePurchaseManager and future upgrade UI
+    /// can query progression data without duplicating
+    /// definition references.
+    /// </summary>
+    public UpgradeDefinition GetDefinition(
+        UpgradeType type)
+    {
+        switch (type)
+        {
+            case UpgradeType.Oven:
+                return ovenUpgrade;
+
+            case UpgradeType.BoardSpace:
+                return boardSpaceUpgrade;
+
+            case UpgradeType.Shelf:
+                return shelfUpgrade;
+
+            case UpgradeType.Customer:
+                return customerUpgrade;
+
+            case UpgradeType.MoneyMultiplier:
+                return moneyMultiplierUpgrade;
+
+            default:
+                return null;
+        }
+    }
+
+    // ==================================================
+    // NEXT LEVEL / COST LOOKUP
+    // ==================================================
+
+    public UpgradeLevelData GetNextLevelData(
+        UpgradeType type)
+    {
+        UpgradeDefinition definition =
+            GetDefinition(type);
+
+        if (definition == null)
+            return null;
+
+        int currentLevel =
+            GetLevel(type);
+
+        return definition.GetNextLevel(
+            currentLevel
+        );
+    }
+
+    public int GetNextUpgradeCost(
+        UpgradeType type)
+    {
+        UpgradeLevelData nextLevel =
+            GetNextLevelData(type);
+
+        if (nextLevel == null)
+            return 0;
+
+        return nextLevel.UpgradeCost;
+    }
+
+    // ==================================================
     // DESSERT PROGRESSION
-    // --------------------------------------------------
+    // ==================================================
 
     public bool IsDessertTierUnlocked(
         int tier)
@@ -176,10 +270,79 @@ public class PlayerProgressionManager : MonoBehaviour
             MaxUnlockedDessertTier;
     }
 
-    // --------------------------------------------------
-    // DEBUG UPGRADE
-    // --------------------------------------------------
+    // ==================================================
+    // CONTROLLED LEVEL CHANGE
+    // ==================================================
 
+    /// <summary>
+    /// Attempts to apply a valid progression level.
+    ///
+    /// This method does NOT spend cash.
+    /// Purchase validation belongs to
+    /// UpgradePurchaseManager.
+    ///
+    /// It is used after the purchase manager has
+    /// successfully validated and paid for an upgrade.
+    /// </summary>
+    public bool TrySetLevel(
+        UpgradeType type,
+        int newLevel)
+    {
+        UpgradeDefinition definition =
+            GetDefinition(type);
+
+        if (definition == null ||
+            !definition.IsValid)
+        {
+            Debug.LogWarning(
+                $"PROGRESSION SET FAILED | " +
+                $"{type} | " +
+                "Missing or invalid definition."
+            );
+
+            return false;
+        }
+
+        int currentLevel =
+            GetLevel(type);
+
+        if (newLevel < 1 ||
+            newLevel > definition.MaxLevel)
+        {
+            Debug.LogWarning(
+                $"PROGRESSION SET FAILED | " +
+                $"{definition.DisplayName} | " +
+                $"Requested Level {newLevel} " +
+                $"is outside valid range " +
+                $"1-{definition.MaxLevel}."
+            );
+
+            return false;
+        }
+
+        if (newLevel == currentLevel)
+        {
+            return false;
+        }
+
+        SetLevel(
+            type,
+            newLevel
+        );
+
+        return true;
+    }
+
+    // ==================================================
+    // DEBUG UPGRADE
+    // ==================================================
+
+    /// <summary>
+    /// Developer-only upgrade path.
+    ///
+    /// This intentionally ignores upgrade costs.
+    /// Use UpgradePurchaseManager for real purchases.
+    /// </summary>
     public bool TryUpgradeForDebug(
         UpgradeType type)
     {
@@ -196,7 +359,7 @@ public class PlayerProgressionManager : MonoBehaviour
             definition.MaxLevel)
         {
             Debug.Log(
-                $"UPGRADE | " +
+                $"DEBUG UPGRADE | " +
                 $"{definition.DisplayName} " +
                 "is already at maximum level."
             );
@@ -211,6 +374,10 @@ public class PlayerProgressionManager : MonoBehaviour
 
         return true;
     }
+
+    // ==================================================
+    // INTERNAL LEVEL APPLICATION
+    // ==================================================
 
     private void SetLevel(
         UpgradeType type,
@@ -267,34 +434,9 @@ public class PlayerProgressionManager : MonoBehaviour
         DebugCurrentProgression();
     }
 
-    // --------------------------------------------------
-    // DEFINITION LOOKUP
-    // --------------------------------------------------
-
-    private UpgradeDefinition GetDefinition(
-        UpgradeType type)
-    {
-        switch (type)
-        {
-            case UpgradeType.Oven:
-                return ovenUpgrade;
-
-            case UpgradeType.BoardSpace:
-                return boardSpaceUpgrade;
-
-            case UpgradeType.Shelf:
-                return shelfUpgrade;
-
-            case UpgradeType.Customer:
-                return customerUpgrade;
-
-            case UpgradeType.MoneyMultiplier:
-                return moneyMultiplierUpgrade;
-
-            default:
-                return null;
-        }
-    }
+    // ==================================================
+    // GAMEPLAY VALUE LOOKUP
+    // ==================================================
 
     private int GetIntValue(
         UpgradeDefinition definition,
@@ -328,9 +470,9 @@ public class PlayerProgressionManager : MonoBehaviour
         return levelData.FloatValue;
     }
 
-    // --------------------------------------------------
+    // ==================================================
     // VALIDATION
-    // --------------------------------------------------
+    // ==================================================
 
     private void ClampRuntimeLevels()
     {
@@ -444,9 +586,9 @@ public class PlayerProgressionManager : MonoBehaviour
         }
     }
 
-    // --------------------------------------------------
+    // ==================================================
     // DEBUG
-    // --------------------------------------------------
+    // ==================================================
 
     [ContextMenu("Debug Progression")]
     private void DebugCurrentProgression()
@@ -498,7 +640,9 @@ public class PlayerProgressionManager : MonoBehaviour
         );
     }
 
-    [ContextMenu("Debug Upgrade Money Multiplier")]
+    [ContextMenu(
+        "Debug Upgrade Money Multiplier"
+    )]
     private void DebugUpgradeMoneyMultiplier()
     {
         TryUpgradeForDebug(

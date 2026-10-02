@@ -1,9 +1,14 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class EconomyManager : MonoBehaviour
 {
-    public static EconomyManager Instance { get; private set; }
+    public static EconomyManager Instance
+    {
+        get;
+        private set;
+    }
 
     [Header("Economy")]
     [Min(0)]
@@ -15,19 +20,14 @@ public class EconomyManager : MonoBehaviour
     private OrderManager orderManager;
 
     [SerializeField]
-    private PlayerProgressionManager progressionManager;
+    private PlayerProgressionManager
+        progressionManager;
 
     private int currentCash;
 
-    // ==================================================
-    // EVENTS
-    // ==================================================
+    private bool initialized;
 
     public event Action<int> CashChanged;
-
-    // ==================================================
-    // PUBLIC STATE
-    // ==================================================
 
     public int CurrentCash =>
         currentCash;
@@ -52,29 +52,26 @@ public class EconomyManager : MonoBehaviour
 
         Instance = this;
 
-        currentCash =
-            Mathf.Max(
-                0,
-                startingCash
-            );
+        DontDestroyOnLoad(gameObject);
+
+        if (!initialized)
+        {
+            currentCash =
+                Mathf.Max(
+                    0,
+                    startingCash
+                );
+
+            initialized = true;
+        }
+        SceneManager.sceneLoaded +=
+    HandleSceneLoaded;
     }
 
     private void Start()
     {
         ResolveReferences();
-
-        if (orderManager == null)
-        {
-            Debug.LogError(
-                "EconomyManager: OrderManager " +
-                "could not be found."
-            );
-
-            return;
-        }
-
-        orderManager.OrderCompleted +=
-            HandleOrderCompleted;
+        SubscribeToOrderManager();
 
         CashChanged?.Invoke(
             currentCash
@@ -82,18 +79,52 @@ public class EconomyManager : MonoBehaviour
     }
 
     private void OnDestroy()
-    {
-        if (orderManager != null)
-        {
-            orderManager.OrderCompleted -=
-                HandleOrderCompleted;
-        }
+{
+    SceneManager.sceneLoaded -=
+        HandleSceneLoaded;
 
-        if (Instance == this)
-        {
-            Instance = null;
-        }
+    UnsubscribeFromOrderManager();
+
+    if (Instance == this)
+    {
+        Instance = null;
     }
+    
+}
+private void HandleSceneLoaded(
+    Scene scene,
+    LoadSceneMode mode)
+{
+    UnsubscribeFromOrderManager();
+
+    orderManager =
+        FindFirstObjectByType<
+            OrderManager>();
+
+    progressionManager =
+        FindFirstObjectByType<
+            PlayerProgressionManager>();
+
+    SubscribeToOrderManager();
+
+    CashChanged?.Invoke(
+        currentCash
+    );
+
+    Debug.Log(
+        $"ECONOMY REBOUND | " +
+        $"Scene: {scene.name} | " +
+        $"Cash: ${currentCash} | " +
+        $"OrderManager: " +
+        $"{(orderManager != null)} | " +
+        $"ProgressionManager: " +
+        $"{(progressionManager != null)}"
+    );
+}
+
+    // ==================================================
+    // REFERENCES
+    // ==================================================
 
     private void ResolveReferences()
     {
@@ -112,18 +143,31 @@ public class EconomyManager : MonoBehaviour
         }
     }
 
+    private void SubscribeToOrderManager()
+    {
+        if (orderManager == null)
+            return;
+
+        orderManager.OrderCompleted -=
+            HandleOrderCompleted;
+
+        orderManager.OrderCompleted +=
+            HandleOrderCompleted;
+    }
+
+    private void UnsubscribeFromOrderManager()
+    {
+        if (orderManager == null)
+            return;
+
+        orderManager.OrderCompleted -=
+            HandleOrderCompleted;
+    }
+
     // ==================================================
-    // ORDER REWARDS
+    // ORDER REWARD
     // ==================================================
 
-    /// <summary>
-    /// Calculates the actual amount of cash the player
-    /// should receive for an order after applying the
-    /// current Money Multiplier progression.
-    ///
-    /// CustomerOrder.CashReward always remains the
-    /// unmodified base reward.
-    /// </summary>
     public int CalculateOrderReward(
         CustomerOrder order)
     {
@@ -182,8 +226,7 @@ public class EconomyManager : MonoBehaviour
         if (amount <= 0)
             return;
 
-        currentCash +=
-            amount;
+        currentCash += amount;
 
         CashChanged?.Invoke(
             currentCash
@@ -215,8 +258,7 @@ public class EconomyManager : MonoBehaviour
         if (!CanAfford(amount))
             return false;
 
-        currentCash -=
-            amount;
+        currentCash -= amount;
 
         CashChanged?.Invoke(
             currentCash
