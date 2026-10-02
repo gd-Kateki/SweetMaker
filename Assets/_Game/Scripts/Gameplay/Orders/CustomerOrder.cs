@@ -2,7 +2,11 @@ using System.Collections.Generic;
 
 public class CustomerOrder
 {
+    private readonly int orderId;
     private readonly CustomerOrderDefinition definition;
+
+    public int OrderId =>
+        orderId;
 
     public CustomerOrderDefinition Definition =>
         definition;
@@ -22,11 +26,19 @@ public class CustomerOrder
         definition.IsValid;
 
     public CustomerOrder(
+        int orderId,
         CustomerOrderDefinition definition)
     {
+        this.orderId =
+            orderId;
+
         this.definition =
             definition;
     }
+
+    // --------------------------------------------------
+    // FULFILLMENT
+    // --------------------------------------------------
 
     public bool CanFulfill(
         GridManager gridManager)
@@ -74,7 +86,8 @@ public class CustomerOrder
         desserts =
             new List<Dessert>();
 
-        if (!CanFulfill(gridManager))
+        if (!CanFulfill(
+                gridManager))
         {
             return false;
         }
@@ -94,6 +107,7 @@ public class CustomerOrder
                     break;
 
                 if (cell == null ||
+                    !cell.IsUnlocked ||
                     cell.IsEmpty)
                 {
                     continue;
@@ -127,13 +141,16 @@ public class CustomerOrder
             if (remaining > 0)
             {
                 desserts.Clear();
-
                 return false;
             }
         }
 
         return true;
     }
+
+    // --------------------------------------------------
+    // BOARD INVENTORY
+    // --------------------------------------------------
 
     private int CountDessertOnBoard(
         GridManager gridManager,
@@ -152,6 +169,7 @@ public class CustomerOrder
             in gridManager.Cells)
         {
             if (cell == null ||
+                !cell.IsUnlocked ||
                 cell.IsEmpty)
             {
                 continue;

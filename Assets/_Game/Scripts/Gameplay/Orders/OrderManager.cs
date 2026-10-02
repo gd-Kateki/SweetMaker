@@ -4,32 +4,64 @@ using UnityEngine;
 
 public class OrderManager : MonoBehaviour
 {
+    private const int MaxCustomerSlots = 4;
+
     [Header("References")]
     [SerializeField]
     private GridManager gridManager;
 
-    [Header("Progression")]
     [SerializeField]
     private PlayerProgressionManager
         progressionManager;
 
-    [Header("Prototype Order Pool")]
+    [Header("Order Pool")]
     [SerializeField]
-    private CustomerOrderDefinition[]
-        orderPool;
+    private CustomerOrderDefinition[] orderPool;
 
-    private CustomerOrder activeOrder;
+    // --------------------------------------------------
+    // RUNTIME STATE
+    // --------------------------------------------------
 
-    private CustomerOrderDefinition
-        previousOrderDefinition;
+    // IMPORTANT:
+    // This list always contains exactly four entries.
+    //
+    // Index 0 = Customer 1
+    // Index 1 = Customer 2
+    // Index 2 = Customer 3
+    // Index 3 = Customer 4
+    //
+    // Locked / inactive slots contain null.
+    private readonly List<CustomerOrder>
+        customerOrders =
+            new List<CustomerOrder>(
+                MaxCustomerSlots
+            );
+
+    private readonly List<CustomerOrderDefinition>
+        recentOrderDefinitions =
+            new List<CustomerOrderDefinition>();
+
+    private int nextOrderId = 1;
 
     private bool isFulfilling;
+
+    // --------------------------------------------------
+    // EVENTS
+    // --------------------------------------------------
 
     public event Action
         ActiveOrderChanged;
 
     public event Action
         OrderStateChanged;
+
+    public event Action
+        ActiveOrdersChanged;
+
+    public event Action<
+        int,
+        CustomerOrder>
+        CustomerOrderChanged;
 
     public event Action<CustomerOrder>
         OrderFulfillmentStarted;
@@ -40,34 +72,84 @@ public class OrderManager : MonoBehaviour
     public event Action<CustomerOrder>
         OrderGenerated;
 
-    public CustomerOrder ActiveOrder =>
-        activeOrder;
+    // --------------------------------------------------
+    // PUBLIC STATE
+    // --------------------------------------------------
 
-    public bool HasActiveOrder =>
-        activeOrder != null &&
-        activeOrder.IsValid;
+    public IReadOnlyList<CustomerOrder>
+        CustomerOrders =>
+            customerOrders;
+
+    // Alias useful for UI/general systems.
+    public IReadOnlyList<CustomerOrder>
+        ActiveOrders =>
+            customerOrders;
+
+    public int ActiveCustomerCount
+    {
+        get
+        {
+            if (progressionManager == null)
+                return 1;
+
+            return Mathf.Clamp(
+                progressionManager
+                    .ActiveCustomerOrders,
+                1,
+                MaxCustomerSlots
+            );
+        }
+    }
+
+    public int ActiveOrderCount
+    {
+        get
+        {
+            int count = 0;
+
+            for (int i = 0;
+                 i < ActiveCustomerCount;
+                 i++)
+            {
+                if (customerOrders.Count > i &&
+                    customerOrders[i] != null)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
 
     public bool IsFulfilling =>
         isFulfilling;
 
-    public bool CanFulfillActiveOrder
+    // --------------------------------------------------
+    // TEMPORARY LEGACY COMPATIBILITY
+    // --------------------------------------------------
+    //
+    // Existing single-order UI still sees
+    // Customer 1 until we replace that UI.
+    // --------------------------------------------------
+
+    public CustomerOrder ActiveOrder =>
+        GetOrderForCustomer(0);
+
+    public bool HasActiveOrder =>
+        ActiveOrder != null &&
+        ActiveOrder.IsValid;
+
+    public bool CanFulfillActiveOrder =>
+        CanFulfillOrderAtIndex(0);
+
+    // ==================================================
+    // UNITY
+    // ==================================================
+
+    private void Awake()
     {
-        get
-        {
-            if (isFulfilling)
-                return false;
-
-            if (!HasActiveOrder)
-                return false;
-
-            if (gridManager == null)
-                return false;
-
-            return activeOrder
-                .CanFulfill(
-                    gridManager
-                );
-        }
+        InitializeCustomerSlots();
     }
 
     private void Start()
@@ -102,7 +184,7 @@ public class OrderManager : MonoBehaviour
             .UpgradeLevelChanged +=
                 HandleUpgradeLevelChanged;
 
-        GenerateNewOrder();
+        RefreshCustomerSlots();
     }
 
     private void OnDestroy()
@@ -138,100 +220,218 @@ public class OrderManager : MonoBehaviour
         }
     }
 
-    // --------------------------------------------------
-    // ORDER GENERATION
-    // --------------------------------------------------
-
-    public void GenerateNewOrder()
+    private void InitializeCustomerSlots()
     {
-        if (isFulfilling)
-            return;
+        customerOrders.Clear();
+
+        for (int i = 0;
+             i < MaxCustomerSlots;
+             i++)
+        {
+            customerOrders.Add(
+                null
+            );
+        }
+    }
+
+    // ==================================================
+    // CUSTOMER SLOTS
+    // ==================================================
+
+    public bool IsCustomerUnlocked(
+        int customerIndex)
+    {
+        if (customerIndex < 0 ||
+            customerIndex >=
+                MaxCustomerSlots)
+        {
+            return false;
+        }
+
+        return customerIndex <
+            ActiveCustomerCount;
+    }
+
+    public CustomerOrder GetOrderForCustomer(
+        int customerIndex)
+    {
+        if (customerIndex < 0 ||
+            customerIndex >=
+                customerOrders.Count)
+        {
+            return null;
+        }
+
+        return customerOrders[
+            customerIndex
+        ];
+    }
+
+    private void RefreshCustomerSlots()
+    {
+        int activeCustomers =
+            ActiveCustomerCount;
+
+        for (int i = 0;
+             i < MaxCustomerSlots;
+             i++)
+        {
+            if (i < activeCustomers)
+            {
+                // Already has an active order.
+                // Never reroll it merely because
+                // progression changed.
+                if (customerOrders[i] != null)
+                    continue;
+
+                GenerateOrderForCustomer(
+                    i
+                );
+            }
+            else
+            {
+                // Progression currently only goes
+                // upward, so normally these remain
+                // null forever until unlocked.
+                if (customerOrders[i] != null)
+                {
+                    Debug.LogWarning(
+                        $"OrderManager: Customer " +
+                        $"{i + 1} is locked but " +
+                        "still has an order."
+                    );
+                }
+            }
+        }
+
+        NotifyOrderCollectionsChanged();
+    }
+
+    // ==================================================
+    // ORDER GENERATION
+    // ==================================================
+
+    private bool GenerateOrderForCustomer(
+        int customerIndex)
+    {
+        if (!IsCustomerUnlocked(
+                customerIndex))
+        {
+            return false;
+        }
 
         CustomerOrderDefinition definition =
             GetRandomValidOrder();
 
         if (definition == null)
         {
-            Debug.LogError(
-                "OrderManager: No valid and " +
-                "currently unlocked order " +
-                "exists in the order pool."
-            );
-
-            activeOrder = null;
-
-            ActiveOrderChanged?.Invoke();
-            OrderStateChanged?.Invoke();
-
-            return;
-        }
-
-        SetActiveOrder(
-            definition
-        );
-    }
-
-    public void SetActiveOrder(
-        CustomerOrderDefinition definition)
-    {
-        if (isFulfilling)
-            return;
-
-        if (definition == null)
-        {
-            Debug.LogError(
-                "OrderManager: Cannot set " +
-                "a null order definition."
-            );
-
-            return;
-        }
-
-        if (!definition.IsValid)
-        {
-            Debug.LogError(
-                $"OrderManager: " +
-                $"{definition.name} is invalid."
-            );
-
-            return;
-        }
-
-        if (!IsOrderUnlocked(
-                definition))
-        {
             Debug.LogWarning(
-                $"ORDER LOCKED | " +
-                $"{definition.DisplayName} " +
-                "requires dessert tiers " +
-                "above the current Oven " +
-                "progression."
+                $"OrderManager: Could not " +
+                $"generate an order for " +
+                $"Customer {customerIndex + 1}. " +
+                "No valid unlocked order exists."
             );
 
-            return;
+            return false;
         }
 
-        activeOrder =
+        int orderId =
+            nextOrderId;
+
+        nextOrderId++;
+
+        CustomerOrder newOrder =
             new CustomerOrder(
+                orderId,
                 definition
             );
 
-        previousOrderDefinition =
-            definition;
+        customerOrders[
+            customerIndex
+        ] = newOrder;
+
+        TrackRecentDefinition(
+            definition
+        );
 
         Debug.Log(
             $"ORDER GENERATED | " +
-            $"{activeOrder.DisplayName}"
+            $"Customer {customerIndex + 1} | " +
+            $"Order #{newOrder.OrderId} | " +
+            $"{newOrder.DisplayName}"
         );
 
         OrderGenerated?.Invoke(
-            activeOrder
+            newOrder
         );
 
-        ActiveOrderChanged?.Invoke();
+        CustomerOrderChanged?.Invoke(
+            customerIndex,
+            newOrder
+        );
 
-        EvaluateActiveOrder();
+        return true;
     }
+
+    // --------------------------------------------------
+    // MANUAL GENERATION
+    // --------------------------------------------------
+
+    public bool GenerateNewOrderForCustomer(
+        int customerIndex)
+    {
+        if (isFulfilling)
+            return false;
+
+        if (!IsCustomerUnlocked(
+                customerIndex))
+        {
+            Debug.Log(
+                $"ORDER | Customer " +
+                $"{customerIndex + 1} " +
+                "is not unlocked."
+            );
+
+            return false;
+        }
+
+        if (GetOrderForCustomer(
+                customerIndex) != null)
+        {
+            Debug.Log(
+                $"ORDER | Customer " +
+                $"{customerIndex + 1} " +
+                "already has an active order."
+            );
+
+            return false;
+        }
+
+        bool generated =
+            GenerateOrderForCustomer(
+                customerIndex
+            );
+
+        if (generated)
+        {
+            NotifyOrderCollectionsChanged();
+        }
+
+        return generated;
+    }
+
+    // Temporary compatibility with older
+    // prototype/debug code.
+    public void GenerateNewOrder()
+    {
+        GenerateNewOrderForCustomer(
+            0
+        );
+    }
+
+    // ==================================================
+    // ORDER POOL
+    // ==================================================
 
     private CustomerOrderDefinition
         GetRandomValidOrder()
@@ -243,9 +443,8 @@ public class OrderManager : MonoBehaviour
         }
 
         List<CustomerOrderDefinition>
-            validOrders =
-                new List<
-                    CustomerOrderDefinition>();
+            eligibleOrders =
+                new List<CustomerOrderDefinition>();
 
         foreach (
             CustomerOrderDefinition definition
@@ -263,53 +462,89 @@ public class OrderManager : MonoBehaviour
                 continue;
             }
 
-            validOrders.Add(
+            eligibleOrders.Add(
                 definition
             );
         }
 
-        if (validOrders.Count == 0)
-        {
+        if (eligibleOrders.Count == 0)
             return null;
-        }
 
-        // Avoid immediately repeating the
-        // same order when alternatives exist.
-        if (validOrders.Count > 1 &&
-            previousOrderDefinition != null)
-        {
-            validOrders.Remove(
-                previousOrderDefinition
-            );
-        }
+        // ----------------------------------------------
+        // Prefer definitions that are not currently
+        // being used by another customer.
+        // ----------------------------------------------
 
-        if (validOrders.Count == 0)
+        if (eligibleOrders.Count > 1)
         {
-            if (previousOrderDefinition != null &&
-                IsOrderUnlocked(
-                    previousOrderDefinition))
+            List<CustomerOrderDefinition>
+                unusedOrders =
+                    new List<
+                        CustomerOrderDefinition>();
+
+            foreach (
+                CustomerOrderDefinition definition
+                in eligibleOrders)
             {
-                return
-                    previousOrderDefinition;
+                if (!IsDefinitionCurrentlyActive(
+                        definition))
+                {
+                    unusedOrders.Add(
+                        definition
+                    );
+                }
             }
 
-            return null;
+            if (unusedOrders.Count > 0)
+            {
+                eligibleOrders =
+                    unusedOrders;
+            }
+        }
+
+        // ----------------------------------------------
+        // Also avoid very recent definitions where
+        // alternatives exist.
+        // ----------------------------------------------
+
+        if (eligibleOrders.Count > 1 &&
+            recentOrderDefinitions.Count > 0)
+        {
+            List<CustomerOrderDefinition>
+                lessRecentOrders =
+                    new List<
+                        CustomerOrderDefinition>();
+
+            foreach (
+                CustomerOrderDefinition definition
+                in eligibleOrders)
+            {
+                if (!recentOrderDefinitions.Contains(
+                        definition))
+                {
+                    lessRecentOrders.Add(
+                        definition
+                    );
+                }
+            }
+
+            if (lessRecentOrders.Count > 0)
+            {
+                eligibleOrders =
+                    lessRecentOrders;
+            }
         }
 
         int randomIndex =
             UnityEngine.Random.Range(
                 0,
-                validOrders.Count
+                eligibleOrders.Count
             );
 
-        return validOrders[
+        return eligibleOrders[
             randomIndex
         ];
     }
-
-    // --------------------------------------------------
-    // PROGRESSION FILTER
-    // --------------------------------------------------
 
     private bool IsOrderUnlocked(
         CustomerOrderDefinition definition)
@@ -333,12 +568,11 @@ public class OrderManager : MonoBehaviour
                 return false;
             }
 
-            int tier =
-                requirement.Dessert.Tier;
-
             if (!progressionManager
                     .IsDessertTierUnlocked(
-                        tier))
+                        requirement
+                            .Dessert
+                            .Tier))
             {
                 return false;
             }
@@ -347,50 +581,98 @@ public class OrderManager : MonoBehaviour
         return true;
     }
 
-    private void HandleUpgradeLevelChanged(
-        UpgradeType type,
-        int newLevel)
+    private bool IsDefinitionCurrentlyActive(
+        CustomerOrderDefinition definition)
     {
-        if (type != UpgradeType.Oven)
-            return;
+        foreach (
+            CustomerOrder order
+            in customerOrders)
+        {
+            if (order == null)
+                continue;
 
-        Debug.Log(
-            $"ORDER PROGRESSION | " +
-            $"Oven Level {newLevel} | " +
-            $"Maximum Order Tier: " +
-            $"T{progressionManager.MaxUnlockedDessertTier}"
-        );
+            if (order.Definition ==
+                definition)
+            {
+                return true;
+            }
+        }
 
-        // Existing customer remains untouched.
-        // The expanded tier pool applies to
-        // future generated orders.
+        return false;
     }
 
-    // --------------------------------------------------
+    private void TrackRecentDefinition(
+        CustomerOrderDefinition definition)
+    {
+        if (definition == null)
+            return;
+
+        recentOrderDefinitions.Remove(
+            definition
+        );
+
+        recentOrderDefinitions.Add(
+            definition
+        );
+
+        const int historyLimit = 2;
+
+        while (
+            recentOrderDefinitions.Count >
+            historyLimit)
+        {
+            recentOrderDefinitions
+                .RemoveAt(0);
+        }
+    }
+
+    // ==================================================
     // FULFILLMENT
-    // --------------------------------------------------
+    // ==================================================
+
+    public bool CanFulfillOrderAtIndex(
+        int customerIndex)
+    {
+        if (isFulfilling)
+            return false;
+
+        if (gridManager == null)
+            return false;
+
+        if (!IsCustomerUnlocked(
+                customerIndex))
+        {
+            return false;
+        }
+
+        CustomerOrder order =
+            GetOrderForCustomer(
+                customerIndex
+            );
+
+        if (order == null ||
+            !order.IsValid)
+        {
+            return false;
+        }
+
+        return order.CanFulfill(
+            gridManager
+        );
+    }
 
     public bool TryFulfillActiveOrder()
     {
+        return TryFulfillOrderAtIndex(
+            0
+        );
+    }
+
+    public bool TryFulfillOrderAtIndex(
+        int customerIndex)
+    {
         if (isFulfilling)
-        {
-            Debug.Log(
-                "ORDER | Fulfillment is " +
-                "already in progress."
-            );
-
             return false;
-        }
-
-        if (!HasActiveOrder)
-        {
-            Debug.Log(
-                "ORDER | No active order " +
-                "to fulfill."
-            );
-
-            return false;
-        }
 
         if (gridManager == null)
         {
@@ -402,15 +684,40 @@ public class OrderManager : MonoBehaviour
             return false;
         }
 
-        if (!activeOrder
+        if (!IsCustomerUnlocked(
+                customerIndex))
+        {
+            Debug.Log(
+                $"ORDER | Customer " +
+                $"{customerIndex + 1} " +
+                "is locked."
+            );
+
+            return false;
+        }
+
+        CustomerOrder orderToComplete =
+            GetOrderForCustomer(
+                customerIndex
+            );
+
+        if (orderToComplete == null ||
+            !orderToComplete.IsValid)
+        {
+            return false;
+        }
+
+        if (!orderToComplete
                 .TryGetDessertsForFulfillment(
                     gridManager,
                     out List<Dessert>
                         dessertsToConsume))
         {
             Debug.Log(
-                $"ORDER | " +
-                $"{activeOrder.DisplayName} " +
+                $"ORDER | Customer " +
+                $"{customerIndex + 1} | " +
+                $"Order " +
+                $"#{orderToComplete.OrderId} " +
                 "cannot be fulfilled yet."
             );
 
@@ -419,14 +726,14 @@ public class OrderManager : MonoBehaviour
 
         isFulfilling = true;
 
-        CustomerOrder completedOrder =
-            activeOrder;
-
         OrderFulfillmentStarted?.Invoke(
-            completedOrder
+            orderToComplete
         );
 
-        // Clear logical occupancy first.
+        // ----------------------------------------------
+        // CONSUME BOARD INVENTORY
+        // ----------------------------------------------
+
         foreach (
             Dessert dessert
             in dessertsToConsume)
@@ -444,12 +751,9 @@ public class OrderManager : MonoBehaviour
                 );
             }
 
-            dessert.SetCurrentCell(
-                null
-            );
+            dessert.ClearLocation();
         }
 
-        // Then remove the visual objects.
         foreach (
             Dessert dessert
             in dessertsToConsume)
@@ -462,101 +766,223 @@ public class OrderManager : MonoBehaviour
             }
         }
 
-        activeOrder = null;
+        // ----------------------------------------------
+        // CLEAR EXACT CUSTOMER SLOT
+        // ----------------------------------------------
+
+        customerOrders[
+            customerIndex
+        ] = null;
+
+        CustomerOrderChanged?.Invoke(
+            customerIndex,
+            null
+        );
 
         gridManager
             .NotifyBoardChanged();
 
         Debug.Log(
             $"ORDER COMPLETED | " +
-            $"{completedOrder.DisplayName} | " +
+            $"Customer {customerIndex + 1} | " +
+            $"Order #{orderToComplete.OrderId} | " +
+            $"{orderToComplete.DisplayName} | " +
             $"Consumed: " +
             $"{dessertsToConsume.Count}"
         );
 
+        // EconomyManager listens to this event.
         OrderCompleted?.Invoke(
-            completedOrder
+            orderToComplete
         );
 
-        ActiveOrderChanged?.Invoke();
+        // ----------------------------------------------
+        // REPLACE ONLY THIS CUSTOMER'S ORDER
+        // ----------------------------------------------
+
+        GenerateOrderForCustomer(
+            customerIndex
+        );
 
         isFulfilling = false;
 
-        GenerateNewOrder();
+        NotifyOrderCollectionsChanged();
 
         return true;
     }
 
-    // --------------------------------------------------
-    // BOARD EVALUATION
-    // --------------------------------------------------
+    // ==================================================
+    // BOARD STATE
+    // ==================================================
 
     private void HandleBoardChanged()
     {
-        EvaluateActiveOrder();
+        EvaluateOrders();
     }
 
-    private void EvaluateActiveOrder()
+    private void EvaluateOrders()
     {
         if (isFulfilling)
             return;
 
-        if (!HasActiveOrder ||
-            gridManager == null)
+        for (int i = 0;
+             i < ActiveCustomerCount;
+             i++)
         {
-            return;
-        }
+            CustomerOrder order =
+                GetOrderForCustomer(
+                    i
+                );
 
-        bool canFulfill =
-            activeOrder.CanFulfill(
-                gridManager
+            if (order == null)
+                continue;
+
+            bool canFulfill =
+                order.CanFulfill(
+                    gridManager
+                );
+
+            Debug.Log(
+                $"ORDER STATE | " +
+                $"Customer {i + 1} | " +
+                $"Order #{order.OrderId} | " +
+                $"Can Fulfill: {canFulfill}"
             );
-
-        Debug.Log(
-            $"ORDER | " +
-            $"{activeOrder.DisplayName} | " +
-            $"Can Fulfill: {canFulfill}"
-        );
+        }
 
         OrderStateChanged?.Invoke();
     }
 
-    // --------------------------------------------------
-    // DEBUG
-    // --------------------------------------------------
+    // ==================================================
+    // PROGRESSION
+    // ==================================================
 
-    [ContextMenu("Generate New Order")]
-    private void DebugGenerateNewOrder()
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
     {
-        GenerateNewOrder();
-    }
-
-    [ContextMenu("Fulfill Active Order")]
-    private void DebugFulfillActiveOrder()
-    {
-        TryFulfillActiveOrder();
-    }
-
-    [ContextMenu("Debug Active Order")]
-    private void DebugActiveOrder()
-    {
-        if (!HasActiveOrder)
+        if (type == UpgradeType.Oven)
         {
             Debug.Log(
-                "ORDER | No active order."
+                $"ORDER PROGRESSION | " +
+                $"Oven Level {newLevel} | " +
+                $"Maximum Order Tier: " +
+                $"T{progressionManager.MaxUnlockedDessertTier}"
             );
 
+            // Existing orders remain unchanged.
+            // Only future generated orders gain
+            // access to newly unlocked tiers.
             return;
         }
 
+        if (type == UpgradeType.Customer)
+        {
+            Debug.Log(
+                $"CUSTOMER PROGRESSION | " +
+                $"Level {newLevel} | " +
+                $"Active Customers: " +
+                $"{ActiveCustomerCount}"
+            );
+
+            RefreshCustomerSlots();
+        }
+    }
+
+    // ==================================================
+    // EVENTS
+    // ==================================================
+
+    private void NotifyOrderCollectionsChanged()
+    {
+        ActiveOrdersChanged?.Invoke();
+
+        // Temporary compatibility for the old
+        // single-order UI.
+        ActiveOrderChanged?.Invoke();
+
+        OrderStateChanged?.Invoke();
+    }
+
+    // ==================================================
+    // DEBUG
+    // ==================================================
+
+    [ContextMenu("Debug Customer Orders")]
+    private void DebugCustomerOrders()
+    {
         Debug.Log(
-            $"ORDER | " +
-            $"{activeOrder.DisplayName} | " +
-            $"Reward: " +
-            $"${activeOrder.CashReward} | " +
-            $"Can Fulfill: " +
-            $"{CanFulfillActiveOrder}"
+            $"CUSTOMER ORDERS | " +
+            $"Customer Level: " +
+            $"{progressionManager.CustomerLevel} | " +
+            $"Unlocked Customers: " +
+            $"{ActiveCustomerCount} | " +
+            $"Next Order ID: " +
+            $"#{nextOrderId}"
         );
+
+        for (int i = 0;
+             i < MaxCustomerSlots;
+             i++)
+        {
+            bool unlocked =
+                IsCustomerUnlocked(i);
+
+            CustomerOrder order =
+                GetOrderForCustomer(i);
+
+            if (!unlocked)
+            {
+                Debug.Log(
+                    $"CUSTOMER {i + 1} | LOCKED"
+                );
+
+                continue;
+            }
+
+            if (order == null)
+            {
+                Debug.Log(
+                    $"CUSTOMER {i + 1} | " +
+                    "UNLOCKED | No Active Order"
+                );
+
+                continue;
+            }
+
+            Debug.Log(
+                $"CUSTOMER {i + 1} | " +
+                $"Order #{order.OrderId} | " +
+                $"{order.DisplayName} | " +
+                $"Reward: ${order.CashReward} | " +
+                $"Can Fulfill: " +
+                $"{CanFulfillOrderAtIndex(i)}"
+            );
+        }
+    }
+
+    [ContextMenu("Fulfill Customer 1")]
+    private void DebugFulfillCustomer1()
+    {
+        TryFulfillOrderAtIndex(0);
+    }
+
+    [ContextMenu("Fulfill Customer 2")]
+    private void DebugFulfillCustomer2()
+    {
+        TryFulfillOrderAtIndex(1);
+    }
+
+    [ContextMenu("Fulfill Customer 3")]
+    private void DebugFulfillCustomer3()
+    {
+        TryFulfillOrderAtIndex(2);
+    }
+
+    [ContextMenu("Fulfill Customer 4")]
+    private void DebugFulfillCustomer4()
+    {
+        TryFulfillOrderAtIndex(3);
     }
 
     [ContextMenu("Debug Eligible Orders")]
@@ -574,7 +1000,7 @@ public class OrderManager : MonoBehaviour
 
         Debug.Log(
             $"ORDER POOL | " +
-            $"Current Max Tier: " +
+            $"Maximum Tier: " +
             $"T{progressionManager.MaxUnlockedDessertTier}"
         );
 
@@ -583,25 +1009,13 @@ public class OrderManager : MonoBehaviour
             in orderPool)
         {
             if (definition == null)
-            {
-                Debug.Log(
-                    "ORDER POOL | " +
-                    "NULL | Eligible: False"
-                );
-
                 continue;
-            }
-
-            bool eligible =
-                definition.IsValid &&
-                IsOrderUnlocked(
-                    definition
-                );
 
             Debug.Log(
                 $"ORDER POOL | " +
                 $"{definition.DisplayName} | " +
-                $"Eligible: {eligible}"
+                $"Eligible: " +
+                $"{IsOrderUnlocked(definition)}"
             );
         }
     }
