@@ -24,6 +24,9 @@ public class UpgradeCardUI : MonoBehaviour
     [SerializeField]
     private TMP_Text priceText;
 
+    [SerializeField]
+    private TMP_Text buttonText;
+
     [Header("Button")]
     [SerializeField]
     private Button purchaseButton;
@@ -33,6 +36,9 @@ public class UpgradeCardUI : MonoBehaviour
 
     private UpgradePurchaseManager
         purchaseManager;
+
+    private EconomyManager
+        economyManager;
 
     // ==================================================
     // UNITY
@@ -72,8 +78,21 @@ public class UpgradeCardUI : MonoBehaviour
             return;
         }
 
+        if (economyManager == null)
+        {
+            Debug.LogError(
+                $"UpgradeCardUI ({name}): " +
+                "EconomyManager not found."
+            );
+
+            return;
+        }
+
         progressionManager.UpgradeLevelChanged +=
             HandleUpgradeLevelChanged;
+
+        economyManager.CashChanged +=
+            HandleCashChanged;
 
         if (purchaseButton != null)
         {
@@ -91,6 +110,12 @@ public class UpgradeCardUI : MonoBehaviour
         {
             progressionManager.UpgradeLevelChanged -=
                 HandleUpgradeLevelChanged;
+        }
+
+        if (economyManager != null)
+        {
+            economyManager.CashChanged -=
+                HandleCashChanged;
         }
 
         if (purchaseButton != null)
@@ -141,12 +166,15 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         /*
-         * Successful purchases already trigger
-         * UpgradeLevelChanged through the progression
-         * system, which refreshes this card.
+         * A successful purchase triggers both:
          *
-         * We still refresh here so the UI remains
-         * correct after a failed attempt as well.
+         * CashChanged
+         * UpgradeLevelChanged
+         *
+         * Both events refresh the card.
+         *
+         * We still refresh here so the UI also
+         * remains correct after a failed purchase.
          */
         Refresh();
     }
@@ -192,6 +220,9 @@ public class UpgradeCardUI : MonoBehaviour
         if (currentData == null)
             return;
 
+        /*
+         * MAX state has priority over affordability.
+         */
         if (upgradeDefinition.IsMaxLevel(
                 currentLevel))
         {
@@ -219,7 +250,7 @@ public class UpgradeCardUI : MonoBehaviour
     }
 
     // ==================================================
-    // NORMAL DISPLAY
+    // NORMAL UPGRADE DISPLAY
     // ==================================================
 
     private void ShowUpgrade(
@@ -272,24 +303,35 @@ public class UpgradeCardUI : MonoBehaviour
                 $"${nextData.UpgradeCost:N0}";
         }
 
+        /*
+         * A non-max card always displays
+         * UPGRADE regardless of affordability.
+         *
+         * Affordability only controls whether the
+         * button can currently be pressed.
+         */
+        if (buttonText != null)
+        {
+            buttonText.text =
+                "UPGRADE";
+        }
+
         if (purchaseButton != null)
         {
-            /*
-             * Affordability feedback will be handled
-             * properly in 12.7.4.5.
-             *
-             * For this milestone, the button remains
-             * available whenever there is a next level.
-             * UpgradePurchaseManager itself safely
-             * rejects unaffordable purchases.
-             */
+            bool canAfford =
+                purchaseManager != null &&
+                purchaseManager
+                    .CanAffordNextUpgrade(
+                        type
+                    );
+
             purchaseButton.interactable =
-                true;
+                canAfford;
         }
     }
 
     // ==================================================
-    // MAX DISPLAY
+    // MAX LEVEL DISPLAY
     // ==================================================
 
     private void ShowMaxLevel(
@@ -317,6 +359,18 @@ public class UpgradeCardUI : MonoBehaviour
                 GetEffectLabel(type);
         }
 
+        /*
+         * At max level we show only the final
+         * gameplay value instead of a transition.
+         *
+         * Example:
+         *
+         * Normal:
+         * T12 → T16
+         *
+         * Max:
+         * T25
+         */
         if (valueText != null)
         {
             valueText.text =
@@ -326,12 +380,31 @@ public class UpgradeCardUI : MonoBehaviour
                 );
         }
 
+        /*
+         * There is no next purchase price.
+         */
         if (priceText != null)
         {
             priceText.text =
                 "MAX";
         }
 
+        /*
+         * Clearly communicate that this upgrade
+         * has been fully completed.
+         */
+        if (buttonText != null)
+        {
+            buttonText.text =
+                "MAX LEVEL";
+        }
+
+        /*
+         * Max level always overrides affordability.
+         *
+         * Even if the player has enough cash,
+         * this button can never become interactable.
+         */
         if (purchaseButton != null)
         {
             purchaseButton.interactable =
@@ -452,25 +525,47 @@ public class UpgradeCardUI : MonoBehaviour
         Refresh();
     }
 
+    private void HandleCashChanged(
+        int newCash)
+    {
+        /*
+         * Cash changes may alter affordability for
+         * every upgrade card.
+         *
+         * Refresh regardless of this card's type.
+         */
+        Refresh();
+    }
+
     // ==================================================
     // REFERENCES
     // ==================================================
 
     private void ResolveReferences()
     {
-        if (progressionManager == null)
+        /*
+         * PlayerProgressionManager persists between
+         * scenes.
+         *
+         * Always prefer the singleton carrying the
+         * player's actual purchased progression.
+         */
+        if (PlayerProgressionManager.Instance != null)
         {
             progressionManager =
                 PlayerProgressionManager.Instance;
-
-            if (progressionManager == null)
-            {
-                progressionManager =
-                    FindFirstObjectByType<
-                        PlayerProgressionManager>();
-            }
+        }
+        else if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
         }
 
+        /*
+         * UpgradePurchaseManager belongs to the
+         * MainBakery scene.
+         */
         if (purchaseManager == null)
         {
             purchaseManager =
@@ -482,6 +577,22 @@ public class UpgradeCardUI : MonoBehaviour
                     FindFirstObjectByType<
                         UpgradePurchaseManager>();
             }
+        }
+
+        /*
+         * EconomyManager is persistent and owns
+         * the shared cash balance.
+         */
+        if (EconomyManager.Instance != null)
+        {
+            economyManager =
+                EconomyManager.Instance;
+        }
+        else if (economyManager == null)
+        {
+            economyManager =
+                FindFirstObjectByType<
+                    EconomyManager>();
         }
     }
 

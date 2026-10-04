@@ -574,7 +574,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000019073486, y: 125}
+  m_AnchoredPosition: {x: -0.000015258789, y: 125}
   m_SizeDelta: {x: -900, y: -250}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7740933371051749681
@@ -627,11 +627,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9f2ff95e28f66d46bbd86929b5b852b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeCardUI
+  upgradeDefinition: {fileID: 0}
   upgradeNameText: {fileID: 1952818838986804043}
   levelText: {fileID: 5723161596120778220}
   effectLabelText: {fileID: 4523219856188570108}
   valueText: {fileID: 9161292831575217704}
   priceText: {fileID: 3790715771410225071}
+  buttonText: {fileID: 2443458557906387767}
   purchaseButton: {fileID: 9173353401447694653}
 --- !u!114 &-2465248245040460254
 MonoBehaviour:
