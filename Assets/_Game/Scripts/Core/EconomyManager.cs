@@ -64,13 +64,15 @@ public class EconomyManager : MonoBehaviour
 
             initialized = true;
         }
+
         SceneManager.sceneLoaded +=
-    HandleSceneLoaded;
+            HandleSceneLoaded;
     }
 
     private void Start()
     {
         ResolveReferences();
+
         SubscribeToOrderManager();
 
         CashChanged?.Invoke(
@@ -79,48 +81,62 @@ public class EconomyManager : MonoBehaviour
     }
 
     private void OnDestroy()
-{
-    SceneManager.sceneLoaded -=
-        HandleSceneLoaded;
-
-    UnsubscribeFromOrderManager();
-
-    if (Instance == this)
     {
-        Instance = null;
+        SceneManager.sceneLoaded -=
+            HandleSceneLoaded;
+
+        UnsubscribeFromOrderManager();
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
-    
-}
-private void HandleSceneLoaded(
-    Scene scene,
-    LoadSceneMode mode)
-{
-    UnsubscribeFromOrderManager();
 
-    orderManager =
-        FindFirstObjectByType<
-            OrderManager>();
+    // ==================================================
+    // SCENE REBINDING
+    // ==================================================
 
-    progressionManager =
-        FindFirstObjectByType<
-            PlayerProgressionManager>();
+    private void HandleSceneLoaded(
+        Scene scene,
+        LoadSceneMode mode)
+    {
+        UnsubscribeFromOrderManager();
 
-    SubscribeToOrderManager();
+        /*
+         * OrderManager is scene-specific, so finding
+         * the instance belonging to the newly loaded
+         * scene is correct.
+         */
+        orderManager =
+            FindFirstObjectByType<
+                OrderManager>();
 
-    CashChanged?.Invoke(
-        currentCash
-    );
+        /*
+         * PlayerProgressionManager is persistent.
+         * Always prefer its singleton instead of
+         * searching for an arbitrary scene instance.
+         */
+        ResolveProgressionManager();
 
-    Debug.Log(
-        $"ECONOMY REBOUND | " +
-        $"Scene: {scene.name} | " +
-        $"Cash: ${currentCash} | " +
-        $"OrderManager: " +
-        $"{(orderManager != null)} | " +
-        $"ProgressionManager: " +
-        $"{(progressionManager != null)}"
-    );
-}
+        SubscribeToOrderManager();
+
+        CashChanged?.Invoke(
+            currentCash
+        );
+
+        Debug.Log(
+            $"ECONOMY REBOUND | " +
+            $"Scene: {scene.name} | " +
+            $"Cash: ${currentCash} | " +
+            $"OrderManager: " +
+            $"{(orderManager != null)} | " +
+            $"ProgressionManager: " +
+            $"{(progressionManager != null)} | " +
+            $"Money Multiplier: " +
+            $"x{CurrentMoneyMultiplier:0.##}"
+        );
+    }
 
     // ==================================================
     // REFERENCES
@@ -135,6 +151,26 @@ private void HandleSceneLoaded(
                     OrderManager>();
         }
 
+        ResolveProgressionManager();
+    }
+
+    private void ResolveProgressionManager()
+    {
+        /*
+         * Prefer the persistent singleton carrying
+         * the player's actual progression state.
+         */
+        if (PlayerProgressionManager.Instance != null)
+        {
+            progressionManager =
+                PlayerProgressionManager.Instance;
+
+            return;
+        }
+
+        /*
+         * Emergency fallback.
+         */
         if (progressionManager == null)
         {
             progressionManager =
@@ -280,6 +316,8 @@ private void HandleSceneLoaded(
     [ContextMenu("Debug Economy")]
     private void DebugEconomy()
     {
+        ResolveProgressionManager();
+
         Debug.Log(
             $"ECONOMY | " +
             $"Cash: ${currentCash} | " +

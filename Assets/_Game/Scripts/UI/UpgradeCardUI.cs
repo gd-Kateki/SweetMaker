@@ -31,6 +31,9 @@ public class UpgradeCardUI : MonoBehaviour
     private PlayerProgressionManager
         progressionManager;
 
+    private UpgradePurchaseManager
+        purchaseManager;
+
     // ==================================================
     // UNITY
     // ==================================================
@@ -59,8 +62,25 @@ public class UpgradeCardUI : MonoBehaviour
             return;
         }
 
+        if (purchaseManager == null)
+        {
+            Debug.LogError(
+                $"UpgradeCardUI ({name}): " +
+                "UpgradePurchaseManager not found."
+            );
+
+            return;
+        }
+
         progressionManager.UpgradeLevelChanged +=
             HandleUpgradeLevelChanged;
+
+        if (purchaseButton != null)
+        {
+            purchaseButton.onClick.AddListener(
+                HandlePurchaseClicked
+            );
+        }
 
         Refresh();
     }
@@ -72,6 +92,63 @@ public class UpgradeCardUI : MonoBehaviour
             progressionManager.UpgradeLevelChanged -=
                 HandleUpgradeLevelChanged;
         }
+
+        if (purchaseButton != null)
+        {
+            purchaseButton.onClick.RemoveListener(
+                HandlePurchaseClicked
+            );
+        }
+    }
+
+    // ==================================================
+    // PURCHASE
+    // ==================================================
+
+    private void HandlePurchaseClicked()
+    {
+        if (upgradeDefinition == null)
+            return;
+
+        ResolveReferences();
+
+        if (purchaseManager == null)
+        {
+            Debug.LogError(
+                $"UpgradeCardUI ({name}): " +
+                "Cannot purchase because " +
+                "UpgradePurchaseManager was not found."
+            );
+
+            return;
+        }
+
+        UpgradeType type =
+            upgradeDefinition.UpgradeType;
+
+        bool purchased =
+            purchaseManager.TryPurchaseUpgrade(
+                type
+            );
+
+        if (!purchased)
+        {
+            Debug.Log(
+                $"UPGRADE CARD | " +
+                $"Purchase not completed | " +
+                $"{upgradeDefinition.DisplayName}"
+            );
+        }
+
+        /*
+         * Successful purchases already trigger
+         * UpgradeLevelChanged through the progression
+         * system, which refreshes this card.
+         *
+         * We still refresh here so the UI remains
+         * correct after a failed attempt as well.
+         */
+        Refresh();
     }
 
     // ==================================================
@@ -83,14 +160,7 @@ public class UpgradeCardUI : MonoBehaviour
         ResolveReferences();
 
         if (upgradeDefinition == null)
-        {
-            Debug.LogWarning(
-                $"UpgradeCardUI ({name}): " +
-                "UpgradeDefinition is missing."
-            );
-
             return;
-        }
 
         if (!upgradeDefinition.IsValid)
         {
@@ -104,14 +174,7 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         if (progressionManager == null)
-        {
-            Debug.LogWarning(
-                $"UpgradeCardUI ({name}): " +
-                "PlayerProgressionManager not found."
-            );
-
             return;
-        }
 
         UpgradeType type =
             upgradeDefinition.UpgradeType;
@@ -127,16 +190,7 @@ public class UpgradeCardUI : MonoBehaviour
             );
 
         if (currentData == null)
-        {
-            Debug.LogError(
-                $"UpgradeCardUI ({name}): " +
-                $"No level data exists for " +
-                $"{upgradeDefinition.DisplayName} " +
-                $"Level {currentLevel}."
-            );
-
             return;
-        }
 
         if (upgradeDefinition.IsMaxLevel(
                 currentLevel))
@@ -155,15 +209,7 @@ public class UpgradeCardUI : MonoBehaviour
             );
 
         if (nextData == null)
-        {
-            Debug.LogError(
-                $"UpgradeCardUI ({name}): " +
-                $"Next level data is missing for " +
-                $"{upgradeDefinition.DisplayName}."
-            );
-
             return;
-        }
 
         ShowUpgrade(
             currentLevel,
@@ -228,6 +274,15 @@ public class UpgradeCardUI : MonoBehaviour
 
         if (purchaseButton != null)
         {
+            /*
+             * Affordability feedback will be handled
+             * properly in 12.7.4.5.
+             *
+             * For this milestone, the button remains
+             * available whenever there is a next level.
+             * UpgradePurchaseManager itself safely
+             * rejects unaffordable purchases.
+             */
             purchaseButton.interactable =
                 true;
         }
@@ -378,7 +433,7 @@ public class UpgradeCardUI : MonoBehaviour
     }
 
     // ==================================================
-    // PROGRESSION EVENTS
+    // EVENTS
     // ==================================================
 
     private void HandleUpgradeLevelChanged(
@@ -403,17 +458,30 @@ public class UpgradeCardUI : MonoBehaviour
 
     private void ResolveReferences()
     {
-        if (progressionManager != null)
-            return;
-
-        progressionManager =
-            PlayerProgressionManager.Instance;
-
         if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
-                    PlayerProgressionManager>();
+                PlayerProgressionManager.Instance;
+
+            if (progressionManager == null)
+            {
+                progressionManager =
+                    FindFirstObjectByType<
+                        PlayerProgressionManager>();
+            }
+        }
+
+        if (purchaseManager == null)
+        {
+            purchaseManager =
+                UpgradePurchaseManager.Instance;
+
+            if (purchaseManager == null)
+            {
+                purchaseManager =
+                    FindFirstObjectByType<
+                        UpgradePurchaseManager>();
+            }
         }
     }
 

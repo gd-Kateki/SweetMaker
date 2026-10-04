@@ -13,6 +13,10 @@ public class DessertSpawner : MonoBehaviour
     [SerializeField]
     private Transform dessertContainer;
 
+    [SerializeField]
+    private PlayerProgressionManager
+        progressionManager;
+
     [Header("Dessert Database")]
     [SerializeField]
     private DessertDefinition[] dessertDefinitions;
@@ -23,6 +27,10 @@ public class DessertSpawner : MonoBehaviour
 
     public DessertDefinition NextDessert =>
         nextDessert;
+
+    // ==================================================
+    // DATABASE MAX TIER
+    // ==================================================
 
     public int MaxTier
     {
@@ -51,9 +59,53 @@ public class DessertSpawner : MonoBehaviour
         }
     }
 
+    // ==================================================
+    // UNITY
+    // ==================================================
+
     private void Start()
     {
+        ResolveProgressionManager();
+
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "DessertSpawner: " +
+                "PlayerProgressionManager " +
+                "could not be found."
+            );
+        }
+
         PrepareNextDessert();
+    }
+
+    // ==================================================
+    // REFERENCES
+    // ==================================================
+
+    private void ResolveProgressionManager()
+    {
+        /*
+         * Always prefer the persistent progression
+         * singleton.
+         */
+        if (PlayerProgressionManager.Instance != null)
+        {
+            progressionManager =
+                PlayerProgressionManager.Instance;
+
+            return;
+        }
+
+        /*
+         * Emergency fallback.
+         */
+        if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
+        }
     }
 
     // ==================================================
@@ -103,7 +155,8 @@ public class DessertSpawner : MonoBehaviour
             return false;
 
         DessertAnimator dessertAnimator =
-            dessert.GetComponent<DessertAnimator>();
+            dessert.GetComponent<
+                DessertAnimator>();
 
         if (dessertAnimator != null)
         {
@@ -223,7 +276,7 @@ public class DessertSpawner : MonoBehaviour
     }
 
     // ==================================================
-    // SESSION RESTORATION
+    // SESSION RESTORATION - BOARD
     // ==================================================
 
     public Dessert SpawnDessertOnBoardForRestore(
@@ -259,6 +312,10 @@ public class DessertSpawner : MonoBehaviour
             cell
         );
     }
+
+    // ==================================================
+    // SESSION RESTORATION - SHELF
+    // ==================================================
 
     public Dessert SpawnDessertOnShelfForRestore(
         int tier,
@@ -476,9 +533,15 @@ public class DessertSpawner : MonoBehaviour
         );
     }
 
+    // ==================================================
+    // OVEN RNG
+    // ==================================================
+
     private DessertDefinition
         GetRandomOvenDessert()
     {
+        ResolveProgressionManager();
+
         List<DessertDefinition> candidates =
             new List<DessertDefinition>();
 
@@ -487,6 +550,18 @@ public class DessertSpawner : MonoBehaviour
         if (dessertDefinitions == null)
             return null;
 
+        /*
+         * If progression exists, use the player's
+         * current Oven progression limit.
+         *
+         * MaxTier is only an emergency fallback.
+         */
+        int maxUnlockedTier =
+            progressionManager != null
+                ? progressionManager
+                    .MaxUnlockedDessertTier
+                : MaxTier;
+
         foreach (
             DessertDefinition definition
             in dessertDefinitions)
@@ -494,11 +569,30 @@ public class DessertSpawner : MonoBehaviour
             if (definition == null)
                 continue;
 
+            /*
+             * The dessert must explicitly be allowed
+             * to spawn directly from the Oven.
+             */
             if (!definition.CanSpawnFromOven)
                 continue;
 
+            /*
+             * Zero or negative weight means it cannot
+             * participate in Oven RNG.
+             */
             if (definition.SpawnWeight <= 0f)
                 continue;
+
+            /*
+             * Oven progression controls the maximum
+             * dessert tier that can currently enter
+             * the Oven RNG pool.
+             */
+            if (definition.Tier >
+                maxUnlockedTier)
+            {
+                continue;
+            }
 
             candidates.Add(
                 definition
@@ -511,6 +605,13 @@ public class DessertSpawner : MonoBehaviour
         if (candidates.Count == 0 ||
             totalWeight <= 0f)
         {
+            Debug.LogWarning(
+                $"OVEN RNG | " +
+                $"No valid desserts available. | " +
+                $"Max Unlocked Tier: " +
+                $"T{maxUnlockedTier}"
+            );
+
             return null;
         }
 
@@ -531,13 +632,37 @@ public class DessertSpawner : MonoBehaviour
 
             if (roll <= cumulativeWeight)
             {
+                Debug.Log(
+                    $"OVEN RNG | " +
+                    $"Selected: " +
+                    $"{candidate.DisplayName} | " +
+                    $"Tier T{candidate.Tier} | " +
+                    $"Max Unlocked: " +
+                    $"T{maxUnlockedTier}"
+                );
+
                 return candidate;
             }
         }
 
-        return candidates[
-            candidates.Count - 1
-        ];
+        /*
+         * Floating-point safety fallback.
+         */
+        DessertDefinition fallback =
+            candidates[
+                candidates.Count - 1
+            ];
+
+        Debug.Log(
+            $"OVEN RNG | " +
+            $"Selected fallback: " +
+            $"{fallback.DisplayName} | " +
+            $"Tier T{fallback.Tier} | " +
+            $"Max Unlocked: " +
+            $"T{maxUnlockedTier}"
+        );
+
+        return fallback;
     }
 
     // ==================================================

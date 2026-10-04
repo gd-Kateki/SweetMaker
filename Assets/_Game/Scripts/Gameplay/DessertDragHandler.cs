@@ -79,10 +79,21 @@ public class DessertDragHandler :
                 FindFirstObjectByType<ShelfManager>();
         }
 
-        if (progressionManager == null)
+        /*
+         * PlayerProgressionManager persists between
+         * scenes, so always prefer the singleton
+         * carrying the player's actual progression.
+         */
+        if (PlayerProgressionManager.Instance != null)
         {
             progressionManager =
-                FindFirstObjectByType<PlayerProgressionManager>();
+                PlayerProgressionManager.Instance;
+        }
+        else if (progressionManager == null)
+        {
+            progressionManager =
+                FindFirstObjectByType<
+                    PlayerProgressionManager>();
         }
     }
 
@@ -1141,7 +1152,7 @@ public class DessertDragHandler :
         if (dessertAnimator != null)
         {
             // Keep the Action parameter required
-            // by your existing DessertAnimator.
+            // by the existing DessertAnimator.
             dessertAnimator
                 .MoveToForMerge(
                     targetCell.ContentPosition,
@@ -1246,7 +1257,19 @@ public class DessertDragHandler :
     private bool IsMergeTierUnlocked(
         int resultingTier)
     {
-        if (progressionManager == null)
+        /*
+         * Always prefer the persistent singleton.
+         *
+         * This prevents a Game-scene fallback
+         * PlayerProgressionManager from supplying
+         * stale/default Oven progression.
+         */
+        if (PlayerProgressionManager.Instance != null)
+        {
+            progressionManager =
+                PlayerProgressionManager.Instance;
+        }
+        else if (progressionManager == null)
         {
             progressionManager =
                 FindFirstObjectByType<
@@ -1264,9 +1287,24 @@ public class DessertDragHandler :
             return false;
         }
 
-        return progressionManager
-            .IsDessertTierUnlocked(
-                resultingTier
+        bool unlocked =
+            progressionManager
+                .IsDessertTierUnlocked(
+                    resultingTier
+                );
+
+        if (!unlocked)
+        {
+            Debug.Log(
+                $"MERGE PROGRESSION | " +
+                $"Tier T{resultingTier} locked | " +
+                $"Oven Level: " +
+                $"{progressionManager.OvenLevel} | " +
+                $"Max Unlocked: " +
+                $"T{progressionManager.MaxUnlockedDessertTier}"
             );
+        }
+
+        return unlocked;
     }
 }

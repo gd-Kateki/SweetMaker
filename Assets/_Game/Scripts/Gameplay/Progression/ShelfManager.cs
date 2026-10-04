@@ -1,6 +1,6 @@
 using System;
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class ShelfManager : MonoBehaviour
 {
@@ -13,7 +13,13 @@ public class ShelfManager : MonoBehaviour
     private ShelfSlot[] slots;
 
     public event Action ShelfChanged;
-    public IReadOnlyList<ShelfSlot> Slots => slots;
+
+    public IReadOnlyList<ShelfSlot> Slots =>
+        slots;
+
+    // ==================================================
+    // COUNTS
+    // ==================================================
 
     public int TotalSlotCount
     {
@@ -35,9 +41,7 @@ public class ShelfManager : MonoBehaviour
 
             int count = 0;
 
-            foreach (
-                ShelfSlot slot
-                in slots)
+            foreach (ShelfSlot slot in slots)
             {
                 if (slot != null &&
                     slot.IsUnlocked)
@@ -59,9 +63,7 @@ public class ShelfManager : MonoBehaviour
 
             int count = 0;
 
-            foreach (
-                ShelfSlot slot
-                in slots)
+            foreach (ShelfSlot slot in slots)
             {
                 if (slot != null &&
                     slot.IsUnlocked &&
@@ -79,6 +81,10 @@ public class ShelfManager : MonoBehaviour
         UnlockedSlotCount -
         OccupiedSlotCount;
 
+    // ==================================================
+    // UNITY
+    // ==================================================
+
     private void Start()
     {
         ResolveReferences();
@@ -94,9 +100,8 @@ public class ShelfManager : MonoBehaviour
             return;
         }
 
-        progressionManager
-            .UpgradeLevelChanged +=
-                HandleUpgradeLevelChanged;
+        progressionManager.UpgradeLevelChanged +=
+            HandleUpgradeLevelChanged;
 
         ApplyShelfProgression();
     }
@@ -105,15 +110,30 @@ public class ShelfManager : MonoBehaviour
     {
         if (progressionManager != null)
         {
-            progressionManager
-                .UpgradeLevelChanged -=
-                    HandleUpgradeLevelChanged;
+            progressionManager.UpgradeLevelChanged -=
+                HandleUpgradeLevelChanged;
         }
     }
 
+    // ==================================================
+    // REFERENCES
+    // ==================================================
+
     private void ResolveReferences()
     {
-        if (progressionManager == null)
+        /*
+         * Always prefer the singleton.
+         *
+         * This ensures the Shelf uses the persistent
+         * progression manager that survived the scene
+         * transition from MainBakery.
+         */
+        if (PlayerProgressionManager.Instance != null)
+        {
+            progressionManager =
+                PlayerProgressionManager.Instance;
+        }
+        else if (progressionManager == null)
         {
             progressionManager =
                 FindFirstObjectByType<
@@ -129,15 +149,16 @@ public class ShelfManager : MonoBehaviour
         }
     }
 
+    // ==================================================
+    // PROGRESSION
+    // ==================================================
+
     private void HandleUpgradeLevelChanged(
         UpgradeType type,
         int newLevel)
     {
-        if (type !=
-            UpgradeType.Shelf)
-        {
+        if (type != UpgradeType.Shelf)
             return;
-        }
 
         ApplyShelfProgression();
 
@@ -151,15 +172,29 @@ public class ShelfManager : MonoBehaviour
 
     private void ApplyShelfProgression()
     {
-        if (progressionManager == null ||
-            slots == null)
+        if (progressionManager == null)
         {
+            Debug.LogError(
+                "SHELF PROGRESSION | " +
+                "ProgressionManager is missing."
+            );
+
+            return;
+        }
+
+        if (slots == null ||
+            slots.Length == 0)
+        {
+            Debug.LogError(
+                "SHELF PROGRESSION | " +
+                "No ShelfSlots were found."
+            );
+
             return;
         }
 
         int requestedSlots =
-            progressionManager
-                .ShelfCapacity;
+            progressionManager.ShelfCapacity;
 
         int unlockedSlots =
             Mathf.Clamp(
@@ -167,6 +202,16 @@ public class ShelfManager : MonoBehaviour
                 0,
                 slots.Length
             );
+
+        Debug.Log(
+            $"SHELF APPLY | " +
+            $"Progression Level: " +
+            $"{progressionManager.ShelfLevel} | " +
+            $"Requested Capacity: " +
+            $"{requestedSlots} | " +
+            $"Physical Slots: " +
+            $"{slots.Length}"
+        );
 
         for (int i = 0;
              i < slots.Length;
@@ -178,8 +223,17 @@ public class ShelfManager : MonoBehaviour
             if (slot == null)
                 continue;
 
+            bool shouldUnlock =
+                i < unlockedSlots;
+
             slot.SetUnlocked(
-                i < unlockedSlots
+                shouldUnlock
+            );
+
+            Debug.Log(
+                $"SHELF SLOT {i + 1} | " +
+                $"Unlocked: " +
+                $"{shouldUnlock}"
             );
         }
 
@@ -195,6 +249,10 @@ public class ShelfManager : MonoBehaviour
         );
     }
 
+    // ==================================================
+    // SLOT LOOKUP
+    // ==================================================
+
     public ShelfSlot FindSlotAtPosition(
         Vector3 worldPosition)
     {
@@ -203,9 +261,7 @@ public class ShelfManager : MonoBehaviour
                 worldPosition
             );
 
-        foreach (
-            Collider2D hit
-            in hits)
+        foreach (Collider2D hit in hits)
         {
             if (hit == null)
                 continue;
@@ -220,16 +276,30 @@ public class ShelfManager : MonoBehaviour
         return null;
     }
 
+    // ==================================================
+    // NOTIFICATION
+    // ==================================================
+
     public void NotifyShelfChanged()
     {
         ShelfChanged?.Invoke();
     }
 
+    // ==================================================
+    // DEBUG
+    // ==================================================
+
     [ContextMenu("Debug Shelf State")]
     private void DebugShelfState()
     {
+        ResolveReferences();
+
         Debug.Log(
             $"SHELF STATE | " +
+            $"Progression Level: " +
+            $"{progressionManager?.ShelfLevel} | " +
+            $"Requested Capacity: " +
+            $"{progressionManager?.ShelfCapacity} | " +
             $"Total: {TotalSlotCount} | " +
             $"Unlocked: {UnlockedSlotCount} | " +
             $"Occupied: {OccupiedSlotCount} | " +

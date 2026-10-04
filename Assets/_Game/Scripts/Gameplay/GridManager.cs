@@ -133,14 +133,33 @@ public class GridManager : MonoBehaviour
     }
 
     private void ResolveProgressionManager()
+{
+    /*
+     * Always prefer the persistent singleton.
+     *
+     * This ensures the board uses the progression
+     * state that survived the scene transition from
+     * MainBakery.
+     */
+    if (PlayerProgressionManager.Instance != null)
     {
-        if (progressionManager == null)
-        {
-            progressionManager =
-                FindFirstObjectByType<
-                    PlayerProgressionManager>();
-        }
+        progressionManager =
+            PlayerProgressionManager.Instance;
+
+        return;
     }
+
+    /*
+     * Emergency fallback for cases where the
+     * singleton has not been established.
+     */
+    if (progressionManager == null)
+    {
+        progressionManager =
+            FindFirstObjectByType<
+                PlayerProgressionManager>();
+    }
+}
 
     // --------------------------------------------------
     // GRID GENERATION

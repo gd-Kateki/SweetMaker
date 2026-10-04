@@ -207,21 +207,31 @@ public class OrderManager : MonoBehaviour
     }
 
     private void ResolveReferences()
+{
+    if (gridManager == null)
     {
-        if (gridManager == null)
-        {
-            gridManager =
-                FindFirstObjectByType<
-                    GridManager>();
-        }
-
-        if (progressionManager == null)
-        {
-            progressionManager =
-                FindFirstObjectByType<
-                    PlayerProgressionManager>();
-        }
+        gridManager =
+            FindFirstObjectByType<
+                GridManager>();
     }
+
+    /*
+     * Always prefer the persistent progression
+     * singleton carrying the player's purchased
+     * upgrade levels.
+     */
+    if (PlayerProgressionManager.Instance != null)
+    {
+        progressionManager =
+            PlayerProgressionManager.Instance;
+    }
+    else if (progressionManager == null)
+    {
+        progressionManager =
+            FindFirstObjectByType<
+                PlayerProgressionManager>();
+    }
+}
 
     private void InitializeCustomerSlots()
     {
