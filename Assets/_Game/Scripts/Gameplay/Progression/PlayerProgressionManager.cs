@@ -649,4 +649,111 @@ public class PlayerProgressionManager : MonoBehaviour
             UpgradeType.MoneyMultiplier
         );
     }
+
+    // ==================================================
+// PERSISTENCE
+// ==================================================
+
+public void RestoreProgression(
+    int restoredOvenLevel,
+    int restoredBoardSpaceLevel,
+    int restoredShelfLevel,
+    int restoredCustomerLevel,
+    int restoredMoneyMultiplierLevel)
+{
+    /*
+     * Save data is external state.
+     *
+     * Never trust its level values directly.
+     * Each value is clamped against the
+     * authoritative UpgradeDefinition.
+     */
+
+    ovenLevel =
+        ClampLevel(
+            restoredOvenLevel,
+            ovenUpgrade
+        );
+
+    boardSpaceLevel =
+        ClampLevel(
+            restoredBoardSpaceLevel,
+            boardSpaceUpgrade
+        );
+
+    shelfLevel =
+        ClampLevel(
+            restoredShelfLevel,
+            shelfUpgrade
+        );
+
+    customerLevel =
+        ClampLevel(
+            restoredCustomerLevel,
+            customerUpgrade
+        );
+
+    moneyMultiplierLevel =
+        ClampLevel(
+            restoredMoneyMultiplierLevel,
+            moneyMultiplierUpgrade
+        );
+
+    /*
+     * Notify every progression consumer.
+     *
+     * This is intentional even when a restored
+     * level happens to equal the current level.
+     * Loading establishes authoritative state,
+     * so UI/gameplay systems must be given a
+     * chance to refresh from that state.
+     */
+
+    UpgradeLevelChanged?.Invoke(
+        UpgradeType.Oven,
+        ovenLevel
+    );
+
+    UpgradeLevelChanged?.Invoke(
+        UpgradeType.BoardSpace,
+        boardSpaceLevel
+    );
+
+    UpgradeLevelChanged?.Invoke(
+        UpgradeType.Shelf,
+        shelfLevel
+    );
+
+    UpgradeLevelChanged?.Invoke(
+        UpgradeType.Customer,
+        customerLevel
+    );
+
+    UpgradeLevelChanged?.Invoke(
+        UpgradeType.MoneyMultiplier,
+        moneyMultiplierLevel
+    );
+
+    Debug.Log(
+        "PROGRESSION RESTORED | " +
+        $"Oven L{ovenLevel} | " +
+        $"Board L{boardSpaceLevel} | " +
+        $"Shelf L{shelfLevel} | " +
+        $"Customer L{customerLevel} | " +
+        $"Money L{moneyMultiplierLevel}"
+    );
+
+    DebugCurrentProgression();
+}
+[ContextMenu("Debug Restore Test Progression")]
+private void DebugRestoreTestProgression()
+{
+    RestoreProgression(
+        2,
+        2,
+        2,
+        2,
+        2
+    );
+}
 }

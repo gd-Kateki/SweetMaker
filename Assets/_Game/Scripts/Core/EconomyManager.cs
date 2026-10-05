@@ -310,6 +310,35 @@ public class EconomyManager : MonoBehaviour
     }
 
     // ==================================================
+    // PERSISTENCE
+    // ==================================================
+
+    public void RestoreCash(
+        int cash)
+    {
+        int restoredCash =
+            Mathf.Max(
+                0,
+                cash
+            );
+
+        currentCash =
+            restoredCash;
+
+        initialized =
+            true;
+
+        CashChanged?.Invoke(
+            currentCash
+        );
+
+        Debug.Log(
+            $"CASH RESTORED | " +
+            $"Total: ${currentCash}"
+        );
+    }
+
+    // ==================================================
     // DEBUG
     // ==================================================
 
@@ -330,5 +359,11 @@ public class EconomyManager : MonoBehaviour
     private void DebugAddCash()
     {
         AddCash(100);
+    }
+
+    [ContextMenu("Debug Restore $500")]
+    private void DebugRestoreCash()
+    {
+        RestoreCash(500);
     }
 }

@@ -77,21 +77,56 @@ public class UpgradePurchaseManager : MonoBehaviour
         }
     }
 
+    // ==================================================
+    // REFERENCES
+    // ==================================================
+
     private void ResolveReferences()
     {
-        if (progressionManager == null)
+        /*
+         * PlayerProgressionManager is persistent.
+         *
+         * Always prefer the authoritative singleton
+         * carrying the player's current progression.
+         */
+        if (PlayerProgressionManager.Instance != null)
+        {
+            progressionManager =
+                PlayerProgressionManager.Instance;
+        }
+        else if (progressionManager == null)
         {
             progressionManager =
                 FindFirstObjectByType<
                     PlayerProgressionManager>();
         }
 
-        if (economyManager == null)
+        /*
+         * EconomyManager is also persistent.
+         *
+         * Always prefer its singleton so this manager
+         * never keeps a stale scene reference after
+         * navigation.
+         */
+        if (EconomyManager.Instance != null)
+        {
+            economyManager =
+                EconomyManager.Instance;
+        }
+        else if (economyManager == null)
         {
             economyManager =
                 FindFirstObjectByType<
                     EconomyManager>();
         }
+    }
+
+    private bool EnsureReferences()
+    {
+        ResolveReferences();
+
+        return progressionManager != null &&
+               economyManager != null;
     }
 
     // ==================================================
@@ -101,6 +136,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     public UpgradeDefinition GetDefinition(
         UpgradeType type)
     {
+        ResolveReferences();
+
         if (progressionManager == null)
             return null;
 
@@ -111,6 +148,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     public int GetCurrentLevel(
         UpgradeType type)
     {
+        ResolveReferences();
+
         if (progressionManager == null)
             return 0;
 
@@ -150,6 +189,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     public bool IsMaxLevel(
         UpgradeType type)
     {
+        ResolveReferences();
+
         if (progressionManager == null)
             return true;
 
@@ -160,6 +201,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     public bool CanAffordNextUpgrade(
         UpgradeType type)
     {
+        ResolveReferences();
+
         if (economyManager == null)
             return false;
 
@@ -180,11 +223,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     public bool CanPurchaseUpgrade(
         UpgradeType type)
     {
-        if (progressionManager == null ||
-            economyManager == null)
-        {
+        if (!EnsureReferences())
             return false;
-        }
 
         UpgradeDefinition definition =
             GetDefinition(type);
@@ -216,12 +256,24 @@ public class UpgradePurchaseManager : MonoBehaviour
     public bool TryPurchaseUpgrade(
         UpgradeType type)
     {
-        if (progressionManager == null ||
-            economyManager == null)
+        /*
+         * Re-resolve immediately before every
+         * transaction.
+         *
+         * This is important because EconomyManager
+         * and PlayerProgressionManager survive scene
+         * changes while this purchase manager is
+         * scene-local.
+         */
+        if (!EnsureReferences())
         {
             Debug.LogWarning(
                 $"UPGRADE PURCHASE FAILED | " +
-                $"{type} | Missing manager."
+                $"{type} | Missing manager. | " +
+                $"Progression: " +
+                $"{(progressionManager != null)} | " +
+                $"Economy: " +
+                $"{(economyManager != null)}"
             );
 
             return false;
@@ -308,9 +360,11 @@ public class UpgradePurchaseManager : MonoBehaviour
 
         if (!upgraded)
         {
-            // The progression operation failed after
-            // payment. Refund so the transaction does
-            // not leave the player in a bad state.
+            /*
+             * The progression operation failed after
+             * payment. Refund so the transaction does
+             * not leave the player in a bad state.
+             */
             economyManager.AddCash(
                 cost
             );
