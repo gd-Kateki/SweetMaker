@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -27,9 +28,18 @@ public class UpgradeCardUI : MonoBehaviour
     [SerializeField]
     private TMP_Text buttonText;
 
+    [Header("State")]
+    [SerializeField]
+    private GameObject maxLevelBadge;
+
     [Header("Button")]
     [SerializeField]
     private Button purchaseButton;
+
+    [Header("Feedback")]
+    [Min(0.1f)]
+    [SerializeField]
+    private float feedbackDuration = 1.25f;
 
     private PlayerProgressionManager
         progressionManager;
@@ -39,6 +49,10 @@ public class UpgradeCardUI : MonoBehaviour
 
     private EconomyManager
         economyManager;
+
+    private Coroutine feedbackCoroutine;
+
+    private bool showingPurchaseFeedback;
 
     // ==================================================
     // UNITY
@@ -124,6 +138,15 @@ public class UpgradeCardUI : MonoBehaviour
                 HandlePurchaseClicked
             );
         }
+
+        if (feedbackCoroutine != null)
+        {
+            StopCoroutine(
+                feedbackCoroutine
+            );
+
+            feedbackCoroutine = null;
+        }
     }
 
     // ==================================================
@@ -151,10 +174,25 @@ public class UpgradeCardUI : MonoBehaviour
         UpgradeType type =
             upgradeDefinition.UpgradeType;
 
+        /*
+         * Capture affordability before attempting
+         * the transaction so insufficient cash can
+         * be distinguished from another failure.
+         */
+        bool couldAffordBeforePurchase =
+            purchaseManager
+                .CanAffordNextUpgrade(
+                    type
+                );
+
         bool purchased =
             purchaseManager.TryPurchaseUpgrade(
                 type
             );
+
+        // ------------------------------------------
+        // FAILED PURCHASE
+        // ------------------------------------------
 
         if (!purchased)
         {
@@ -163,18 +201,125 @@ public class UpgradeCardUI : MonoBehaviour
                 $"Purchase not completed | " +
                 $"{upgradeDefinition.DisplayName}"
             );
+
+            if (!couldAffordBeforePurchase)
+            {
+                ShowInsufficientCashFeedback();
+            }
+
+            return;
         }
 
+        // ------------------------------------------
+        // SUCCESSFUL PURCHASE
+        // ------------------------------------------
+
         /*
-         * A successful purchase triggers both:
+         * CashChanged and UpgradeLevelChanged have
+         * already fired during the transaction.
          *
-         * CashChanged
-         * UpgradeLevelChanged
+         * Refresh once more to guarantee the card
+         * reflects its new progression state.
+         */
+        Refresh();
+
+        /*
+         * Show temporary success confirmation after
+         * the new card state has been established.
+         */
+        ShowPurchaseSuccessFeedback();
+    }
+
+    // ==================================================
+    // INSUFFICIENT CASH FEEDBACK
+    // ==================================================
+
+    private void ShowInsufficientCashFeedback()
+    {
+        if (feedbackCoroutine != null)
+        {
+            StopCoroutine(
+                feedbackCoroutine
+            );
+        }
+
+        feedbackCoroutine =
+            StartCoroutine(
+                InsufficientCashFeedbackRoutine()
+            );
+    }
+
+    private IEnumerator
+        InsufficientCashFeedbackRoutine()
+    {
+        showingPurchaseFeedback =
+            true;
+
+        if (buttonText != null)
+        {
+            buttonText.text =
+                "NOT ENOUGH CASH";
+        }
+
+        yield return new WaitForSecondsRealtime(
+            feedbackDuration
+        );
+
+        showingPurchaseFeedback =
+            false;
+
+        feedbackCoroutine =
+            null;
+
+        Refresh();
+    }
+
+    // ==================================================
+    // PURCHASE SUCCESS FEEDBACK
+    // ==================================================
+
+    private void ShowPurchaseSuccessFeedback()
+    {
+        if (feedbackCoroutine != null)
+        {
+            StopCoroutine(
+                feedbackCoroutine
+            );
+        }
+
+        feedbackCoroutine =
+            StartCoroutine(
+                PurchaseSuccessFeedbackRoutine()
+            );
+    }
+
+    private IEnumerator
+        PurchaseSuccessFeedbackRoutine()
+    {
+        showingPurchaseFeedback =
+            true;
+
+        if (buttonText != null)
+        {
+            buttonText.text =
+                "UPGRADED!";
+        }
+
+        yield return new WaitForSecondsRealtime(
+            feedbackDuration
+        );
+
+        showingPurchaseFeedback =
+            false;
+
+        feedbackCoroutine =
+            null;
+
+        /*
+         * Restore the correct final state.
          *
-         * Both events refresh the card.
-         *
-         * We still refresh here so the UI also
-         * remains correct after a failed purchase.
+         * This will become either UPGRADE or
+         * MAX LEVEL depending on progression.
          */
         Refresh();
     }
@@ -221,7 +366,8 @@ public class UpgradeCardUI : MonoBehaviour
             return;
 
         /*
-         * MAX state has priority over affordability.
+         * Max level has priority over the normal
+         * upgrade presentation.
          */
         if (upgradeDefinition.IsMaxLevel(
                 currentLevel))
@@ -260,6 +406,17 @@ public class UpgradeCardUI : MonoBehaviour
     {
         UpgradeType type =
             upgradeDefinition.UpgradeType;
+
+        /*
+         * A normal upgrade must never display the
+         * completed-state badge.
+         */
+        if (maxLevelBadge != null)
+        {
+            maxLevelBadge.SetActive(
+                false
+            );
+        }
 
         if (upgradeNameText != null)
         {
@@ -304,29 +461,26 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         /*
-         * A non-max card always displays
-         * UPGRADE regardless of affordability.
-         *
-         * Affordability only controls whether the
-         * button can currently be pressed.
+         * Preserve temporary feedback while it is
+         * being displayed.
          */
-        if (buttonText != null)
+        if (buttonText != null &&
+            !showingPurchaseFeedback)
         {
             buttonText.text =
                 "UPGRADE";
         }
 
+        /*
+         * Every non-max upgrade remains clickable.
+         *
+         * UpgradePurchaseManager validates whether
+         * the transaction can actually occur.
+         */
         if (purchaseButton != null)
         {
-            bool canAfford =
-                purchaseManager != null &&
-                purchaseManager
-                    .CanAffordNextUpgrade(
-                        type
-                    );
-
             purchaseButton.interactable =
-                canAfford;
+                true;
         }
     }
 
@@ -340,6 +494,17 @@ public class UpgradeCardUI : MonoBehaviour
     {
         UpgradeType type =
             upgradeDefinition.UpgradeType;
+
+        /*
+         * The dedicated badge communicates that
+         * this upgrade has been fully completed.
+         */
+        if (maxLevelBadge != null)
+        {
+            maxLevelBadge.SetActive(
+                true
+            );
+        }
 
         if (upgradeNameText != null)
         {
@@ -360,16 +525,8 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         /*
-         * At max level we show only the final
-         * gameplay value instead of a transition.
-         *
-         * Example:
-         *
-         * Normal:
-         * T12 → T16
-         *
-         * Max:
-         * T25
+         * Max-level cards display only their final
+         * gameplay value rather than current → next.
          */
         if (valueText != null)
         {
@@ -380,9 +537,6 @@ public class UpgradeCardUI : MonoBehaviour
                 );
         }
 
-        /*
-         * There is no next purchase price.
-         */
         if (priceText != null)
         {
             priceText.text =
@@ -390,20 +544,20 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         /*
-         * Clearly communicate that this upgrade
-         * has been fully completed.
+         * If the player just purchased the final
+         * level, preserve UPGRADED! until its
+         * feedback timer finishes.
          */
-        if (buttonText != null)
+        if (buttonText != null &&
+            !showingPurchaseFeedback)
         {
             buttonText.text =
                 "MAX LEVEL";
         }
 
         /*
-         * Max level always overrides affordability.
-         *
-         * Even if the player has enough cash,
-         * this button can never become interactable.
+         * A max-level upgrade can never be
+         * purchased again.
          */
         if (purchaseButton != null)
         {
@@ -528,12 +682,6 @@ public class UpgradeCardUI : MonoBehaviour
     private void HandleCashChanged(
         int newCash)
     {
-        /*
-         * Cash changes may alter affordability for
-         * every upgrade card.
-         *
-         * Refresh regardless of this card's type.
-         */
         Refresh();
     }
 
@@ -546,9 +694,6 @@ public class UpgradeCardUI : MonoBehaviour
         /*
          * PlayerProgressionManager persists between
          * scenes.
-         *
-         * Always prefer the singleton carrying the
-         * player's actual purchased progression.
          */
         if (PlayerProgressionManager.Instance != null)
         {
@@ -564,7 +709,7 @@ public class UpgradeCardUI : MonoBehaviour
 
         /*
          * UpgradePurchaseManager belongs to the
-         * MainBakery scene.
+         * Main Bakery scene.
          */
         if (purchaseManager == null)
         {
@@ -580,8 +725,8 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         /*
-         * EconomyManager is persistent and owns
-         * the shared cash balance.
+         * EconomyManager persists between scenes
+         * and owns the shared cash balance.
          */
         if (EconomyManager.Instance != null)
         {
