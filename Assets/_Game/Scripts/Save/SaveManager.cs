@@ -126,6 +126,134 @@ public class SaveManager : MonoBehaviour
     }
 
     // ==================================================
+    // CAPTURE - PROGRESSION
+    // ==================================================
+
+    private bool CaptureProgression(
+        PlayerSaveData saveData)
+    {
+        if (saveData == null)
+        {
+            Debug.LogError(
+                "SAVE | Cannot capture progression into " +
+                "null PlayerSaveData."
+            );
+
+            return false;
+        }
+
+        PlayerProgressionManager progressionManager =
+            PlayerProgressionManager.Instance;
+
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "SAVE | PlayerProgressionManager " +
+                "is unavailable."
+            );
+
+            return false;
+        }
+
+        if (saveData.progression == null)
+        {
+            saveData.progression =
+                new ProgressionSaveData();
+        }
+
+        saveData.progression.ovenLevel =
+            progressionManager.OvenLevel;
+
+        saveData.progression.boardSpaceLevel =
+            progressionManager.BoardSpaceLevel;
+
+        saveData.progression.shelfLevel =
+            progressionManager.ShelfLevel;
+
+        saveData.progression.customerLevel =
+            progressionManager.CustomerLevel;
+
+        saveData.progression.moneyMultiplierLevel =
+            progressionManager.MoneyMultiplierLevel;
+
+        Debug.Log(
+            "SAVE CAPTURE | Progression | " +
+            $"Oven L{saveData.progression.ovenLevel} | " +
+            $"Board L{saveData.progression.boardSpaceLevel} | " +
+            $"Shelf L{saveData.progression.shelfLevel} | " +
+            $"Customer L{saveData.progression.customerLevel} | " +
+            $"Money L" +
+            $"{saveData.progression.moneyMultiplierLevel}"
+        );
+
+        return true;
+    }
+
+    // ==================================================
+// CAPTURE - MERGE SESSION
+// ==================================================
+
+private bool CaptureMergeSession(
+    PlayerSaveData saveData)
+{
+    if (saveData == null)
+    {
+        Debug.LogError(
+            "SAVE | Cannot capture merge session into " +
+            "null PlayerSaveData."
+        );
+
+        return false;
+    }
+
+    MergeSessionManager mergeSessionManager =
+        MergeSessionManager.Instance;
+
+    if (mergeSessionManager == null)
+    {
+        Debug.LogError(
+            "SAVE | MergeSessionManager is unavailable."
+        );
+
+        return false;
+    }
+
+    if (saveData.mergeGameplay == null)
+    {
+        saveData.mergeGameplay =
+            new MergeGameplaySaveData();
+    }
+
+    if (!mergeSessionManager.CaptureToSaveData(
+            saveData.mergeGameplay))
+    {
+        Debug.LogError(
+            "SAVE | Merge session capture failed."
+        );
+
+        return false;
+    }
+
+    Debug.Log(
+        "SAVE CAPTURE | Merge Session | " +
+        $"Has Session: " +
+        $"{saveData.mergeGameplay.hasSession} | " +
+        $"Board: " +
+        $"{saveData.mergeGameplay.boardDesserts.Count} | " +
+        $"Shelf: " +
+        $"{saveData.mergeGameplay.shelfDesserts.Count} | " +
+        $"Orders: " +
+        $"{saveData.mergeGameplay.customerOrders.Count} | " +
+        $"Next Order ID: " +
+        $"#{saveData.mergeGameplay.nextOrderId} | " +
+        $"Next Dessert: " +
+        $"T{saveData.mergeGameplay.nextDessertTier}"
+    );
+
+    return true;
+}
+
+    // ==================================================
     // RESTORE - ECONOMY
     // ==================================================
 
@@ -176,64 +304,251 @@ public class SaveManager : MonoBehaviour
     }
 
     // ==================================================
-    // SAVE CURRENT GAME
+    // RESTORE - PROGRESSION
     // ==================================================
 
-    public bool SaveCurrentGame()
+    private bool RestoreProgression(
+        PlayerSaveData saveData)
     {
-        PlayerSaveData saveData =
-            CreateNewSaveData();
-
-        if (!CaptureEconomy(
-                saveData))
+        if (saveData == null)
         {
             Debug.LogError(
-                "SAVE | Current game save aborted " +
-                "because economy capture failed."
+                "LOAD | Cannot restore progression from " +
+                "null PlayerSaveData."
             );
 
             return false;
         }
 
-        return Save(
-            saveData
+        if (saveData.progression == null)
+        {
+            Debug.LogError(
+                "LOAD | Progression save data is missing."
+            );
+
+            return false;
+        }
+
+        PlayerProgressionManager progressionManager =
+            PlayerProgressionManager.Instance;
+
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "LOAD | PlayerProgressionManager " +
+                "is unavailable."
+            );
+
+            return false;
+        }
+
+        progressionManager.RestoreProgression(
+            saveData.progression.ovenLevel,
+            saveData.progression.boardSpaceLevel,
+            saveData.progression.shelfLevel,
+            saveData.progression.customerLevel,
+            saveData.progression.moneyMultiplierLevel
         );
+
+        Debug.Log(
+            "LOAD RESTORE | Progression | " +
+            $"Oven L{progressionManager.OvenLevel} | " +
+            $"Board L{progressionManager.BoardSpaceLevel} | " +
+            $"Shelf L{progressionManager.ShelfLevel} | " +
+            $"Customer L{progressionManager.CustomerLevel} | " +
+            $"Money L{progressionManager.MoneyMultiplierLevel}"
+        );
+
+        return true;
     }
+    // ==================================================
+// RESTORE - MERGE SESSION
+// ==================================================
+
+private bool RestoreMergeSession(
+    PlayerSaveData saveData)
+{
+    if (saveData == null)
+    {
+        Debug.LogError(
+            "LOAD | Cannot restore merge session from " +
+            "null PlayerSaveData."
+        );
+
+        return false;
+    }
+
+    if (saveData.mergeGameplay == null)
+    {
+        Debug.LogError(
+            "LOAD | Merge gameplay save data is missing."
+        );
+
+        return false;
+    }
+
+    MergeSessionManager mergeSessionManager =
+        MergeSessionManager.Instance;
+
+    if (mergeSessionManager == null)
+    {
+        Debug.LogError(
+            "LOAD | MergeSessionManager is unavailable."
+        );
+
+        return false;
+    }
+
+    if (!mergeSessionManager.RestoreFromSaveData(
+            saveData.mergeGameplay))
+    {
+        Debug.LogError(
+            "LOAD | Merge session restore failed."
+        );
+
+        return false;
+    }
+
+    Debug.Log(
+        "LOAD RESTORE | Merge Session | " +
+        $"Has Session: " +
+        $"{mergeSessionManager.HasSession}"
+    );
+
+    return true;
+}
+
+    // ==================================================
+    // SAVE CURRENT GAME
+    // ==================================================
+
+    public bool SaveCurrentGame()
+{
+    PlayerSaveData saveData =
+        CreateNewSaveData();
+
+    // ----------------------------------------------
+    // ECONOMY
+    // ----------------------------------------------
+
+    if (!CaptureEconomy(
+            saveData))
+    {
+        Debug.LogError(
+            "SAVE | Current game save aborted " +
+            "because economy capture failed."
+        );
+
+        return false;
+    }
+
+    // ----------------------------------------------
+    // PROGRESSION
+    // ----------------------------------------------
+
+    if (!CaptureProgression(
+            saveData))
+    {
+        Debug.LogError(
+            "SAVE | Current game save aborted " +
+            "because progression capture failed."
+        );
+
+        return false;
+    }
+
+    // ----------------------------------------------
+    // MERGE SESSION
+    // ----------------------------------------------
+
+    if (!CaptureMergeSession(
+            saveData))
+    {
+        Debug.LogError(
+            "SAVE | Current game save aborted " +
+            "because merge session capture failed."
+        );
+
+        return false;
+    }
+
+    // ----------------------------------------------
+    // WRITE FILE
+    // ----------------------------------------------
+
+    return Save(
+        saveData
+    );
+}
 
     // ==================================================
     // LOAD CURRENT GAME
     // ==================================================
 
     public bool LoadCurrentGame()
+{
+    if (!TryLoad(
+            out PlayerSaveData saveData))
     {
-        if (!TryLoad(
-                out PlayerSaveData saveData))
-        {
-            Debug.LogWarning(
-                "LOAD | Current game load aborted " +
-                "because no valid save could be loaded."
-            );
-
-            return false;
-        }
-
-        if (!RestoreEconomy(
-                saveData))
-        {
-            Debug.LogError(
-                "LOAD | Current game load aborted " +
-                "because economy restore failed."
-            );
-
-            return false;
-        }
-
-        Debug.Log(
-            "LOAD | Current game restored successfully."
+        Debug.LogWarning(
+            "LOAD | Current game load aborted " +
+            "because no valid save could be loaded."
         );
 
-        return true;
+        return false;
     }
+
+    // ----------------------------------------------
+    // ECONOMY
+    // ----------------------------------------------
+
+    if (!RestoreEconomy(
+            saveData))
+    {
+        Debug.LogError(
+            "LOAD | Current game load aborted " +
+            "because economy restore failed."
+        );
+
+        return false;
+    }
+
+    // ----------------------------------------------
+    // PROGRESSION
+    // ----------------------------------------------
+
+    if (!RestoreProgression(
+            saveData))
+    {
+        Debug.LogError(
+            "LOAD | Current game load aborted " +
+            "because progression restore failed."
+        );
+
+        return false;
+    }
+
+    // ----------------------------------------------
+    // MERGE SESSION
+    // ----------------------------------------------
+
+    if (!RestoreMergeSession(
+            saveData))
+    {
+        Debug.LogError(
+            "LOAD | Current game load aborted " +
+            "because merge session restore failed."
+        );
+
+        return false;
+    }
+
+    Debug.Log(
+        "LOAD | Current game restored successfully."
+    );
+
+    return true;
+}
 
     // ==================================================
     // SAVE
@@ -387,13 +702,6 @@ public class SaveManager : MonoBehaviour
     private bool IsSupportedVersion(
         int version)
     {
-        /*
-         * We only support Version 1 right now.
-         *
-         * Migration support will be added when the
-         * save format actually changes.
-         */
-
         return version ==
             CurrentSaveVersion;
     }
@@ -433,15 +741,6 @@ public class SaveManager : MonoBehaviour
             saveData.progression =
                 new ProgressionSaveData();
         }
-
-        /*
-         * We enforce the universal minimum here.
-         *
-         * Upgrade-specific maximum levels will be
-         * validated later by PlayerProgressionManager,
-         * because that manager owns the actual
-         * UpgradeDefinition data.
-         */
 
         saveData.progression.ovenLevel =
             Mathf.Max(

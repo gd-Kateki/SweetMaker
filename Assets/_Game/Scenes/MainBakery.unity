@@ -925,6 +925,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2d89c61058682b4fb5547a2ef19b8f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MergeSessionManager
+  customerOrderDatabase: {fileID: 11400000, guid: 14b2de0f704dbce4a877b5474bdf2b16, type: 2}
 --- !u!224 &598043359 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6622985527145384076, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
