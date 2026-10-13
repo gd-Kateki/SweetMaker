@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 public class SaveManager : MonoBehaviour
@@ -22,6 +23,64 @@ public class SaveManager : MonoBehaviour
         "player_save.json";
 
     private const int CurrentSaveVersion = 1;
+
+    // Main-thread APIs. The guard covers capture, serialization, IO and logging.
+    private bool saveInProgress;
+    private bool loadInProgress;
+    private bool lifecycleCallbackInProgress;
+    private bool lifecycleSavingReady;
+    private bool restorationFailed;
+    private static readonly UTF8Encoding SaveEncoding = new UTF8Encoding(false, true);
+
+    public bool IsLifecycleSavingReady => lifecycleSavingReady;
+
+    private bool CanWriteCurrentState()
+    {
+        var startup = GameStartupCoordinator.Instance;
+        return Instance == this && !restorationFailed && lifecycleSavingReady &&
+            startup != null && startup.IsStartupComplete && startup.IsGameplayReady;
+    }
+
+    // Call before startup/reinitialization or before restoring live scene objects.
+    public void SuspendLifecycleSaving()
+    {
+        lifecycleSavingReady = false;
+    }
+
+    // Call from the bootstrap coordinator AFTER all initialization and restoration,
+    // including the live merge scene. Singleton existence alone is not readiness.
+    public bool MarkGameplayReadyForLifecycleSaves()
+    {
+        var startup = GameStartupCoordinator.Instance;
+        if (startup == null || !startup.IsStartupComplete || !startup.IsGameplayReady ||
+            restorationFailed || Instance != this || saveInProgress || loadInProgress ||
+            EconomyManager.Instance == null ||
+            PlayerProgressionManager.Instance == null ||
+            MergeSessionManager.Instance == null)
+        {
+            return false;
+        }
+
+        lifecycleSavingReady = true;
+        return true;
+    }
+
+    private bool CanSaveFromLifecycle()
+    {
+        return CanWriteCurrentState() &&
+            !saveInProgress && !loadInProgress && !lifecycleCallbackInProgress &&
+            EconomyManager.Instance != null &&
+            PlayerProgressionManager.Instance != null &&
+            MergeSessionManager.Instance != null;
+    }
+
+    private void OnDestroy()
+    {
+        lifecycleSavingReady = false;
+        if (Instance == this)
+            Instance = null;
+    }
+
 
     // ==================================================
     // PUBLIC PROPERTIES
@@ -52,6 +111,117 @@ public class SaveManager : MonoBehaviour
             gameObject
         );
     }
+
+
+    // ==================================================
+    // ANDROID / MOBILE APPLICATION PAUSE
+    // ==================================================
+
+    private void OnApplicationPause(bool isPaused)
+    {
+        if (!CanSaveFromLifecycle())
+            return;
+        lifecycleCallbackInProgress = true;
+        try { HandleApplicationPause(isPaused); }
+        finally { lifecycleCallbackInProgress = false; }
+    }
+
+    private void HandleApplicationPause(bool isPaused)
+    {
+        // ----------------------------------------------
+        // IGNORE RESUME
+        // ----------------------------------------------
+
+        if (!isPaused)
+        {
+            Debug.Log(
+                "LIFECYCLE | Application resumed."
+            );
+
+            return;
+        }
+
+        // ----------------------------------------------
+        // IGNORE DUPLICATE MANAGER
+        // ----------------------------------------------
+
+        if (Instance != this)
+        {
+            return;
+        }
+
+        // ----------------------------------------------
+        // SAVE ON BACKGROUND
+        // ----------------------------------------------
+
+
+
+        bool saveSucceeded =
+            SaveCurrentGame();
+
+        if (!saveSucceeded)
+        {
+            Debug.LogError(
+                "LIFECYCLE | Application pause save failed."
+            );
+
+            return;
+        }
+
+        Debug.Log(
+            "LIFECYCLE | Application pause save completed."
+        );
+    }
+
+
+    // ==================================================
+    // APPLICATION QUIT SAVE FALLBACK
+    // ==================================================
+
+    private void OnApplicationQuit()
+    {
+        if (!CanSaveFromLifecycle())
+            return;
+        lifecycleCallbackInProgress = true;
+        try { HandleApplicationQuit(); }
+        finally { lifecycleCallbackInProgress = false; }
+    }
+
+    private void HandleApplicationQuit()
+    {
+        // ----------------------------------------------
+        // IGNORE DUPLICATE SAVE MANAGER
+        // ----------------------------------------------
+
+        if (Instance != this)
+        {
+            return;
+        }
+
+        // ----------------------------------------------
+        // ATTEMPT FINAL SAVE
+        // ----------------------------------------------
+
+
+
+        bool saveSucceeded =
+            SaveCurrentGame();
+
+        if (!saveSucceeded)
+        {
+            Debug.LogError(
+                "LIFECYCLE | Application quit save failed."
+            );
+
+            return;
+        }
+
+        Debug.Log(
+            "LIFECYCLE | Application quit save completed."
+        );
+    }
+
+
 
     // ==================================================
     // SAVE FILE QUERIES
@@ -190,68 +360,120 @@ public class SaveManager : MonoBehaviour
     }
 
     // ==================================================
-// CAPTURE - MERGE SESSION
-// ==================================================
+    // CAPTURE - LIVE MERGE GAMEPLAY
+    // ==================================================
 
-private bool CaptureMergeSession(
-    PlayerSaveData saveData)
-{
-    if (saveData == null)
+    private bool CaptureLiveMergeGameplayIfAvailable()
     {
-        Debug.LogError(
-            "SAVE | Cannot capture merge session into " +
-            "null PlayerSaveData."
+        MergeSessionController mergeSessionController =
+            FindFirstObjectByType<MergeSessionController>();
+
+        /*
+         * No MergeSessionController is expected while
+         * the player is in MainBakery.
+         *
+         * In that case we preserve the existing
+         * MergeSessionManager snapshot instead of
+         * clearing it.
+         */
+        if (mergeSessionController == null)
+        {
+            Debug.Log(
+                "SAVE CAPTURE | " +
+                "No live MergeSessionController found. " +
+                "Using existing merge session snapshot."
+            );
+
+            return true;
+        }
+
+        Debug.Log(
+            "SAVE CAPTURE | " +
+            "Live merge gameplay detected. " +
+            "Capturing current gameplay state."
         );
 
-        return false;
-    }
+        if (!mergeSessionController.TryCaptureSession())
+        {
+            Debug.LogError(
+                "SAVE CAPTURE | " +
+                "Live merge gameplay capture failed."
+            );
 
-    MergeSessionManager mergeSessionManager =
-        MergeSessionManager.Instance;
+            return false;
+        }
 
-    if (mergeSessionManager == null)
-    {
-        Debug.LogError(
-            "SAVE | MergeSessionManager is unavailable."
+        Debug.Log(
+            "SAVE CAPTURE | " +
+            "Live merge gameplay captured successfully."
         );
 
-        return false;
+        return true;
     }
 
-    if (saveData.mergeGameplay == null)
-    {
-        saveData.mergeGameplay =
-            new MergeGameplaySaveData();
-    }
+    // ==================================================
+    // CAPTURE - MERGE SESSION
+    // ==================================================
 
-    if (!mergeSessionManager.CaptureToSaveData(
-            saveData.mergeGameplay))
+    private bool CaptureMergeSession(
+        PlayerSaveData saveData)
     {
-        Debug.LogError(
-            "SAVE | Merge session capture failed."
+        if (saveData == null)
+        {
+            Debug.LogError(
+                "SAVE | Cannot capture merge session into " +
+                "null PlayerSaveData."
+            );
+
+            return false;
+        }
+
+        MergeSessionManager mergeSessionManager =
+            MergeSessionManager.Instance;
+
+        if (mergeSessionManager == null)
+        {
+            Debug.LogError(
+                "SAVE | MergeSessionManager is unavailable."
+            );
+
+            return false;
+        }
+
+        if (saveData.mergeGameplay == null)
+        {
+            saveData.mergeGameplay =
+                new MergeGameplaySaveData();
+        }
+
+        if (!mergeSessionManager.CaptureToSaveData(
+                saveData.mergeGameplay))
+        {
+            Debug.LogError(
+                "SAVE | Merge session capture failed."
+            );
+
+            return false;
+        }
+
+        Debug.Log(
+            "SAVE CAPTURE | Merge Session | " +
+            $"Has Session: " +
+            $"{saveData.mergeGameplay.hasSession} | " +
+            $"Board: " +
+            $"{saveData.mergeGameplay.boardDesserts.Count} | " +
+            $"Shelf: " +
+            $"{saveData.mergeGameplay.shelfDesserts.Count} | " +
+            $"Orders: " +
+            $"{saveData.mergeGameplay.customerOrders.Count} | " +
+            $"Next Order ID: " +
+            $"#{saveData.mergeGameplay.nextOrderId} | " +
+            $"Next Dessert: " +
+            $"T{saveData.mergeGameplay.nextDessertTier}"
         );
 
-        return false;
+        return true;
     }
-
-    Debug.Log(
-        "SAVE CAPTURE | Merge Session | " +
-        $"Has Session: " +
-        $"{saveData.mergeGameplay.hasSession} | " +
-        $"Board: " +
-        $"{saveData.mergeGameplay.boardDesserts.Count} | " +
-        $"Shelf: " +
-        $"{saveData.mergeGameplay.shelfDesserts.Count} | " +
-        $"Orders: " +
-        $"{saveData.mergeGameplay.customerOrders.Count} | " +
-        $"Next Order ID: " +
-        $"#{saveData.mergeGameplay.nextOrderId} | " +
-        $"Next Dessert: " +
-        $"T{saveData.mergeGameplay.nextDessertTier}"
-    );
-
-    return true;
-}
 
     // ==================================================
     // RESTORE - ECONOMY
@@ -294,6 +516,8 @@ private bool CaptureMergeSession(
         economyManager.RestoreCash(
             saveData.economy.cash
         );
+
+        if (economyManager.CurrentCash != saveData.economy.cash) return false;
 
         Debug.Log(
             $"LOAD RESTORE | Economy | " +
@@ -342,6 +566,12 @@ private bool CaptureMergeSession(
             return false;
         }
 
+        if (!progressionManager.ValidateRestorationDefinitions(out string reason))
+        {
+            Debug.LogError("LOAD | " + reason);
+            return false;
+        }
+
         progressionManager.RestoreProgression(
             saveData.progression.ovenLevel,
             saveData.progression.boardSpaceLevel,
@@ -349,6 +579,15 @@ private bool CaptureMergeSession(
             saveData.progression.customerLevel,
             saveData.progression.moneyMultiplierLevel
         );
+
+        int[] expectedLevels = { saveData.progression.ovenLevel,
+            saveData.progression.boardSpaceLevel, saveData.progression.shelfLevel,
+            saveData.progression.customerLevel, saveData.progression.moneyMultiplierLevel };
+        UpgradeType[] types = { UpgradeType.Oven, UpgradeType.BoardSpace, UpgradeType.Shelf,
+            UpgradeType.Customer, UpgradeType.MoneyMultiplier };
+        for (int i = 0; i < types.Length; i++)
+            if (progressionManager.GetLevel(types[i]) != Mathf.Clamp(expectedLevels[i], 1,
+                    progressionManager.GetMaxLevel(types[i]))) return false;
 
         Debug.Log(
             "LOAD RESTORE | Progression | " +
@@ -361,247 +600,408 @@ private bool CaptureMergeSession(
 
         return true;
     }
+
     // ==================================================
-// RESTORE - MERGE SESSION
-// ==================================================
+    // RESTORE - MERGE SESSION
+    // ==================================================
 
-private bool RestoreMergeSession(
-    PlayerSaveData saveData)
-{
-    if (saveData == null)
+    private bool RestoreMergeSession(
+        PlayerSaveData saveData)
     {
-        Debug.LogError(
-            "LOAD | Cannot restore merge session from " +
-            "null PlayerSaveData."
+        if (saveData == null)
+        {
+            Debug.LogError(
+                "LOAD | Cannot restore merge session from " +
+                "null PlayerSaveData."
+            );
+
+            return false;
+        }
+
+        if (saveData.mergeGameplay == null)
+        {
+            Debug.LogError(
+                "LOAD | Merge gameplay save data is missing."
+            );
+
+            return false;
+        }
+
+        MergeSessionManager mergeSessionManager =
+            MergeSessionManager.Instance;
+
+        if (mergeSessionManager == null)
+        {
+            Debug.LogError(
+                "LOAD | MergeSessionManager is unavailable."
+            );
+
+            return false;
+        }
+
+        string expected = RestorationVerification.Fingerprint(saveData.mergeGameplay);
+        if (!mergeSessionManager.RestoreFromSaveData(
+                saveData.mergeGameplay))
+        {
+            Debug.LogError(
+                "LOAD | Merge session restore failed."
+            );
+
+            return false;
+        }
+
+        var actual = new MergeGameplaySaveData();
+        if (!mergeSessionManager.CaptureToSaveData(actual) ||
+            !string.Equals(expected, RestorationVerification.Fingerprint(actual), StringComparison.Ordinal))
+        {
+            Debug.LogError("LOAD | Persistent merge session differs from the saved data.");
+            return false;
+        }
+
+        Debug.Log(
+            "LOAD RESTORE | Merge Session | " +
+            $"Has Session: " +
+            $"{mergeSessionManager.HasSession}"
         );
 
-        return false;
+        return true;
     }
-
-    if (saveData.mergeGameplay == null)
-    {
-        Debug.LogError(
-            "LOAD | Merge gameplay save data is missing."
-        );
-
-        return false;
-    }
-
-    MergeSessionManager mergeSessionManager =
-        MergeSessionManager.Instance;
-
-    if (mergeSessionManager == null)
-    {
-        Debug.LogError(
-            "LOAD | MergeSessionManager is unavailable."
-        );
-
-        return false;
-    }
-
-    if (!mergeSessionManager.RestoreFromSaveData(
-            saveData.mergeGameplay))
-    {
-        Debug.LogError(
-            "LOAD | Merge session restore failed."
-        );
-
-        return false;
-    }
-
-    Debug.Log(
-        "LOAD RESTORE | Merge Session | " +
-        $"Has Session: " +
-        $"{mergeSessionManager.HasSession}"
-    );
-
-    return true;
-}
 
     // ==================================================
     // SAVE CURRENT GAME
     // ==================================================
 
     public bool SaveCurrentGame()
-{
-    PlayerSaveData saveData =
-        CreateNewSaveData();
-
-    // ----------------------------------------------
-    // ECONOMY
-    // ----------------------------------------------
-
-    if (!CaptureEconomy(
-            saveData))
     {
-        Debug.LogError(
-            "SAVE | Current game save aborted " +
-            "because economy capture failed."
-        );
+        // Silent rejection prevents recursive log handlers from recursing again.
+        // Rejected callers receive false and must retry; no request is reported saved.
+        if (!CanWriteCurrentState() || saveInProgress || loadInProgress)
+            return false;
 
-        return false;
+        saveInProgress = true;
+        try
+        {
+            return SaveCurrentGameCore();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError($"SAVE | Current game save failed.\n{exception}");
+            return false;
+        }
+        finally
+        {
+            saveInProgress = false;
+        }
     }
 
-    // ----------------------------------------------
-    // PROGRESSION
-    // ----------------------------------------------
-
-    if (!CaptureProgression(
-            saveData))
+    private bool SaveCurrentGameCore()
     {
-        Debug.LogError(
-            "SAVE | Current game save aborted " +
-            "because progression capture failed."
+        // ----------------------------------------------
+        // LIVE MERGE GAMEPLAY
+        // ----------------------------------------------
+
+        /*
+         * If live merge gameplay currently exists,
+         * capture it before building PlayerSaveData.
+         *
+         * If we're in MainBakery, the existing
+         * MergeSessionManager snapshot is preserved.
+         */
+        if (!CaptureLiveMergeGameplayIfAvailable())
+        {
+            Debug.LogError(
+                "SAVE | Current game save aborted " +
+                "because live merge gameplay capture failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // CREATE SAVE DATA
+        // ----------------------------------------------
+
+        PlayerSaveData saveData =
+            CreateNewSaveData();
+
+        // ----------------------------------------------
+        // ECONOMY
+        // ----------------------------------------------
+
+        if (!CaptureEconomy(
+                saveData))
+        {
+            Debug.LogError(
+                "SAVE | Current game save aborted " +
+                "because economy capture failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // PROGRESSION
+        // ----------------------------------------------
+
+        if (!CaptureProgression(
+                saveData))
+        {
+            Debug.LogError(
+                "SAVE | Current game save aborted " +
+                "because progression capture failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // MERGE SESSION
+        // ----------------------------------------------
+
+        if (!CaptureMergeSession(
+                saveData))
+        {
+            Debug.LogError(
+                "SAVE | Current game save aborted " +
+                "because merge session capture failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // WRITE FILE
+        // ----------------------------------------------
+
+        if (!SaveCore(saveData))
+        {
+            Debug.LogError(
+                "SAVE | Current game save failed " +
+                "while writing the save file."
+            );
+
+            return false;
+        }
+
+        Debug.Log(
+            "SAVE | Current game saved successfully."
         );
 
-        return false;
+        return true;
     }
-
-    // ----------------------------------------------
-    // MERGE SESSION
-    // ----------------------------------------------
-
-    if (!CaptureMergeSession(
-            saveData))
-    {
-        Debug.LogError(
-            "SAVE | Current game save aborted " +
-            "because merge session capture failed."
-        );
-
-        return false;
-    }
-
-    // ----------------------------------------------
-    // WRITE FILE
-    // ----------------------------------------------
-
-    return Save(
-        saveData
-    );
-}
 
     // ==================================================
     // LOAD CURRENT GAME
     // ==================================================
 
     public bool LoadCurrentGame()
-{
-    if (!TryLoad(
-            out PlayerSaveData saveData))
     {
-        Debug.LogWarning(
-            "LOAD | Current game load aborted " +
-            "because no valid save could be loaded."
-        );
+        if (saveInProgress || loadInProgress)
+            return false;
 
-        return false;
+        // A failed/partial restore must never enable automatic saving.
+        // The coordinator must explicitly mark ready again after scene restoration.
+        SuspendLifecycleSaving();
+        GameStartupCoordinator.Instance?.BeginPersistentReload();
+        restorationFailed = true;
+        loadInProgress = true;
+        try
+        {
+            bool success = LoadCurrentGameCore();
+            restorationFailed = !success;
+            if (success) GameStartupCoordinator.Instance?.CompletePersistentReload();
+            else GameStartupCoordinator.Instance?.ReportGameplayRestorationFailure("Persistent restoration failed.");
+            return success;
+        }
+        catch (Exception exception)
+        {
+            GameStartupCoordinator.Instance?.ReportGameplayRestorationFailure("Persistent restoration threw an exception.");
+            Debug.LogError($"LOAD | Current game restore failed.\n{exception}");
+            return false;
+        }
+        finally
+        {
+            loadInProgress = false;
+        }
     }
 
-    // ----------------------------------------------
-    // ECONOMY
-    // ----------------------------------------------
-
-    if (!RestoreEconomy(
-            saveData))
+    private bool LoadCurrentGameCore()
     {
-        Debug.LogError(
-            "LOAD | Current game load aborted " +
-            "because economy restore failed."
+        if (!TryLoad(
+                out PlayerSaveData saveData))
+        {
+            Debug.LogWarning(
+                "LOAD | Current game load aborted " +
+                "because no valid save could be loaded."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // ECONOMY
+        // ----------------------------------------------
+
+        if (!RestoreEconomy(
+                saveData))
+        {
+            Debug.LogError(
+                "LOAD | Current game load aborted " +
+                "because economy restore failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // PROGRESSION
+        // ----------------------------------------------
+
+        if (!RestoreProgression(
+                saveData))
+        {
+            Debug.LogError(
+                "LOAD | Current game load aborted " +
+                "because progression restore failed."
+            );
+
+            return false;
+        }
+
+        // ----------------------------------------------
+        // MERGE SESSION
+        // ----------------------------------------------
+
+        if (!RestoreMergeSession(
+                saveData))
+        {
+            Debug.LogError(
+                "LOAD | Current game load aborted " +
+                "because merge session restore failed."
+            );
+
+            return false;
+        }
+
+        Debug.Log(
+            "LOAD | Current game restored successfully."
         );
 
-        return false;
+        return true;
     }
-
-    // ----------------------------------------------
-    // PROGRESSION
-    // ----------------------------------------------
-
-    if (!RestoreProgression(
-            saveData))
-    {
-        Debug.LogError(
-            "LOAD | Current game load aborted " +
-            "because progression restore failed."
-        );
-
-        return false;
-    }
-
-    // ----------------------------------------------
-    // MERGE SESSION
-    // ----------------------------------------------
-
-    if (!RestoreMergeSession(
-            saveData))
-    {
-        Debug.LogError(
-            "LOAD | Current game load aborted " +
-            "because merge session restore failed."
-        );
-
-        return false;
-    }
-
-    Debug.Log(
-        "LOAD | Current game restored successfully."
-    );
-
-    return true;
-}
 
     // ==================================================
     // SAVE
     // ==================================================
 
-    public bool Save(
-        PlayerSaveData saveData)
+    public bool Save(PlayerSaveData saveData)
     {
-        if (saveData == null)
-        {
-            Debug.LogError(
-                "SAVE | Cannot save null PlayerSaveData."
-            );
-
+        // Explicit and debug writes obey the same restoration gate as lifecycle writes.
+        if (!CanWriteCurrentState() || saveInProgress || loadInProgress)
             return false;
-        }
 
+        saveInProgress = true;
         try
         {
-            SanitizeSaveData(
-                saveData
-            );
-
-            saveData.saveVersion =
-                CurrentSaveVersion;
-
-            string json =
-                JsonUtility.ToJson(
-                    saveData,
-                    true
-                );
-
-            File.WriteAllText(
-                SaveFilePath,
-                json
-            );
-
-            Debug.Log(
-                $"SAVE | Successfully wrote save file.\n" +
-                $"Path: {SaveFilePath}"
-            );
-
-            return true;
+            return SaveCore(saveData);
         }
         catch (Exception exception)
         {
-            Debug.LogError(
-                $"SAVE | Failed to write save file.\n" +
-                $"{exception}"
-            );
-
+            Debug.LogError($"SAVE | Failed to write save file.\n{exception}");
             return false;
         }
+        finally
+        {
+            saveInProgress = false;
+        }
+    }
+
+    // Only called while the outer public operation owns the save guard.
+    private bool SaveCore(PlayerSaveData saveData)
+    {
+        if (saveData == null)
+        {
+            Debug.LogError("SAVE | Cannot save null PlayerSaveData.");
+            return false;
+        }
+
+        // Preserve the original normalization and caller-data mutation behavior.
+        SanitizeSaveData(saveData);
+        saveData.saveVersion = CurrentSaveVersion;
+
+        // One canonical serializer configuration for comparison AND writing.
+        // Preserve list order and string whitespace; do not sort gameplay lists.
+        string json = JsonUtility.ToJson(saveData, false);
+        if (!IsValidSerializedSnapshot(json))
+        {
+            Debug.LogError("SAVE | Serialized snapshot failed validation.");
+            return false;
+        }
+
+        byte[] expectedBytes = SaveEncoding.GetBytes(json);
+        string path = SaveFilePath;
+
+        // A disk file is trusted only if ALL bytes match the validated snapshot.
+        // Never sanitize disk content into equality; never trust a memory cache,
+        // file timestamp, length alone, or JsonUtility's missing-field defaults.
+        if (DiskMatchesSnapshot(path, expectedBytes))
+        {
+            Debug.Log("SAVE | Unchanged validated disk content; write skipped.");
+            return true;
+        }
+
+        // Intentionally a direct write. Atomic/backup saves belong to Step 12.8.8.
+        File.WriteAllText(path, json, SaveEncoding);
+        if (!DiskMatchesSnapshot(path, expectedBytes))
+        {
+            Debug.LogError("SAVE | Written file could not be verified.");
+            return false;
+        }
+
+        Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");
+        return true;
+    }
+
+    private bool IsValidSerializedSnapshot(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        PlayerSaveData check = JsonUtility.FromJson<PlayerSaveData>(json);
+        if (check == null || !IsSupportedVersion(check.saveVersion) ||
+            check.economy == null || check.progression == null ||
+            check.mergeGameplay == null ||
+            check.mergeGameplay.boardDesserts == null ||
+            check.mergeGameplay.shelfDesserts == null ||
+            check.mergeGameplay.customerOrders == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(json, JsonUtility.ToJson(check, false), StringComparison.Ordinal))
+            return false;
+
+        SanitizeSaveData(check);
+        return string.Equals(json, JsonUtility.ToJson(check, false), StringComparison.Ordinal);
+    }
+
+    private static bool DiskMatchesSnapshot(string path, byte[] expected)
+    {
+        try
+        {
+            // Read failures, missing files and partial files all force a write attempt.
+            byte[] actual = File.ReadAllBytes(path);
+            if (actual.Length != expected.Length)
+                return false;
+            for (int i = 0; i < actual.Length; i++)
+            {
+                if (actual[i] != expected[i])
+                    return false;
+            }
+            return true;
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
     }
 
     // ==================================================
@@ -668,9 +1068,19 @@ private bool RestoreMergeSession(
                 return false;
             }
 
+            // Do not discard invalid gameplay rows and then verify the reduced snapshot.
+            // Missing lists and malformed entries are failures for an existing save.
+            string originalGameplay = RestorationVerification.Fingerprint(loadedData.mergeGameplay);
             SanitizeSaveData(
                 loadedData
             );
+
+            if (!string.Equals(originalGameplay,
+                    RestorationVerification.Fingerprint(loadedData.mergeGameplay), StringComparison.Ordinal))
+            {
+                Debug.LogError("LOAD | Gameplay data requires destructive sanitization. Save retained unchanged.");
+                return false;
+            }
 
             saveData =
                 loadedData;
@@ -1070,6 +1480,9 @@ private bool RestoreMergeSession(
     [ContextMenu("Debug Delete Save")]
     private void DebugDeleteSave()
     {
+        if (saveInProgress || loadInProgress)
+            return;
+
         if (!SaveFileExists())
         {
             Debug.Log(
@@ -1205,4 +1618,29 @@ private bool RestoreMergeSession(
             "=================================="
         );
     }
+
+
+    // ==================================================
+    // DEBUG - SIMULATE APPLICATION PAUSE
+    // ==================================================
+
+    [ContextMenu("Debug Simulate Application Pause")]
+    private void DebugSimulateApplicationPause()
+    {
+        OnApplicationPause(true);
+    }
+
+
+    // ==================================================
+    // DEBUG - SIMULATE APPLICATION QUIT
+    // ==================================================
+
+    [ContextMenu("Debug Simulate Application Quit")]
+    private void DebugSimulateApplicationQuit()
+    {
+        OnApplicationQuit();
+    }
+
+
 }
+

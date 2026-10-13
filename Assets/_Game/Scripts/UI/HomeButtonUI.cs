@@ -1,11 +1,25 @@
+
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class HomeButtonUI : MonoBehaviour
 {
+    // ==================================================
+    // REFERENCES
+    // ==================================================
+
     [SerializeField]
     private Button homeButton;
+
+    // ==================================================
+    // STATE
+    // ==================================================
+
+    private bool isNavigating;
+
+    // ==================================================
+    // UNITY
+    // ==================================================
 
     private void Awake()
     {
@@ -21,6 +35,13 @@ public class HomeButtonUI : MonoBehaviour
                 HandleHomeClicked
             );
         }
+        else
+        {
+            Debug.LogError(
+                "HOME | Home Button reference " +
+                "is missing."
+            );
+        }
     }
 
     private void OnDestroy()
@@ -33,48 +54,93 @@ public class HomeButtonUI : MonoBehaviour
         }
     }
 
+    // ==================================================
+    // HOME BUTTON
+    // ==================================================
+
     private void HandleHomeClicked()
     {
         // ------------------------------------------
-        // CAPTURE CURRENT MERGE SESSION
+        // PREVENT DUPLICATE NAVIGATION
         // ------------------------------------------
 
-        MergeSessionController sessionController =
-            FindFirstObjectByType<
-                MergeSessionController>();
-
-        if (sessionController != null)
+        if (isNavigating)
         {
-            sessionController.CaptureSession();
-
-            Debug.Log(
-                "HOME | Merge session captured."
-            );
-        }
-        else
-        {
-            Debug.LogWarning(
-                "HOME | MergeSessionController " +
-                "was not found. Session was " +
-                "not captured."
-            );
+            return;
         }
 
         // ------------------------------------------
-        // NAVIGATE HOME
+        // VALIDATE SAVE MANAGER
         // ------------------------------------------
 
-        if (SceneNavigationManager.Instance != null)
+        SaveManager saveManager =
+            SaveManager.Instance;
+
+        if (saveManager == null)
         {
-            SceneNavigationManager.Instance
-                .GoToMainBakery();
+            Debug.LogError(
+                "HOME | Cannot return to MainBakery. " +
+                "SaveManager is unavailable."
+            );
 
             return;
         }
 
-        SceneManager.LoadScene(
-            SceneNavigationManager
-                .MainBakeryScene
+        // ------------------------------------------
+        // VALIDATE NAVIGATION MANAGER
+        // ------------------------------------------
+
+        SceneNavigationManager navigationManager =
+            SceneNavigationManager.Instance;
+
+        if (navigationManager == null)
+        {
+            Debug.LogError(
+                "HOME | Cannot return to MainBakery. " +
+                "SceneNavigationManager is unavailable."
+            );
+
+            return;
+        }
+
+        // ------------------------------------------
+        // SAVE CURRENT GAME
+        // ------------------------------------------
+
+        Debug.Log(
+            "HOME | Saving current game " +
+            "before returning to MainBakery."
         );
+
+        bool saveSucceeded =
+            saveManager.SaveCurrentGame();
+
+        if (!saveSucceeded)
+        {
+            Debug.LogError(
+                "HOME | Save failed. " +
+                "Remaining in Game to protect progress."
+            );
+
+            return;
+        }
+
+        // ------------------------------------------
+        // NAVIGATE TO MAIN BAKERY
+        // ------------------------------------------
+
+        isNavigating = true;
+
+        if (homeButton != null)
+        {
+            homeButton.interactable = false;
+        }
+
+        Debug.Log(
+            "HOME | Save successful. " +
+            "Returning to MainBakery."
+        );
+
+        navigationManager.GoToMainBakery();
     }
 }

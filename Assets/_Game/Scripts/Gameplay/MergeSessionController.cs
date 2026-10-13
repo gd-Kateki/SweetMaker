@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class MergeSessionController : MonoBehaviour
@@ -17,6 +19,69 @@ public class MergeSessionController : MonoBehaviour
     private OrderManager orderManager;
 
     private bool hasRestoredAutomatically;
+    private bool restorationInProgress;
+    private bool departurePrepared;
+    public bool IsRestorationVerified { get; private set; }
+    public string LastRestorationError { get; private set; }
+
+    internal void InvalidateRestoration()
+    {
+        IsRestorationVerified = false;
+        SaveManager.Instance?.SuspendLifecycleSaving();
+    }
+
+    private void Awake()
+    {
+        GameStartupCoordinator.Instance?.BeginGameplayInitialization();
+        SaveManager.Instance?.SuspendLifecycleSaving();
+    }
+
+    private void OnEnable()
+    {
+        if (hasRestoredAutomatically)
+        {
+            GameStartupCoordinator.Instance?.BeginGameplayInitialization();
+            StartCoroutine(RestoreAfterEnable());
+        }
+    }
+
+    private IEnumerator RestoreAfterEnable()
+    {
+        yield return null;
+        TryRestoreSession();
+    }
+
+    private void OnDisable()
+    {
+        bool released = departurePrepared;
+        try
+        {
+            if (!released && IsRestorationVerified && !restorationInProgress && TryCaptureSession())
+                released = GameStartupCoordinator.Instance != null &&
+                    GameStartupCoordinator.Instance.ReleaseVerifiedGameplay(this);
+        }
+        catch (Exception exception) { FailRestoration(exception.ToString()); }
+        IsRestorationVerified = false;
+        if (!released) SaveManager.Instance?.SuspendLifecycleSaving();
+    }
+
+    // Call before unloading Game, while all gameplay dependencies still exist.
+    public bool PrepareToLeaveGameplay()
+    {
+        if (!TryCaptureSession() || GameStartupCoordinator.Instance == null) return false;
+        departurePrepared = GameStartupCoordinator.Instance.ReleaseVerifiedGameplay(this);
+        return departurePrepared;
+    }
+
+    private bool FailRestoration(string reason)
+    {
+        IsRestorationVerified = false;
+        LastRestorationError = reason;
+        SaveManager.Instance?.SuspendLifecycleSaving();
+        GameStartupCoordinator.Instance?.ReportGameplayRestorationFailure(reason);
+        Debug.LogError("RESTORATION FAILED | " + reason);
+        return false;
+    }
 
     // ==================================================
     // UNITY
@@ -24,13 +89,19 @@ public class MergeSessionController : MonoBehaviour
 
     private IEnumerator Start()
     {
-        /*
-         * Wait until the next frame so the normal
-         * gameplay Start() initialization has
-         * completed before restoring saved state.
-         */
         yield return null;
+        if (GameStartupCoordinator.Instance == null)
+        {
+            FailRestoration("GameStartupCoordinator is missing.");
+            yield break;
+        }
+        while (GameStartupCoordinator.Instance != null &&
+               !GameStartupCoordinator.Instance.IsStartupComplete &&
+               !GameStartupCoordinator.Instance.IsStartupBlocked)
+            yield return null;
 
+        // Also give consumers of restored progression a complete frame to initialize.
+        yield return null;
         TryRestoreSessionAutomatically();
     }
 
@@ -40,44 +111,8 @@ public class MergeSessionController : MonoBehaviour
 
     private void TryRestoreSessionAutomatically()
     {
-        if (hasRestoredAutomatically)
-            return;
-
-        if (MergeSessionManager.Instance == null)
-        {
-            Debug.Log(
-                "AUTO RESTORE | " +
-                "MergeSessionManager does not exist."
-            );
-
-            return;
-        }
-
-        if (!MergeSessionManager.Instance.HasSession)
-        {
-            Debug.Log(
-                "AUTO RESTORE | " +
-                "No existing merge session. " +
-                "Starting a fresh game."
-            );
-
-            return;
-        }
-
-        hasRestoredAutomatically =
-            true;
-
-        Debug.Log(
-            "AUTO RESTORE | " +
-            "Saved merge session found."
-        );
-
-        RestoreSession();
-
-        Debug.Log(
-            "AUTO RESTORE | " +
-            "Merge session restoration complete."
-        );
+        if (hasRestoredAutomatically) return;
+        hasRestoredAutomatically = TryRestoreSession();
     }
 
     // ==================================================
@@ -86,7 +121,29 @@ public class MergeSessionController : MonoBehaviour
 
     public void CaptureSession()
     {
+        TryCaptureSession();
+    }
+
+    /// <summary>
+    /// Captures the current live merge gameplay state
+    /// into the persistent MergeSessionManager.
+    ///
+    /// Returns true only when the complete session
+    /// was captured successfully.
+    /// </summary>
+    public bool TryCaptureSession()
+    {
+        if (restorationInProgress || !IsRestorationVerified ||
+            GameStartupCoordinator.Instance == null ||
+            !GameStartupCoordinator.Instance.IsStartupComplete)
+            return false;
+        if (!ValidateLiveState(out string reason))
+            return FailRestoration(reason);
         ResolveReferences();
+
+        // ----------------------------------------------
+        // GAMEPLAY REFERENCES
+        // ----------------------------------------------
 
         if (gridManager == null ||
             shelfManager == null ||
@@ -100,18 +157,27 @@ public class MergeSessionController : MonoBehaviour
                 "is missing."
             );
 
-            return;
+            return false;
         }
+
+        // ----------------------------------------------
+        // SESSION MANAGER
+        // ----------------------------------------------
 
         if (MergeSessionManager.Instance == null)
         {
             Debug.LogError(
                 "MergeSessionController: " +
+                "Cannot capture session because " +
                 "MergeSessionManager does not exist."
             );
 
-            return;
+            return false;
         }
+
+        // ----------------------------------------------
+        // BUILD SESSION
+        // ----------------------------------------------
 
         MergeSessionData data =
             new MergeSessionData();
@@ -121,8 +187,23 @@ public class MergeSessionController : MonoBehaviour
         CaptureOrders(data);
         CaptureNextDessert(data);
 
+        // ----------------------------------------------
+        // STORE SESSION
+        // ----------------------------------------------
+
         MergeSessionManager.Instance
             .SaveSession(data);
+
+        Debug.Log(
+            "MERGE SESSION CAPTURE COMPLETE | " +
+            $"Board: {data.boardDesserts.Count} | " +
+            $"Shelf: {data.shelfDesserts.Count} | " +
+            $"Orders: {data.customerOrders.Count} | " +
+            $"Next Order ID: #{data.nextOrderId} | " +
+            $"Next Dessert: T{data.nextDessertTier}"
+        );
+
+        return true;
     }
 
     // ==================================================
@@ -256,8 +337,7 @@ public class MergeSessionController : MonoBehaviour
 
         if (nextDessert == null)
         {
-            data.nextDessertTier =
-                -1;
+            data.nextDessertTier = -1;
 
             Debug.LogWarning(
                 "SESSION CAPTURE | " +
@@ -283,78 +363,158 @@ public class MergeSessionController : MonoBehaviour
 
     public void RestoreSession()
     {
+        TryRestoreSession();
+    }
+
+    public bool TryRestoreSession()
+    {
+        if (restorationInProgress) return false;
+        var coordinator = GameStartupCoordinator.Instance;
+        if (coordinator == null || !coordinator.IsStartupComplete)
+            return FailRestoration("Persistent startup has not succeeded.");
+
+        SaveManager.Instance?.SuspendLifecycleSaving();
+        IsRestorationVerified = false;
+        LastRestorationError = null;
+        restorationInProgress = true;
+        departurePrepared = false;
+        try
+        {
+            ResolveReferences();
+            if (gridManager == null || shelfManager == null ||
+                dessertSpawner == null || orderManager == null ||
+                MergeSessionManager.Instance == null)
+                return FailRestoration("A required gameplay reference is missing.");
+
+            if (MergeSessionManager.Instance.HasSession)
+            {
+                var data = MergeSessionManager.Instance.SessionData;
+                if (!ValidateExpectedState(data, out string reason))
+                    return FailRestoration(reason);
+
+                // Freeze the target before callbacks can mutate persistent state.
+                string target = RestorationVerification.Fingerprint(data);
+                RestoreBoard(data);
+                RestoreShelf(data);
+                RestoreOrders(data);
+                RestoreNextDessert(data);
+                gridManager.NotifyBoardChanged();
+                shelfManager.NotifyShelfChanged();
+
+                if (!ValidateLiveState(out reason)) return FailRestoration(reason);
+                var actual = new MergeSessionData();
+                CaptureBoard(actual);
+                CaptureShelf(actual);
+                CaptureOrders(actual);
+                CaptureNextDessert(actual);
+                if (!string.Equals(target, RestorationVerification.Fingerprint(actual),
+                        StringComparison.Ordinal))
+                    return FailRestoration("Live board, shelf, orders, order counter or next dessert differs from the saved session.");
+            }
+            else
+            {
+                if (!ValidateLiveState(out string reason)) return FailRestoration(reason);
+                if (dessertSpawner.NextDessert == null)
+                    return FailRestoration("A new game requires an initialized next dessert.");
+            }
+
+            IsRestorationVerified = true;
+            if (!coordinator.ConfirmGameplayRestoration(this))
+                return FailRestoration("The coordinator refused gameplay readiness.");
+            hasRestoredAutomatically = true;
+            Debug.Log("MERGE SESSION VERIFIED | Board, shelf, orders and next dessert are ready.");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            return FailRestoration(exception.ToString());
+        }
+        finally { restorationInProgress = false; }
+    }
+
+    private bool ValidateExpectedState(MergeSessionData data, out string reason)
+    {
+        reason = null;
+        if (data == null || data.boardDesserts == null || data.shelfDesserts == null ||
+            data.customerOrders == null || data.nextOrderId <= 0 ||
+            (data.nextDessertTier != -1 && data.nextDessertTier <= 0))
+        { reason = "Saved session contains missing or invalid data."; return false; }
+        if (gridManager.Cells == null || shelfManager.Slots == null)
+        { reason = "Board or shelf has not initialized."; return false; }
+        var cells = new HashSet<int>();
+        foreach (var state in data.boardDesserts)
+        {
+            if (state == null || state.dessertTier <= 0 || state.cellIndex < 0 ||
+                state.cellIndex >= gridManager.Cells.Count || !cells.Add(state.cellIndex) ||
+                gridManager.Cells[state.cellIndex] == null ||
+                !gridManager.Cells[state.cellIndex].IsUnlocked)
+            { reason = "Saved board contains an invalid, locked or duplicate cell."; return false; }
+        }
+        var slots = new HashSet<int>();
+        foreach (var state in data.shelfDesserts)
+        {
+            if (state == null || state.dessertTier <= 0 || state.slotIndex < 0 ||
+                state.slotIndex >= shelfManager.Slots.Count || !slots.Add(state.slotIndex) ||
+                shelfManager.Slots[state.slotIndex] == null ||
+                !shelfManager.Slots[state.slotIndex].IsUnlocked)
+            { reason = "Saved shelf contains an invalid, locked or duplicate slot."; return false; }
+        }
+        foreach (var state in data.customerOrders)
+            if (state == null)
+            { reason = "Saved order is null."; return false; }
+        return true;
+    }
+
+    private bool ValidateLiveState(out string reason)
+    {
+        reason = null;
         ResolveReferences();
+        var progression = PlayerProgressionManager.Instance;
+        if (gridManager == null || shelfManager == null || dessertSpawner == null ||
+            orderManager == null || progression == null || gridManager.Cells == null ||
+            shelfManager.Slots == null || orderManager.CustomerOrders == null)
+        { reason = "Gameplay dependencies are not initialized."; return false; }
+        if (!progression.ValidateRestorationDefinitions(out reason)) return false;
 
-        if (gridManager == null ||
-            shelfManager == null ||
-            dessertSpawner == null ||
-            orderManager == null)
+        var desserts = new HashSet<Dessert>();
+        int unlockedCells = 0, unlockedSlots = 0, validOrders = 0;
+        foreach (var cell in gridManager.Cells)
         {
-            Debug.LogError(
-                "MergeSessionController: " +
-                "Cannot restore session because " +
-                "a required gameplay reference " +
-                "is missing."
-            );
-
-            return;
+            if (cell == null) { reason = "Board contains a null cell."; return false; }
+            if (cell.IsUnlocked) unlockedCells++;
+            var dessert = cell.CurrentDessert;
+            if (cell.IsEmpty != (dessert == null) ||
+                (dessert != null && (!cell.IsUnlocked || dessert.Definition == null ||
+                 dessert.Definition.Tier <= 0 || !desserts.Add(dessert))))
+            { reason = "Board occupancy, dessert definition or ownership is invalid."; return false; }
         }
-
-        if (MergeSessionManager.Instance == null)
+        foreach (var slot in shelfManager.Slots)
         {
-            Debug.LogWarning(
-                "RESTORE SKIPPED | " +
-                "MergeSessionManager does not exist."
-            );
-
-            return;
+            if (slot == null) { reason = "Shelf contains a null slot."; return false; }
+            if (slot.IsUnlocked) unlockedSlots++;
+            var dessert = slot.CurrentDessert;
+            if (slot.IsEmpty != (dessert == null) ||
+                (dessert != null && (!slot.IsUnlocked || dessert.Definition == null ||
+                 dessert.Definition.Tier <= 0 || !desserts.Add(dessert))))
+            { reason = "Shelf occupancy, dessert definition or ownership is invalid."; return false; }
         }
-
-        if (!MergeSessionManager.Instance.HasSession)
+        var orderIds = new HashSet<int>();
+        foreach (var order in orderManager.CustomerOrders)
         {
-            Debug.Log(
-                "RESTORE SKIPPED | " +
-                "No saved merge session exists."
-            );
-
-            return;
+            if (order == null) continue; // Locked customer positions may be empty.
+            if (!order.IsValid || order.Definition == null || order.OrderId <= 0 ||
+                !orderIds.Add(order.OrderId) || orderManager.NextOrderId <= order.OrderId)
+            { reason = "Order definition, identity or next order counter is invalid."; return false; }
+            validOrders++;
         }
-
-        MergeSessionData data =
-            MergeSessionManager.Instance
-                .SessionData;
-
-        if (data == null)
-        {
-            Debug.LogWarning(
-                "RESTORE SKIPPED | " +
-                "Session data is null."
-            );
-
-            return;
-        }
-
-        RestoreBoard(data);
-        RestoreShelf(data);
-        RestoreOrders(data);
-        RestoreNextDessert(data);
-
-        gridManager.NotifyBoardChanged();
-        shelfManager.NotifyShelfChanged();
-
-        Debug.Log(
-            $"MERGE SESSION RESTORED | " +
-            $"Board Desserts: " +
-            $"{data.boardDesserts.Count} | " +
-            $"Shelf Desserts: " +
-            $"{data.shelfDesserts.Count} | " +
-            $"Customer Orders: " +
-            $"{data.customerOrders.Count} | " +
-            $"Next Order ID: " +
-            $"#{data.nextOrderId} | " +
-            $"Next Dessert Tier: " +
-            $"T{data.nextDessertTier}"
-        );
+        if (unlockedCells != progression.ActiveBoardCells ||
+            unlockedSlots != progression.ShelfCapacity ||
+            validOrders != progression.ActiveCustomerOrders || orderManager.NextOrderId <= 0)
+        { reason = "Live capacities or active order count disagree with progression."; return false; }
+        if (dessertSpawner.NextDessert != null &&
+            !progression.IsDessertTierUnlocked(dessertSpawner.NextDessert.Tier))
+        { reason = "Next dessert is not an unlocked tier."; return false; }
+        return true;
     }
 
     // ==================================================
@@ -567,29 +727,25 @@ public class MergeSessionController : MonoBehaviour
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<
-                    GridManager>();
+                FindFirstObjectByType<GridManager>();
         }
 
         if (shelfManager == null)
         {
             shelfManager =
-                FindFirstObjectByType<
-                    ShelfManager>();
+                FindFirstObjectByType<ShelfManager>();
         }
 
         if (dessertSpawner == null)
         {
             dessertSpawner =
-                FindFirstObjectByType<
-                    DessertSpawner>();
+                FindFirstObjectByType<DessertSpawner>();
         }
 
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<
-                    OrderManager>();
+                FindFirstObjectByType<OrderManager>();
         }
     }
 
@@ -600,7 +756,23 @@ public class MergeSessionController : MonoBehaviour
     [ContextMenu("Debug Capture Session")]
     private void DebugCaptureSession()
     {
-        CaptureSession();
+        bool success =
+            TryCaptureSession();
+
+        if (success)
+        {
+            Debug.Log(
+                "SESSION DEBUG | " +
+                "Live gameplay capture succeeded."
+            );
+        }
+        else
+        {
+            Debug.LogError(
+                "SESSION DEBUG | " +
+                "Live gameplay capture failed."
+            );
+        }
     }
 
     [ContextMenu("Debug Restore Session")]

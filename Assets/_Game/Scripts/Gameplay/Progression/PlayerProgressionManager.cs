@@ -474,6 +474,24 @@ public class PlayerProgressionManager : MonoBehaviour
     // VALIDATION
     // ==================================================
 
+    public bool ValidateRestorationDefinitions(out string reason)
+    {
+        foreach (UpgradeType type in new[] { UpgradeType.Oven, UpgradeType.BoardSpace,
+            UpgradeType.Shelf, UpgradeType.Customer, UpgradeType.MoneyMultiplier })
+        {
+            var definition = GetDefinition(type);
+            if (definition == null || !definition.IsValid || definition.UpgradeType != type ||
+                definition.MaxLevel < 1 || definition.GetLevel(GetLevel(type)) == null)
+            { reason = "Missing or invalid progression definition: " + type; return false; }
+        }
+        if (MaxUnlockedDessertTier <= 0 || ActiveBoardCells <= 0 || ShelfCapacity < 0 ||
+            ActiveCustomerOrders <= 0 || float.IsNaN(MoneyMultiplier) ||
+            float.IsInfinity(MoneyMultiplier) || MoneyMultiplier <= 0)
+        { reason = "Progression gameplay values are invalid."; return false; }
+        reason = null;
+        return true;
+    }
+
     private void ClampRuntimeLevels()
     {
         ovenLevel =
