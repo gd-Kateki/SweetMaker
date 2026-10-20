@@ -43,6 +43,9 @@ public class PlayButtonUI : MonoBehaviour
         }
 
         // Direct-scene/editor fallback.
+        if (!SceneNavigationManager.CanEnterMergeGameplay())
+            return;
+
         SceneManager.LoadScene(
             SceneNavigationManager
                 .MergeGameplayScene

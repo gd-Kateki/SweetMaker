@@ -16,14 +16,12 @@ public class SaveManager : MonoBehaviour
     private MergeSessionData capacitySession;
     private string capacityFingerprint;
     private int sessionCustomerCapacity;
-
     public void RecordSessionCustomerCapacity(MergeSessionData data, int capacity)
     {
         capacitySession = data;
         capacityFingerprint = RestorationVerification.Fingerprint(data);
         sessionCustomerCapacity = capacity;
     }
-
     public bool TryGetSessionCustomerCapacity(MergeSessionData data, int currentCapacity,
         out int capacity)
     {
@@ -38,14 +36,12 @@ public class SaveManager : MonoBehaviour
             capacity = currentCapacity;
         return capacity >= 1 && capacity <= currentCapacity;
     }
-
     private static string SerializeWithCapacity(PlayerSaveData data, int capacity)
     {
         string json = JsonUtility.ToJson(data, false);
         return json.Substring(0, json.Length - 1) +
             ",\"mergeSessionCustomerCapacity\":" + capacity.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
     }
-
     // ==================================================
     // SINGLETON
     // ==================================================
@@ -827,8 +823,8 @@ public class SaveManager : MonoBehaviour
             Debug.Log("SAVE | Unchanged validated disk content; write skipped.");
             return true;
         }
-        // Intentionally a direct write. Atomic/backup saves belong to Step 12.8.8.
-        File.WriteAllText(path, json, SaveEncoding);
+        // Step 12.8.8.1: only validated temporary bytes reach the primary path.
+        WriteSnapshotAtomically(path, expectedBytes);
         if (!DiskMatchesSnapshot(path, expectedBytes))
         {
             Debug.LogError("SAVE | Written file could not be verified.");
@@ -836,6 +832,74 @@ public class SaveManager : MonoBehaviour
         }
         Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");
         return true;
+    }
+    // The caller owns saveInProgress. One process/main-thread writer is required.
+    // Temporary and primary files must stay in the same directory/filesystem.
+    private void WriteSnapshotAtomically(string path, byte[] expectedBytes)
+    {
+        string temporaryPath = path + ".tmp";
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        // A stale temp is never loaded or promoted. Only a fresh save may replace it.
+        using (var stream = new FileStream(temporaryPath, FileMode.Create,
+            FileAccess.Write, FileShare.None))
+        {
+            stream.Write(expectedBytes, 0, expectedBytes.Length);
+            stream.Flush(true);
+        }
+        // Re-read the CLOSED file, compare every byte, then validate that actual JSON.
+        // This preserves the metadata and canonical serialization checks, without
+        // mutating capacityLoadedData or the live session's provenance.
+        byte[] actualBytes = File.ReadAllBytes(temporaryPath);
+        if (actualBytes.Length != expectedBytes.Length)
+            throw new IOException("Temporary save length differs from the validated snapshot.");
+        for (int i = 0; i < actualBytes.Length; i++)
+            if (actualBytes[i] != expectedBytes[i])
+                throw new IOException("Temporary save bytes differ from the validated snapshot.");
+        if (!IsValidSerializedSnapshot(SaveEncoding.GetString(actualBytes)))
+            throw new IOException("Temporary save JSON failed validation.");
+        // No backup rotation here: an existing primary is not necessarily trustworthy.
+        // In particular, never pass .bak to File.Replace or copy primary over .bak.
+        // Backup validation/rotation/recovery is a later substep.
+        CommitTemporaryFile(temporaryPath, path);
+        // On failure, retain remaining .tmp for diagnosis. Never delete the primary
+        // or try a copy/delete fallback. The outer Save operation reports failure.
+    }
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+    [System.Runtime.InteropServices.DllImport("kernel32.dll",
+        EntryPoint = "MoveFileExW", CharSet = System.Runtime.InteropServices.CharSet.Unicode,
+        ExactSpelling = true, SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool MoveSaveFileWindows(string source, string destination, uint flags);
+#elif UNITY_ANDROID && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "rename",
+        CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl,
+        ExactSpelling = true, SetLastError = true)]
+    private static extern int RenameSaveFileAndroid(byte[] source, byte[] destination);
+#endif
+    private static void CommitTemporaryFile(string temporaryPath, string path)
+    {
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        // Same-volume rename, replace if present. Deliberately omit COPY_ALLOWED.
+        const uint ReplaceExisting = 0x1;
+        const uint WriteThrough = 0x8;
+        if (!MoveSaveFileWindows(temporaryPath, path, ReplaceExisting | WriteThrough))
+        {
+            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            throw new IOException("Save commit failed (Windows error " + error + ").");
+        }
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        // Explicit NUL-terminated UTF-8 paths avoid ANSI marshaling ambiguity.
+        // POSIX rename replaces an existing destination without an unlink gap.
+        if (RenameSaveFileAndroid(SaveEncoding.GetBytes(temporaryPath + "\0"),
+                SaveEncoding.GetBytes(path + "\0")) != 0)
+        {
+            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            throw new IOException("Save commit failed (Android errno " + error + ").");
+        }
+#else
+        throw new PlatformNotSupportedException(
+            "Atomic save commit is configured for Windows Editor/player and Android player only.");
+#endif
     }
     private bool IsValidSerializedSnapshot(string json)
     {
@@ -1417,4 +1481,3 @@ public class SaveManager : MonoBehaviour
         OnApplicationQuit();
     }
 }
-

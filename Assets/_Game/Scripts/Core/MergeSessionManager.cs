@@ -429,10 +429,13 @@ public class MergeSessionManager : MonoBehaviour
             restoredData
         );
 
-        RestoreOrdersFromSaveData(
+        if (!RestoreOrdersFromSaveData(
             saveData,
             restoredData
-        );
+        ))
+        {
+            return false;
+        }
 
         restoredData.nextOrderId =
             Mathf.Max(
@@ -556,14 +559,15 @@ public class MergeSessionManager : MonoBehaviour
     // PERMANENT RESTORE - ORDERS
     // ==================================================
 
-    private void RestoreOrdersFromSaveData(
+    private bool RestoreOrdersFromSaveData(
         MergeGameplaySaveData saveData,
         MergeSessionData restoredData)
     {
         if (saveData.customerOrders ==
             null)
         {
-            return;
+            Debug.LogError("MERGE SAVE RESTORE FAILED | Saved customer orders are missing.");
+            return false;
         }
 
         foreach (
@@ -571,27 +575,30 @@ public class MergeSessionManager : MonoBehaviour
             in saveData.customerOrders)
         {
             if (state == null)
-                continue;
+            {
+                Debug.LogError("MERGE SAVE RESTORE FAILED | Saved customer order is null.");
+                return false;
+            }
 
             if (state.customerIndex < 0 ||
                 state.orderId <= 0 ||
                 string.IsNullOrWhiteSpace(
                     state.definitionId))
             {
-                Debug.LogWarning(
-                    "MERGE LOAD ORDER SKIPPED | " +
+                Debug.LogError(
+                    "MERGE SAVE RESTORE FAILED | " +
                     "Invalid saved order data."
                 );
 
-                continue;
+                return false;
             }
 
             if (!customerOrderDatabase.TryGetById(
                     state.definitionId,
                     out CustomerOrderDefinition definition))
             {
-                Debug.LogWarning(
-                    "MERGE LOAD ORDER SKIPPED | " +
+                Debug.LogError(
+                    "MERGE SAVE RESTORE FAILED | " +
                     $"Customer " +
                     $"{state.customerIndex + 1} | " +
                     $"Order #{state.orderId} | " +
@@ -599,7 +606,7 @@ public class MergeSessionManager : MonoBehaviour
                     $"{state.definitionId}"
                 );
 
-                continue;
+                return false;
             }
 
             restoredData.customerOrders.Add(
@@ -618,6 +625,7 @@ public class MergeSessionManager : MonoBehaviour
                 $"{definition.DisplayName}"
             );
         }
+        return true;
     }
 
     // ==================================================

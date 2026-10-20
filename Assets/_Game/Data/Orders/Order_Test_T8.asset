@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6744fa9b3649a0640a87a580df33a6bf, type: 3}
   m_Name: Order_Test_T8
   m_EditorClassIdentifier: Assembly-CSharp::CustomerOrderDefinition
+  definitionId: af1dc4f08222ac34db6dbf76ca51b3c7
   displayName: 'T8 Test Order '
   requirements:
   - dessert: {fileID: 11400000, guid: df5d2fc983d428f43b38a5fd604b6e7e, type: 2}

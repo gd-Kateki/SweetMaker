@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6744fa9b3649a0640a87a580df33a6bf, type: 3}
   m_Name: Order_02
   m_EditorClassIdentifier: Assembly-CSharp::CustomerOrderDefinition
+  definitionId: abb4dc9f8b0fbd54b96d57551d46ba40
   displayName: Cupcake Order
   requirements:
   - dessert: {fileID: 11400000, guid: b7c378e00b9c8ec438c7434dcca96987, type: 2}

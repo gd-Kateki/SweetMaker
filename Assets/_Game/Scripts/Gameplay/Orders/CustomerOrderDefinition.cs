@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -116,18 +115,12 @@ public class CustomerOrderDefinition :
          * Once generated, this value should remain
          * unchanged for the lifetime of the asset.
          */
-        if (string.IsNullOrWhiteSpace(
-                definitionId))
-        {
-            definitionId =
-                Guid.NewGuid().ToString("N");
-
 #if UNITY_EDITOR
-            UnityEditor.EditorUtility.SetDirty(
-                this
-            );
+        // OnValidate can run during import. Defer asset access and persistence
+        // to the editor update, and never replace an existing permanent ID.
+        UnityEditor.EditorApplication.delayCall -= PersistMissingDefinitionId;
+        UnityEditor.EditorApplication.delayCall += PersistMissingDefinitionId;
 #endif
-        }
 
         /*
          * Preserve the existing reward validation.
@@ -137,4 +130,21 @@ public class CustomerOrderDefinition :
             cashReward = 0;
         }
     }
+
+#if UNITY_EDITOR
+    private void PersistMissingDefinitionId()
+    {
+        if (this == null || !string.IsNullOrWhiteSpace(definitionId))
+            return;
+
+        string path = UnityEditor.AssetDatabase.GetAssetPath(this);
+        string assetId = UnityEditor.AssetDatabase.AssetPathToGUID(path);
+        if (string.IsNullOrWhiteSpace(assetId))
+            return;
+
+        definitionId = assetId;
+        UnityEditor.EditorUtility.SetDirty(this);
+        UnityEditor.AssetDatabase.SaveAssetIfDirty(this);
+    }
+#endif
 }

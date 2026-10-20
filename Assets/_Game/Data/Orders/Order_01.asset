@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6744fa9b3649a0640a87a580df33a6bf, type: 3}
   m_Name: Order_01
   m_EditorClassIdentifier: Assembly-CSharp::CustomerOrderDefinition
+  definitionId: 1a7f189febea4874a80fbb5e86c1d0e8
   displayName: Simple Donut Order
   requirements:
   - dessert: {fileID: 11400000, guid: c9043fac70e94654993677ff17633c10, type: 2}
