@@ -1632,6 +1632,24 @@ public class SaveManager : MonoBehaviour
 
         string path = SaveFilePath;
 
+        // Guard even explicit/debug saves against overwriting a file written
+        // by a different game build. A failed load normally blocks saving, but
+        // this check also protects against an out-of-band file replacement.
+        // An unreadable/corrupt primary is handled by the existing recovery
+        // path; only a positively identified unsupported version is blocked.
+        if (File.Exists(path))
+        {
+            byte[] onDiskBytes = File.ReadAllBytes(path);
+            int diskVersion;
+            MigrationDecision diskDecision = EvaluateMigration(onDiskBytes, out diskVersion);
+            if (IsMigrationBlocked(diskDecision))
+            {
+                Debug.LogError("SAVE VERSION | Refusing to overwrite unsupported or ambiguous " +
+                    "on-disk save version (" + diskVersion + ").");
+                return false;
+            }
+        }
+
         // A disk file is trusted only if ALL bytes match the validated snapshot.
 
         // Never sanitize disk content into equality; never trust a memory cache,
@@ -2080,6 +2098,94 @@ public class SaveManager : MonoBehaviour
 
     // ==================================================
 
+    // Step 12.8.9.2 — non-destructive version preflight.
+    // Version 1 remains the ONLY supported format. No V2 migration is invented.
+    // An explicitly marked future version is never treated as corrupt V1:
+    // downgrading from a backup could destroy progress made by a newer build.
+    private enum SaveVersionClassification
+    {
+        MissingOrUnreadable,
+        Current,
+        UnsupportedOlder,
+        UnsupportedFuture,
+        Ambiguous
+    }
+
+    private static SaveVersionClassification ClassifySaveVersion(byte[] bytes, out int version)
+    {
+        version = 0;
+        if (bytes == null) return SaveVersionClassification.MissingOrUnreadable;
+        try
+        {
+            string json = SaveEncoding.GetString(bytes);
+            // Check the literal field, not the JsonUtility default of 0 when absent.
+            // Multiple saveVersion declarations are ambiguous and must not be loaded.
+            var matches = System.Text.RegularExpressions.Regex.Matches(json,
+                @"""saveVersion""\s*:\s*(-?\d+)");
+            if (matches.Count > 1) return SaveVersionClassification.Ambiguous;
+            if (matches.Count == 0) return SaveVersionClassification.MissingOrUnreadable;
+            if (!int.TryParse(matches[0].Groups[1].Value,
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out version))
+                return SaveVersionClassification.Ambiguous;
+            if (version > CurrentSaveVersion) return SaveVersionClassification.UnsupportedFuture;
+            if (version < CurrentSaveVersion) return SaveVersionClassification.UnsupportedOlder;
+            return SaveVersionClassification.Current;
+        }
+        catch (ArgumentException)
+        {
+            return SaveVersionClassification.MissingOrUnreadable;
+        }
+    }
+
+    // Step 12.8.9.3 — migration safety boundary.
+    // There are deliberately NO registered migrations while V1 is current.
+    // This coordinator is a pure decision gate: it never mutates the input,
+    // touches a file, changes version numbers, or updates live managers.
+    // When V2 is designed, implement an explicit V1 -> V2 transformer and
+    // validate the detached result before adding a transactional disk commit.
+    private enum MigrationDecision
+    {
+        LoadCurrent,
+        MigrationNotRegistered,
+        FutureVersionBlocked,
+        AmbiguousVersionBlocked,
+        UnreadableVersion
+    }
+
+    private static MigrationDecision EvaluateMigration(byte[] sourceBytes, out int sourceVersion)
+    {
+        SaveVersionClassification classification =
+            ClassifySaveVersion(sourceBytes, out sourceVersion);
+
+        switch (classification)
+        {
+            case SaveVersionClassification.Current:
+                return MigrationDecision.LoadCurrent;
+            case SaveVersionClassification.UnsupportedOlder:
+                // No older-version migrations are registered. Do not reinterpret
+                // old data as V1 or manufacture defaults for missing fields.
+                return MigrationDecision.MigrationNotRegistered;
+            case SaveVersionClassification.UnsupportedFuture:
+                // A newer build may have written data this build cannot read.
+                // Never roll it back to an older backup automatically.
+                return MigrationDecision.FutureVersionBlocked;
+            case SaveVersionClassification.Ambiguous:
+                return MigrationDecision.AmbiguousVersionBlocked;
+            default:
+                // Only unreadable/missing versions can be considered corrupt
+                // and eligible for existing validated-backup recovery.
+                return MigrationDecision.UnreadableVersion;
+        }
+    }
+
+    private static bool IsMigrationBlocked(MigrationDecision decision)
+    {
+        return decision == MigrationDecision.MigrationNotRegistered ||
+               decision == MigrationDecision.FutureVersionBlocked ||
+               decision == MigrationDecision.AmbiguousVersionBlocked;
+    }
+
     // Step 12.8.8.3 — primary-first load with independently validated backup recovery.
     // This method only reads and recovers file bytes; gameplay restoration remains
     // the responsibility of LoadCurrentGameCore and the startup coordinator.
@@ -2108,6 +2214,18 @@ public class SaveManager : MonoBehaviour
             // Do not assume an unreadable primary is corrupt, and do not overwrite it.
             Debug.LogError("LOAD | Primary save could not be read; recovery was not attempted.\n" + exception);
             return false;
+        }
+
+        if (primaryExists)
+        {
+            int detectedVersion;
+            MigrationDecision decision = EvaluateMigration(primaryBytes, out detectedVersion);
+            if (IsMigrationBlocked(decision))
+            {
+                Debug.LogError("LOAD VERSION | Primary save version is unsupported or ambiguous (" +
+                    detectedVersion + "). File and backup preserved; no downgrade/recovery attempted.");
+                return false;
+            }
         }
 
         if (primaryExists && IsStrictlyValidSaveFile(primaryBytes))
@@ -2139,6 +2257,13 @@ public class SaveManager : MonoBehaviour
         catch (Exception exception)
         {
             Debug.LogError("LOAD RECOVERY | Backup could not be read. No save files were changed.\n" + exception);
+            return false;
+        }
+
+        int backupVersion;
+        if (EvaluateMigration(backupBytes, out backupVersion) != MigrationDecision.LoadCurrent)
+        {
+            Debug.LogError("LOAD VERSION | Backup is not a supported V1 save. No files changed.");
             return false;
         }
 
