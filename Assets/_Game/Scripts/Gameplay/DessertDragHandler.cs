@@ -64,19 +64,19 @@ public class DessertDragHandler :
         if (dessertSpawner == null)
         {
             dessertSpawner =
-                FindFirstObjectByType<DessertSpawner>();
+                FindAnyObjectByType<DessertSpawner>();
         }
 
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<GridManager>();
+                FindAnyObjectByType<GridManager>();
         }
 
         if (shelfManager == null)
         {
             shelfManager =
-                FindFirstObjectByType<ShelfManager>();
+                FindAnyObjectByType<ShelfManager>();
         }
 
         /*
