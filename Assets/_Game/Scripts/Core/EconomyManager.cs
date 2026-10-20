@@ -109,7 +109,7 @@ public class EconomyManager : MonoBehaviour
          * scene is correct.
          */
         orderManager =
-            FindFirstObjectByType<
+            FindAnyObjectByType<
                 OrderManager>();
 
         /*
@@ -147,7 +147,7 @@ public class EconomyManager : MonoBehaviour
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     OrderManager>();
         }
 
@@ -174,7 +174,7 @@ public class EconomyManager : MonoBehaviour
         if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
     }

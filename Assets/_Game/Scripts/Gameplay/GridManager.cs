@@ -156,7 +156,7 @@ public class GridManager : MonoBehaviour
     if (progressionManager == null)
     {
         progressionManager =
-            FindFirstObjectByType<
+            FindAnyObjectByType<
                 PlayerProgressionManager>();
     }
 }

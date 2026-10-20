@@ -176,7 +176,7 @@ public class OrderManager : MonoBehaviour
     if (gridManager == null)
     {
         gridManager =
-            FindFirstObjectByType<
+            FindAnyObjectByType<
                 GridManager>();
     }
     /*
@@ -192,7 +192,7 @@ public class OrderManager : MonoBehaviour
     else if (progressionManager == null)
     {
         progressionManager =
-            FindFirstObjectByType<
+            FindAnyObjectByType<
                 PlayerProgressionManager>();
     }
 }
@@ -238,7 +238,7 @@ public class OrderManager : MonoBehaviour
     }
     private void RefreshCustomerSlots()
     {
-        var controller = FindFirstObjectByType<MergeSessionController>();
+        var controller = FindAnyObjectByType<MergeSessionController>();
         if (MergeSessionManager.Instance != null && MergeSessionManager.Instance.HasSession &&
             (controller == null || !controller.IsRestorationVerified)) return;
         int activeCustomers =

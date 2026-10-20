@@ -88,21 +88,21 @@ public class CustomerButtonUI : MonoBehaviour
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     OrderManager>();
         }
 
         if (orderDetailsUI == null)
         {
             orderDetailsUI =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     OrderDetailsUI>();
         }
 
         if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
     }

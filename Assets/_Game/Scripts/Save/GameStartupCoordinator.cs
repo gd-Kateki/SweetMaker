@@ -102,7 +102,7 @@ public class GameStartupCoordinator : MonoBehaviour
     private IEnumerator RestoreLiveAfterReload()
     {
         yield return null;
-        var controller = FindFirstObjectByType<MergeSessionController>();
+        var controller = FindAnyObjectByType<MergeSessionController>();
         if (controller != null && !controller.IsRestorationVerified)
             controller.TryRestoreSession();
     }
@@ -112,7 +112,7 @@ public class GameStartupCoordinator : MonoBehaviour
         if (!IsStartupComplete || controller == null || !controller.isActiveAndEnabled ||
             !controller.IsRestorationVerified || SaveManager.Instance == null)
             return false;
-        if (FindObjectsByType<MergeSessionController>(FindObjectsSortMode.None).Length != 1)
+        if (FindObjectsByType<MergeSessionController>().Length != 1)
         { FailStartup("Exactly one active MergeSessionController is required."); return false; }
         verifiedController = controller;
         verifiedSnapshotAvailable = false;

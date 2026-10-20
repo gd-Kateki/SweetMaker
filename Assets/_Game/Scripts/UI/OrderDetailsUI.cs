@@ -35,6 +35,7 @@ public class OrderDetailsUI : MonoBehaviour
     [SerializeField]
     private OrderRequirementRowUI[]
         requirementRows;
+        
 
     [Header("Reward")]
     [SerializeField]
@@ -116,28 +117,28 @@ public class OrderDetailsUI : MonoBehaviour
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     OrderManager>();
         }
 
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     GridManager>();
         }
 
         if (economyManager == null)
         {
             economyManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     EconomyManager>();
         }
 
         if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
     }

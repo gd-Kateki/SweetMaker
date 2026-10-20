@@ -703,7 +703,7 @@ public class UpgradeCardUI : MonoBehaviour
         else if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
 
@@ -719,7 +719,7 @@ public class UpgradeCardUI : MonoBehaviour
             if (purchaseManager == null)
             {
                 purchaseManager =
-                    FindFirstObjectByType<
+                    FindAnyObjectByType<
                         UpgradePurchaseManager>();
             }
         }
@@ -736,7 +736,7 @@ public class UpgradeCardUI : MonoBehaviour
         else if (economyManager == null)
         {
             economyManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     EconomyManager>();
         }
     }

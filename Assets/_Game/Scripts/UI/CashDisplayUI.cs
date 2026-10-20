@@ -16,7 +16,7 @@ public class CashDisplayUI : MonoBehaviour
         if (economyManager == null)
         {
             economyManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     EconomyManager>();
         }
 

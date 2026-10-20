@@ -728,22 +728,22 @@ public class MergeSessionController : MonoBehaviour
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<GridManager>();
+                FindAnyObjectByType<GridManager>();
         }
         if (shelfManager == null)
         {
             shelfManager =
-                FindFirstObjectByType<ShelfManager>();
+                FindAnyObjectByType<ShelfManager>();
         }
         if (dessertSpawner == null)
         {
             dessertSpawner =
-                FindFirstObjectByType<DessertSpawner>();
+                FindAnyObjectByType<DessertSpawner>();
         }
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<OrderManager>();
+                FindAnyObjectByType<OrderManager>();
         }
     }
     // ==================================================

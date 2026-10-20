@@ -92,7 +92,7 @@ public class DessertDragHandler :
         else if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
     }
@@ -1272,7 +1272,7 @@ public class DessertDragHandler :
         else if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
 

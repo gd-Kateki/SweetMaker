@@ -89,13 +89,13 @@ public class OrderUI : MonoBehaviour
         if (orderManager == null)
         {
             orderManager =
-                FindFirstObjectByType<OrderManager>();
+                FindAnyObjectByType<OrderManager>();
         }
 
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<GridManager>();
+                FindAnyObjectByType<GridManager>();
         }
     }
 

@@ -136,7 +136,7 @@ public class ShelfManager : MonoBehaviour
         else if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
 

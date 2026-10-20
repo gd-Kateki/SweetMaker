@@ -648,7 +648,7 @@ public class SaveManager : MonoBehaviour
 
         MergeSessionController mergeSessionController =
 
-            FindFirstObjectByType<MergeSessionController>();
+            FindAnyObjectByType<MergeSessionController>();
 
         /*
 

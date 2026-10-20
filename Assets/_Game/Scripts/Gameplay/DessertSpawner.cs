@@ -103,7 +103,7 @@ public class DessertSpawner : MonoBehaviour
         if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
     }

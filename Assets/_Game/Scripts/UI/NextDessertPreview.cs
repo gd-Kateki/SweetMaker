@@ -24,7 +24,7 @@ public class NextDessertPreview : MonoBehaviour
         if (dessertSpawner == null)
         {
             dessertSpawner =
-                FindFirstObjectByType<DessertSpawner>();
+                FindAnyObjectByType<DessertSpawner>();
         }
 
         if (previewRenderer == null)

@@ -52,4 +52,5 @@ public class DessertDebugTools : MonoBehaviour
             $"DEBUG: Spawned {definition.DisplayName}."
         );
     }
+    
 }

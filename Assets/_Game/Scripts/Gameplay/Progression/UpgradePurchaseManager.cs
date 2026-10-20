@@ -97,7 +97,7 @@ public class UpgradePurchaseManager : MonoBehaviour
         else if (progressionManager == null)
         {
             progressionManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     PlayerProgressionManager>();
         }
 
@@ -116,7 +116,7 @@ public class UpgradePurchaseManager : MonoBehaviour
         else if (economyManager == null)
         {
             economyManager =
-                FindFirstObjectByType<
+                FindAnyObjectByType<
                     EconomyManager>();
         }
     }

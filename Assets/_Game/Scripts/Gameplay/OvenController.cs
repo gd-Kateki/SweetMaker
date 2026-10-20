@@ -1,7 +1,8 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(OvenAnimator))]
-public class OvenController : MonoBehaviour
+public class OvenController : MonoBehaviour, IPointerDownHandler
 {
     [Header("References")]
     [SerializeField]
@@ -15,8 +16,13 @@ public class OvenController : MonoBehaviour
             GetComponent<OvenAnimator>();
     }
 
-    private void OnMouseDown()
+    public void OnPointerDown(PointerEventData eventData)
     {
+        if (eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
         if (ovenManager == null)
         {
             Debug.LogError(

@@ -55,7 +55,7 @@ public class GameManager : MonoBehaviour
         if (gridManager == null)
         {
             gridManager =
-                FindFirstObjectByType<GridManager>();
+                FindAnyObjectByType<GridManager>();
         }
 
         if (gridManager == null)
