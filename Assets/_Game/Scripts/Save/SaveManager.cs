@@ -2,28 +2,64 @@ using System;
 using System.IO;
 using System.Text;
 using UnityEngine;
-
 public class SaveManager : MonoBehaviour
 {
+    // Root JSON extension avoids changing the project's existing data classes.
+    // It describes the MERGE SNAPSHOT, never the latest purchased progression.
+    [Serializable]
+    private class CustomerCapacityMetadata
+    {
+        public int mergeSessionCustomerCapacity;
+    }
+    private PlayerSaveData capacityLoadedData;
+    private int loadedCustomerCapacity;
+    private MergeSessionData capacitySession;
+    private string capacityFingerprint;
+    private int sessionCustomerCapacity;
+
+    public void RecordSessionCustomerCapacity(MergeSessionData data, int capacity)
+    {
+        capacitySession = data;
+        capacityFingerprint = RestorationVerification.Fingerprint(data);
+        sessionCustomerCapacity = capacity;
+    }
+
+    public bool TryGetSessionCustomerCapacity(MergeSessionData data, int currentCapacity,
+        out int capacity)
+    {
+        capacity = 0;
+        if (ReferenceEquals(data, capacitySession) && string.Equals(capacityFingerprint,
+            RestorationVerification.Fingerprint(data), StringComparison.Ordinal))
+            capacity = sessionCustomerCapacity;
+        // Legacy saves can be inferred only when ALL current slots are present.
+        // A shorter prefix is ambiguous; it needs an explicit backup-based migration.
+        if (capacity == 0 && data != null && data.customerOrders != null &&
+            data.customerOrders.Count == currentCapacity)
+            capacity = currentCapacity;
+        return capacity >= 1 && capacity <= currentCapacity;
+    }
+
+    private static string SerializeWithCapacity(PlayerSaveData data, int capacity)
+    {
+        string json = JsonUtility.ToJson(data, false);
+        return json.Substring(0, json.Length - 1) +
+            ",\"mergeSessionCustomerCapacity\":" + capacity.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
+    }
+
     // ==================================================
     // SINGLETON
     // ==================================================
-
     public static SaveManager Instance
     {
         get;
         private set;
     }
-
     // ==================================================
     // SAVE CONFIGURATION
     // ==================================================
-
     private const string SaveFileName =
         "player_save.json";
-
     private const int CurrentSaveVersion = 1;
-
     // Main-thread APIs. The guard covers capture, serialization, IO and logging.
     private bool saveInProgress;
     private bool loadInProgress;
@@ -31,22 +67,18 @@ public class SaveManager : MonoBehaviour
     private bool lifecycleSavingReady;
     private bool restorationFailed;
     private static readonly UTF8Encoding SaveEncoding = new UTF8Encoding(false, true);
-
     public bool IsLifecycleSavingReady => lifecycleSavingReady;
-
     private bool CanWriteCurrentState()
     {
         var startup = GameStartupCoordinator.Instance;
         return Instance == this && !restorationFailed && lifecycleSavingReady &&
             startup != null && startup.IsStartupComplete && startup.IsGameplayReady;
     }
-
     // Call before startup/reinitialization or before restoring live scene objects.
     public void SuspendLifecycleSaving()
     {
         lifecycleSavingReady = false;
     }
-
     // Call from the bootstrap coordinator AFTER all initialization and restoration,
     // including the live merge scene. Singleton existence alone is not readiness.
     public bool MarkGameplayReadyForLifecycleSaves()
@@ -60,11 +92,9 @@ public class SaveManager : MonoBehaviour
         {
             return false;
         }
-
         lifecycleSavingReady = true;
         return true;
     }
-
     private bool CanSaveFromLifecycle()
     {
         return CanWriteCurrentState() &&
@@ -73,29 +103,23 @@ public class SaveManager : MonoBehaviour
             PlayerProgressionManager.Instance != null &&
             MergeSessionManager.Instance != null;
     }
-
     private void OnDestroy()
     {
         lifecycleSavingReady = false;
         if (Instance == this)
             Instance = null;
     }
-
-
     // ==================================================
     // PUBLIC PROPERTIES
     // ==================================================
-
     public string SaveFilePath =>
         Path.Combine(
             Application.persistentDataPath,
             SaveFileName
         );
-
     // ==================================================
     // UNITY
     // ==================================================
-
     private void Awake()
     {
         if (Instance != null &&
@@ -104,19 +128,14 @@ public class SaveManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
-
         DontDestroyOnLoad(
             gameObject
         );
     }
-
-
     // ==================================================
     // ANDROID / MOBILE APPLICATION PAUSE
     // ==================================================
-
     private void OnApplicationPause(bool isPaused)
     {
         if (!CanSaveFromLifecycle())
@@ -125,59 +144,44 @@ public class SaveManager : MonoBehaviour
         try { HandleApplicationPause(isPaused); }
         finally { lifecycleCallbackInProgress = false; }
     }
-
     private void HandleApplicationPause(bool isPaused)
     {
         // ----------------------------------------------
         // IGNORE RESUME
         // ----------------------------------------------
-
         if (!isPaused)
         {
             Debug.Log(
                 "LIFECYCLE | Application resumed."
             );
-
             return;
         }
-
         // ----------------------------------------------
         // IGNORE DUPLICATE MANAGER
         // ----------------------------------------------
-
         if (Instance != this)
         {
             return;
         }
-
         // ----------------------------------------------
         // SAVE ON BACKGROUND
         // ----------------------------------------------
-
-
-
         bool saveSucceeded =
             SaveCurrentGame();
-
         if (!saveSucceeded)
         {
             Debug.LogError(
                 "LIFECYCLE | Application pause save failed."
             );
-
             return;
         }
-
         Debug.Log(
             "LIFECYCLE | Application pause save completed."
         );
     }
-
-
     // ==================================================
     // APPLICATION QUIT SAVE FALLBACK
     // ==================================================
-
     private void OnApplicationQuit()
     {
         if (!CanSaveFromLifecycle())
@@ -186,73 +190,54 @@ public class SaveManager : MonoBehaviour
         try { HandleApplicationQuit(); }
         finally { lifecycleCallbackInProgress = false; }
     }
-
     private void HandleApplicationQuit()
     {
         // ----------------------------------------------
         // IGNORE DUPLICATE SAVE MANAGER
         // ----------------------------------------------
-
         if (Instance != this)
         {
             return;
         }
-
         // ----------------------------------------------
         // ATTEMPT FINAL SAVE
         // ----------------------------------------------
-
-
-
         bool saveSucceeded =
             SaveCurrentGame();
-
         if (!saveSucceeded)
         {
             Debug.LogError(
                 "LIFECYCLE | Application quit save failed."
             );
-
             return;
         }
-
         Debug.Log(
             "LIFECYCLE | Application quit save completed."
         );
     }
-
-
-
     // ==================================================
     // SAVE FILE QUERIES
     // ==================================================
-
     public bool SaveFileExists()
     {
         return File.Exists(
             SaveFilePath
         );
     }
-
     // ==================================================
     // NEW SAVE DATA
     // ==================================================
-
     public PlayerSaveData CreateNewSaveData()
     {
         PlayerSaveData saveData =
             new PlayerSaveData();
-
         saveData.saveVersion =
             CurrentSaveVersion;
-
         return saveData;
     }
-
     // ==================================================
     // CAPTURE - ECONOMY
     // ==================================================
-
     private bool CaptureEconomy(
         PlayerSaveData saveData)
     {
@@ -262,43 +247,33 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Cannot capture economy into " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         EconomyManager economyManager =
             EconomyManager.Instance;
-
         if (economyManager == null)
         {
             Debug.LogError(
                 "SAVE | EconomyManager is unavailable."
             );
-
             return false;
         }
-
         if (saveData.economy == null)
         {
             saveData.economy =
                 new EconomySaveData();
         }
-
         saveData.economy.cash =
             economyManager.CurrentCash;
-
         Debug.Log(
             $"SAVE CAPTURE | Economy | " +
             $"Cash: ${saveData.economy.cash}"
         );
-
         return true;
     }
-
     // ==================================================
     // CAPTURE - PROGRESSION
     // ==================================================
-
     private bool CaptureProgression(
         PlayerSaveData saveData)
     {
@@ -308,44 +283,33 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Cannot capture progression into " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         PlayerProgressionManager progressionManager =
             PlayerProgressionManager.Instance;
-
         if (progressionManager == null)
         {
             Debug.LogError(
                 "SAVE | PlayerProgressionManager " +
                 "is unavailable."
             );
-
             return false;
         }
-
         if (saveData.progression == null)
         {
             saveData.progression =
                 new ProgressionSaveData();
         }
-
         saveData.progression.ovenLevel =
             progressionManager.OvenLevel;
-
         saveData.progression.boardSpaceLevel =
             progressionManager.BoardSpaceLevel;
-
         saveData.progression.shelfLevel =
             progressionManager.ShelfLevel;
-
         saveData.progression.customerLevel =
             progressionManager.CustomerLevel;
-
         saveData.progression.moneyMultiplierLevel =
             progressionManager.MoneyMultiplierLevel;
-
         Debug.Log(
             "SAVE CAPTURE | Progression | " +
             $"Oven L{saveData.progression.ovenLevel} | " +
@@ -355,19 +319,15 @@ public class SaveManager : MonoBehaviour
             $"Money L" +
             $"{saveData.progression.moneyMultiplierLevel}"
         );
-
         return true;
     }
-
     // ==================================================
     // CAPTURE - LIVE MERGE GAMEPLAY
     // ==================================================
-
     private bool CaptureLiveMergeGameplayIfAvailable()
     {
         MergeSessionController mergeSessionController =
             FindFirstObjectByType<MergeSessionController>();
-
         /*
          * No MergeSessionController is expected while
          * the player is in MainBakery.
@@ -383,38 +343,30 @@ public class SaveManager : MonoBehaviour
                 "No live MergeSessionController found. " +
                 "Using existing merge session snapshot."
             );
-
             return true;
         }
-
         Debug.Log(
             "SAVE CAPTURE | " +
             "Live merge gameplay detected. " +
             "Capturing current gameplay state."
         );
-
         if (!mergeSessionController.TryCaptureSession())
         {
             Debug.LogError(
                 "SAVE CAPTURE | " +
                 "Live merge gameplay capture failed."
             );
-
             return false;
         }
-
         Debug.Log(
             "SAVE CAPTURE | " +
             "Live merge gameplay captured successfully."
         );
-
         return true;
     }
-
     // ==================================================
     // CAPTURE - MERGE SESSION
     // ==================================================
-
     private bool CaptureMergeSession(
         PlayerSaveData saveData)
     {
@@ -424,38 +376,30 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Cannot capture merge session into " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         MergeSessionManager mergeSessionManager =
             MergeSessionManager.Instance;
-
         if (mergeSessionManager == null)
         {
             Debug.LogError(
                 "SAVE | MergeSessionManager is unavailable."
             );
-
             return false;
         }
-
         if (saveData.mergeGameplay == null)
         {
             saveData.mergeGameplay =
                 new MergeGameplaySaveData();
         }
-
         if (!mergeSessionManager.CaptureToSaveData(
                 saveData.mergeGameplay))
         {
             Debug.LogError(
                 "SAVE | Merge session capture failed."
             );
-
             return false;
         }
-
         Debug.Log(
             "SAVE CAPTURE | Merge Session | " +
             $"Has Session: " +
@@ -471,14 +415,11 @@ public class SaveManager : MonoBehaviour
             $"Next Dessert: " +
             $"T{saveData.mergeGameplay.nextDessertTier}"
         );
-
         return true;
     }
-
     // ==================================================
     // RESTORE - ECONOMY
     // ==================================================
-
     private bool RestoreEconomy(
         PlayerSaveData saveData)
     {
@@ -488,49 +429,37 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Cannot restore economy from " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         if (saveData.economy == null)
         {
             Debug.LogError(
                 "LOAD | Economy save data is missing."
             );
-
             return false;
         }
-
         EconomyManager economyManager =
             EconomyManager.Instance;
-
         if (economyManager == null)
         {
             Debug.LogError(
                 "LOAD | EconomyManager is unavailable."
             );
-
             return false;
         }
-
         economyManager.RestoreCash(
             saveData.economy.cash
         );
-
         if (economyManager.CurrentCash != saveData.economy.cash) return false;
-
         Debug.Log(
             $"LOAD RESTORE | Economy | " +
             $"Cash: ${economyManager.CurrentCash}"
         );
-
         return true;
     }
-
     // ==================================================
     // RESTORE - PROGRESSION
     // ==================================================
-
     private bool RestoreProgression(
         PlayerSaveData saveData)
     {
@@ -540,38 +469,30 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Cannot restore progression from " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         if (saveData.progression == null)
         {
             Debug.LogError(
                 "LOAD | Progression save data is missing."
             );
-
             return false;
         }
-
         PlayerProgressionManager progressionManager =
             PlayerProgressionManager.Instance;
-
         if (progressionManager == null)
         {
             Debug.LogError(
                 "LOAD | PlayerProgressionManager " +
                 "is unavailable."
             );
-
             return false;
         }
-
         if (!progressionManager.ValidateRestorationDefinitions(out string reason))
         {
             Debug.LogError("LOAD | " + reason);
             return false;
         }
-
         progressionManager.RestoreProgression(
             saveData.progression.ovenLevel,
             saveData.progression.boardSpaceLevel,
@@ -579,7 +500,6 @@ public class SaveManager : MonoBehaviour
             saveData.progression.customerLevel,
             saveData.progression.moneyMultiplierLevel
         );
-
         int[] expectedLevels = { saveData.progression.ovenLevel,
             saveData.progression.boardSpaceLevel, saveData.progression.shelfLevel,
             saveData.progression.customerLevel, saveData.progression.moneyMultiplierLevel };
@@ -588,7 +508,6 @@ public class SaveManager : MonoBehaviour
         for (int i = 0; i < types.Length; i++)
             if (progressionManager.GetLevel(types[i]) != Mathf.Clamp(expectedLevels[i], 1,
                     progressionManager.GetMaxLevel(types[i]))) return false;
-
         Debug.Log(
             "LOAD RESTORE | Progression | " +
             $"Oven L{progressionManager.OvenLevel} | " +
@@ -597,14 +516,11 @@ public class SaveManager : MonoBehaviour
             $"Customer L{progressionManager.CustomerLevel} | " +
             $"Money L{progressionManager.MoneyMultiplierLevel}"
         );
-
         return true;
     }
-
     // ==================================================
     // RESTORE - MERGE SESSION
     // ==================================================
-
     private bool RestoreMergeSession(
         PlayerSaveData saveData)
     {
@@ -614,31 +530,24 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Cannot restore merge session from " +
                 "null PlayerSaveData."
             );
-
             return false;
         }
-
         if (saveData.mergeGameplay == null)
         {
             Debug.LogError(
                 "LOAD | Merge gameplay save data is missing."
             );
-
             return false;
         }
-
         MergeSessionManager mergeSessionManager =
             MergeSessionManager.Instance;
-
         if (mergeSessionManager == null)
         {
             Debug.LogError(
                 "LOAD | MergeSessionManager is unavailable."
             );
-
             return false;
         }
-
         string expected = RestorationVerification.Fingerprint(saveData.mergeGameplay);
         if (!mergeSessionManager.RestoreFromSaveData(
                 saveData.mergeGameplay))
@@ -646,10 +555,8 @@ public class SaveManager : MonoBehaviour
             Debug.LogError(
                 "LOAD | Merge session restore failed."
             );
-
             return false;
         }
-
         var actual = new MergeGameplaySaveData();
         if (!mergeSessionManager.CaptureToSaveData(actual) ||
             !string.Equals(expected, RestorationVerification.Fingerprint(actual), StringComparison.Ordinal))
@@ -657,27 +564,24 @@ public class SaveManager : MonoBehaviour
             Debug.LogError("LOAD | Persistent merge session differs from the saved data.");
             return false;
         }
-
+        RecordSessionCustomerCapacity(mergeSessionManager.SessionData,
+            ReferenceEquals(saveData, capacityLoadedData) ? loadedCustomerCapacity : 0);
         Debug.Log(
             "LOAD RESTORE | Merge Session | " +
             $"Has Session: " +
             $"{mergeSessionManager.HasSession}"
         );
-
         return true;
     }
-
     // ==================================================
     // SAVE CURRENT GAME
     // ==================================================
-
     public bool SaveCurrentGame()
     {
         // Silent rejection prevents recursive log handlers from recursing again.
         // Rejected callers receive false and must retry; no request is reported saved.
         if (!CanWriteCurrentState() || saveInProgress || loadInProgress)
             return false;
-
         saveInProgress = true;
         try
         {
@@ -693,13 +597,11 @@ public class SaveManager : MonoBehaviour
             saveInProgress = false;
         }
     }
-
     private bool SaveCurrentGameCore()
     {
         // ----------------------------------------------
         // LIVE MERGE GAMEPLAY
         // ----------------------------------------------
-
         /*
          * If live merge gameplay currently exists,
          * capture it before building PlayerSaveData.
@@ -713,21 +615,16 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Current game save aborted " +
                 "because live merge gameplay capture failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // CREATE SAVE DATA
         // ----------------------------------------------
-
         PlayerSaveData saveData =
             CreateNewSaveData();
-
         // ----------------------------------------------
         // ECONOMY
         // ----------------------------------------------
-
         if (!CaptureEconomy(
                 saveData))
         {
@@ -735,14 +632,11 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Current game save aborted " +
                 "because economy capture failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // PROGRESSION
         // ----------------------------------------------
-
         if (!CaptureProgression(
                 saveData))
         {
@@ -750,14 +644,11 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Current game save aborted " +
                 "because progression capture failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // MERGE SESSION
         // ----------------------------------------------
-
         if (!CaptureMergeSession(
                 saveData))
         {
@@ -765,40 +656,31 @@ public class SaveManager : MonoBehaviour
                 "SAVE | Current game save aborted " +
                 "because merge session capture failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // WRITE FILE
         // ----------------------------------------------
-
         if (!SaveCore(saveData))
         {
             Debug.LogError(
                 "SAVE | Current game save failed " +
                 "while writing the save file."
             );
-
             return false;
         }
-
         Debug.Log(
             "SAVE | Current game saved successfully."
         );
-
         return true;
     }
-
     // ==================================================
     // LOAD CURRENT GAME
     // ==================================================
-
     public bool LoadCurrentGame()
     {
         if (saveInProgress || loadInProgress)
             return false;
-
         // A failed/partial restore must never enable automatic saving.
         // The coordinator must explicitly mark ready again after scene restoration.
         SuspendLifecycleSaving();
@@ -824,7 +706,6 @@ public class SaveManager : MonoBehaviour
             loadInProgress = false;
         }
     }
-
     private bool LoadCurrentGameCore()
     {
         if (!TryLoad(
@@ -834,14 +715,11 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Current game load aborted " +
                 "because no valid save could be loaded."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // ECONOMY
         // ----------------------------------------------
-
         if (!RestoreEconomy(
                 saveData))
         {
@@ -849,14 +727,11 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Current game load aborted " +
                 "because economy restore failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // PROGRESSION
         // ----------------------------------------------
-
         if (!RestoreProgression(
                 saveData))
         {
@@ -864,14 +739,11 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Current game load aborted " +
                 "because progression restore failed."
             );
-
             return false;
         }
-
         // ----------------------------------------------
         // MERGE SESSION
         // ----------------------------------------------
-
         if (!RestoreMergeSession(
                 saveData))
         {
@@ -879,27 +751,21 @@ public class SaveManager : MonoBehaviour
                 "LOAD | Current game load aborted " +
                 "because merge session restore failed."
             );
-
             return false;
         }
-
         Debug.Log(
             "LOAD | Current game restored successfully."
         );
-
         return true;
     }
-
     // ==================================================
     // SAVE
     // ==================================================
-
     public bool Save(PlayerSaveData saveData)
     {
         // Explicit and debug writes obey the same restoration gate as lifecycle writes.
         if (!CanWriteCurrentState() || saveInProgress || loadInProgress)
             return false;
-
         saveInProgress = true;
         try
         {
@@ -915,7 +781,6 @@ public class SaveManager : MonoBehaviour
             saveInProgress = false;
         }
     }
-
     // Only called while the outer public operation owns the save guard.
     private bool SaveCore(PlayerSaveData saveData)
     {
@@ -924,23 +789,36 @@ public class SaveManager : MonoBehaviour
             Debug.LogError("SAVE | Cannot save null PlayerSaveData.");
             return false;
         }
-
         // Preserve the original normalization and caller-data mutation behavior.
         SanitizeSaveData(saveData);
         saveData.saveVersion = CurrentSaveVersion;
-
         // One canonical serializer configuration for comparison AND writing.
         // Preserve list order and string whitespace; do not sort gameplay lists.
-        string json = JsonUtility.ToJson(saveData, false);
+        int capacity = 0;
+        if (saveData.mergeGameplay.hasSession)
+        {
+            var session = MergeSessionManager.Instance;
+            var progression = PlayerProgressionManager.Instance;
+            if (session == null || progression == null ||
+                !TryGetSessionCustomerCapacity(session.SessionData, progression.ActiveCustomerOrders, out capacity))
+            {
+                Debug.LogError("SAVE | Customer capacity provenance is missing.");
+                return false;
+            }
+            var snapshot = new MergeGameplaySaveData();
+            if (!session.CaptureToSaveData(snapshot) || !string.Equals(
+                RestorationVerification.Fingerprint(snapshot),
+                RestorationVerification.Fingerprint(saveData.mergeGameplay), StringComparison.Ordinal))
+                return false;
+        }
+        string json = SerializeWithCapacity(saveData, capacity);
         if (!IsValidSerializedSnapshot(json))
         {
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
             return false;
         }
-
         byte[] expectedBytes = SaveEncoding.GetBytes(json);
         string path = SaveFilePath;
-
         // A disk file is trusted only if ALL bytes match the validated snapshot.
         // Never sanitize disk content into equality; never trust a memory cache,
         // file timestamp, length alone, or JsonUtility's missing-field defaults.
@@ -949,7 +827,6 @@ public class SaveManager : MonoBehaviour
             Debug.Log("SAVE | Unchanged validated disk content; write skipped.");
             return true;
         }
-
         // Intentionally a direct write. Atomic/backup saves belong to Step 12.8.8.
         File.WriteAllText(path, json, SaveEncoding);
         if (!DiskMatchesSnapshot(path, expectedBytes))
@@ -957,16 +834,13 @@ public class SaveManager : MonoBehaviour
             Debug.LogError("SAVE | Written file could not be verified.");
             return false;
         }
-
         Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");
         return true;
     }
-
     private bool IsValidSerializedSnapshot(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return false;
-
         PlayerSaveData check = JsonUtility.FromJson<PlayerSaveData>(json);
         if (check == null || !IsSupportedVersion(check.saveVersion) ||
             check.economy == null || check.progression == null ||
@@ -977,14 +851,13 @@ public class SaveManager : MonoBehaviour
         {
             return false;
         }
-
-        if (!string.Equals(json, JsonUtility.ToJson(check, false), StringComparison.Ordinal))
+        int capacity = JsonUtility.FromJson<CustomerCapacityMetadata>(json).mergeSessionCustomerCapacity;
+        if (check.mergeGameplay.hasSession && (capacity < 1 || capacity > 4)) return false;
+        if (!string.Equals(json, SerializeWithCapacity(check, capacity), StringComparison.Ordinal))
             return false;
-
         SanitizeSaveData(check);
-        return string.Equals(json, JsonUtility.ToJson(check, false), StringComparison.Ordinal);
+        return string.Equals(json, SerializeWithCapacity(check, capacity), StringComparison.Ordinal);
     }
-
     private static bool DiskMatchesSnapshot(string path, byte[] expected)
     {
         try
@@ -1003,58 +876,47 @@ public class SaveManager : MonoBehaviour
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
     }
-
     // ==================================================
     // LOAD
     // ==================================================
-
     public bool TryLoad(
         out PlayerSaveData saveData)
     {
         saveData = null;
-
         if (!SaveFileExists())
         {
             Debug.LogWarning(
                 "LOAD | No save file exists."
             );
-
             return false;
         }
-
         try
         {
             string json =
                 File.ReadAllText(
                     SaveFilePath
                 );
-
             if (string.IsNullOrWhiteSpace(
                     json))
             {
                 Debug.LogError(
                     "LOAD | Save file is empty."
                 );
-
                 return false;
             }
-
             PlayerSaveData loadedData =
                 JsonUtility.FromJson<
                     PlayerSaveData>(
                         json
                     );
-
             if (loadedData == null)
             {
                 Debug.LogError(
                     "LOAD | JSON produced null " +
                     "PlayerSaveData."
                 );
-
                 return false;
             }
-
             if (!IsSupportedVersion(
                     loadedData.saveVersion))
             {
@@ -1064,32 +926,30 @@ public class SaveManager : MonoBehaviour
                     $"Current version: " +
                     $"{CurrentSaveVersion}."
                 );
-
                 return false;
             }
-
             // Do not discard invalid gameplay rows and then verify the reduced snapshot.
             // Missing lists and malformed entries are failures for an existing save.
             string originalGameplay = RestorationVerification.Fingerprint(loadedData.mergeGameplay);
             SanitizeSaveData(
                 loadedData
             );
-
             if (!string.Equals(originalGameplay,
                     RestorationVerification.Fingerprint(loadedData.mergeGameplay), StringComparison.Ordinal))
             {
                 Debug.LogError("LOAD | Gameplay data requires destructive sanitization. Save retained unchanged.");
                 return false;
             }
-
-            saveData =
-                loadedData;
-
+            var metadata = JsonUtility.FromJson<CustomerCapacityMetadata>(json);
+            if (metadata == null || metadata.mergeSessionCustomerCapacity < 0 ||
+                metadata.mergeSessionCustomerCapacity > 4) return false;
+            capacityLoadedData = loadedData;
+            loadedCustomerCapacity = metadata.mergeSessionCustomerCapacity;
+            saveData = loadedData;
             Debug.Log(
                 $"LOAD | Successfully read save file.\n" +
                 $"Path: {SaveFilePath}"
             );
-
             return true;
         }
         catch (Exception exception)
@@ -1098,101 +958,82 @@ public class SaveManager : MonoBehaviour
                 $"LOAD | Failed to read save file.\n" +
                 $"{exception}"
             );
-
             saveData = null;
-
             return false;
         }
     }
-
     // ==================================================
     // VERSION
     // ==================================================
-
     private bool IsSupportedVersion(
         int version)
     {
         return version ==
             CurrentSaveVersion;
     }
-
     // ==================================================
     // SANITIZATION
     // ==================================================
-
     private void SanitizeSaveData(
         PlayerSaveData saveData)
     {
         if (saveData == null)
             return;
-
         // ----------------------------------------------
         // ECONOMY
         // ----------------------------------------------
-
         if (saveData.economy == null)
         {
             saveData.economy =
                 new EconomySaveData();
         }
-
         if (saveData.economy.cash < 0)
         {
             saveData.economy.cash =
                 0;
         }
-
         // ----------------------------------------------
         // PROGRESSION
         // ----------------------------------------------
-
         if (saveData.progression == null)
         {
             saveData.progression =
                 new ProgressionSaveData();
         }
-
         saveData.progression.ovenLevel =
             Mathf.Max(
                 1,
                 saveData.progression.ovenLevel
             );
-
         saveData.progression.boardSpaceLevel =
             Mathf.Max(
                 1,
                 saveData.progression.boardSpaceLevel
             );
-
         saveData.progression.shelfLevel =
             Mathf.Max(
                 1,
                 saveData.progression.shelfLevel
             );
-
         saveData.progression.customerLevel =
             Mathf.Max(
                 1,
                 saveData.progression.customerLevel
             );
-
         saveData.progression.moneyMultiplierLevel =
             Mathf.Max(
                 1,
                 saveData.progression
                     .moneyMultiplierLevel
             );
-
         // ----------------------------------------------
         // MERGE GAMEPLAY
         // ----------------------------------------------
-
         if (saveData.mergeGameplay == null)
         {
             saveData.mergeGameplay =
                 new MergeGameplaySaveData();
         }
-
         if (saveData.mergeGameplay.boardDesserts ==
             null)
         {
@@ -1200,7 +1041,6 @@ public class SaveManager : MonoBehaviour
                 new System.Collections.Generic.List<
                     BoardDessertSaveData>();
         }
-
         if (saveData.mergeGameplay.shelfDesserts ==
             null)
         {
@@ -1208,7 +1048,6 @@ public class SaveManager : MonoBehaviour
                 new System.Collections.Generic.List<
                     ShelfDessertSaveData>();
         }
-
         if (saveData.mergeGameplay.customerOrders ==
             null)
         {
@@ -1216,36 +1055,30 @@ public class SaveManager : MonoBehaviour
                 new System.Collections.Generic.List<
                     CustomerOrderSaveData>();
         }
-
         saveData.mergeGameplay.nextOrderId =
             Mathf.Max(
                 1,
                 saveData.mergeGameplay.nextOrderId
             );
-
         if (saveData.mergeGameplay.nextDessertTier <
             -1)
         {
             saveData.mergeGameplay.nextDessertTier =
                 -1;
         }
-
         SanitizeBoardDesserts(
             saveData.mergeGameplay
                 .boardDesserts
         );
-
         SanitizeShelfDesserts(
             saveData.mergeGameplay
                 .shelfDesserts
         );
-
         SanitizeCustomerOrders(
             saveData.mergeGameplay
                 .customerOrders
         );
     }
-
     private void SanitizeBoardDesserts(
         System.Collections.Generic.List<
             BoardDessertSaveData> desserts)
@@ -1256,7 +1089,6 @@ public class SaveManager : MonoBehaviour
         {
             BoardDessertSaveData dessert =
                 desserts[i];
-
             if (dessert == null ||
                 dessert.cellIndex < 0 ||
                 dessert.dessertTier <= 0)
@@ -1265,7 +1097,6 @@ public class SaveManager : MonoBehaviour
             }
         }
     }
-
     private void SanitizeShelfDesserts(
         System.Collections.Generic.List<
             ShelfDessertSaveData> desserts)
@@ -1276,7 +1107,6 @@ public class SaveManager : MonoBehaviour
         {
             ShelfDessertSaveData dessert =
                 desserts[i];
-
             if (dessert == null ||
                 dessert.slotIndex < 0 ||
                 dessert.dessertTier <= 0)
@@ -1285,7 +1115,6 @@ public class SaveManager : MonoBehaviour
             }
         }
     }
-
     private void SanitizeCustomerOrders(
         System.Collections.Generic.List<
             CustomerOrderSaveData> orders)
@@ -1296,7 +1125,6 @@ public class SaveManager : MonoBehaviour
         {
             CustomerOrderSaveData order =
                 orders[i];
-
             if (order == null ||
                 order.customerIndex < 0 ||
                 order.orderId <= 0 ||
@@ -1307,68 +1135,52 @@ public class SaveManager : MonoBehaviour
             }
         }
     }
-
     // ==================================================
     // DEBUG TEST SAVE
     // ==================================================
-
     [ContextMenu("Debug Write Test Save")]
     private void DebugWriteTestSave()
     {
         PlayerSaveData testData =
             CreateNewSaveData();
-
         testData.economy.cash =
             12345;
-
         testData.progression.ovenLevel =
             2;
-
         testData.progression.boardSpaceLevel =
             3;
-
         testData.progression.shelfLevel =
             2;
-
         testData.progression.customerLevel =
             2;
-
         testData.progression.moneyMultiplierLevel =
             2;
-
         testData.mergeGameplay.hasSession =
             true;
-
         testData.mergeGameplay.nextOrderId =
             42;
-
         testData.mergeGameplay.nextDessertTier =
             5;
-
         testData.mergeGameplay.boardDesserts.Add(
             new BoardDessertSaveData(
                 0,
                 2
             )
         );
-
         testData.mergeGameplay.boardDesserts.Add(
             new BoardDessertSaveData(
                 4,
                 7
             )
         );
-
         testData.mergeGameplay.shelfDesserts.Add(
             new ShelfDessertSaveData(
                 0,
                 3
             )
         );
-
         bool success =
             Save(testData);
-
         if (success)
         {
             Debug.Log(
@@ -1377,11 +1189,9 @@ public class SaveManager : MonoBehaviour
             );
         }
     }
-
     // ==================================================
     // DEBUG TEST LOAD
     // ==================================================
-
     [ContextMenu("Debug Read Test Save")]
     private void DebugReadTestSave()
     {
@@ -1392,10 +1202,8 @@ public class SaveManager : MonoBehaviour
                 "LOAD TEST | Could not load " +
                 "PlayerSaveData."
             );
-
             return;
         }
-
         Debug.Log(
             "LOAD TEST | " +
             $"Version: {saveData.saveVersion} | " +
@@ -1406,7 +1214,6 @@ public class SaveManager : MonoBehaviour
             $"Customer: L{saveData.progression.customerLevel} | " +
             $"Money: L{saveData.progression.moneyMultiplierLevel}"
         );
-
         Debug.Log(
             "LOAD TEST | " +
             $"Has Session: " +
@@ -1423,11 +1230,9 @@ public class SaveManager : MonoBehaviour
             $"{saveData.mergeGameplay.nextDessertTier}"
         );
     }
-
     // ==================================================
     // DEBUG FILE TOOLS
     // ==================================================
-
     [ContextMenu("Debug Print Save Path")]
     private void DebugPrintSavePath()
     {
@@ -1435,7 +1240,6 @@ public class SaveManager : MonoBehaviour
             $"SAVE | Path: {SaveFilePath}"
         );
     }
-
     [ContextMenu("Debug Check Save File")]
     private void DebugCheckSaveFile()
     {
@@ -1444,61 +1248,49 @@ public class SaveManager : MonoBehaviour
             $"{SaveFileExists()}"
         );
     }
-
     // ==================================================
     // DEBUG SAVE MANAGEMENT
     // ==================================================
-
     [ContextMenu("Debug Create Fresh Save")]
     private void DebugCreateFreshSave()
     {
         PlayerSaveData freshSave =
             CreateNewSaveData();
-
         bool success =
             Save(freshSave);
-
         if (!success)
         {
             Debug.LogError(
                 "SAVE DEBUG | Failed to create " +
                 "fresh save."
             );
-
             return;
         }
-
         Debug.Log(
             "SAVE DEBUG | Fresh save created."
         );
-
         PrintSaveSummary(
             freshSave
         );
     }
-
     [ContextMenu("Debug Delete Save")]
     private void DebugDeleteSave()
     {
         if (saveInProgress || loadInProgress)
             return;
-
         if (!SaveFileExists())
         {
             Debug.Log(
                 "SAVE DEBUG | No save file exists " +
                 "to delete."
             );
-
             return;
         }
-
         try
         {
             File.Delete(
                 SaveFilePath
             );
-
             Debug.Log(
                 "SAVE DEBUG | Save file deleted."
             );
@@ -1511,7 +1303,6 @@ public class SaveManager : MonoBehaviour
             );
         }
     }
-
     [ContextMenu("Debug Print Save Summary")]
     private void DebugPrintSaveSummary()
     {
@@ -1522,21 +1313,17 @@ public class SaveManager : MonoBehaviour
                 "SAVE DEBUG | No valid save data " +
                 "could be summarized."
             );
-
             return;
         }
-
         PrintSaveSummary(
             saveData
         );
     }
-
     [ContextMenu("Debug Save Current Game")]
     private void DebugSaveCurrentGame()
     {
         bool success =
             SaveCurrentGame();
-
         if (success)
         {
             Debug.Log(
@@ -1552,13 +1339,11 @@ public class SaveManager : MonoBehaviour
             );
         }
     }
-
     [ContextMenu("Debug Load Current Game")]
     private void DebugLoadCurrentGame()
     {
         bool success =
             LoadCurrentGame();
-
         if (success)
         {
             Debug.Log(
@@ -1574,7 +1359,6 @@ public class SaveManager : MonoBehaviour
             );
         }
     }
-
     private void PrintSaveSummary(
         PlayerSaveData saveData)
     {
@@ -1583,10 +1367,8 @@ public class SaveManager : MonoBehaviour
             Debug.LogWarning(
                 "SAVE DEBUG | Save data is null."
             );
-
             return;
         }
-
         Debug.Log(
             "========== SAVE SUMMARY ==========\n" +
             $"Version: {saveData.saveVersion}\n" +
@@ -1618,29 +1400,21 @@ public class SaveManager : MonoBehaviour
             "=================================="
         );
     }
-
-
     // ==================================================
     // DEBUG - SIMULATE APPLICATION PAUSE
     // ==================================================
-
     [ContextMenu("Debug Simulate Application Pause")]
     private void DebugSimulateApplicationPause()
     {
         OnApplicationPause(true);
     }
-
-
     // ==================================================
     // DEBUG - SIMULATE APPLICATION QUIT
     // ==================================================
-
     [ContextMenu("Debug Simulate Application Quit")]
     private void DebugSimulateApplicationQuit()
     {
         OnApplicationQuit();
     }
-
-
 }
 
