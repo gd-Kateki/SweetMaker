@@ -13,7 +13,13 @@ public class PlayerSaveData
      * structure changes in a way that may require
      * migration.
      */
-    public int saveVersion = 1;
+    public int saveVersion = 2;
+
+    public int completedRebirthCount = 0;
+
+    public int highestTierCreatedThisRun = 0;
+
+    public bool campaignComplete = false;
 
     public EconomySaveData economy =
         new EconomySaveData();

@@ -35,3 +35,8 @@ MonoBehaviour:
     intValue: 25
     floatValue: 0
     upgradeCost: 0
+  - level: 6
+    intValue: 30
+    floatValue: 0
+    upgradeCost: 50000
+  maxPurchasableLevel: 5

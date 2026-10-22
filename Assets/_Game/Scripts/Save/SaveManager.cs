@@ -86,6 +86,68 @@ public class SaveManager : MonoBehaviour
 
     }
 
+    internal bool TryPrepareDetachedSnapshot(
+        PlayerSaveData proposed,
+        int sessionCapacity,
+        out PlayerSaveData detachedSnapshot,
+        out string failureReason)
+    {
+        detachedSnapshot = null;
+        failureReason = null;
+
+        if (proposed == null)
+        {
+            failureReason = "Proposed save snapshot is null.";
+            return false;
+        }
+
+        if (proposed.saveVersion != CurrentSaveVersion)
+        {
+            failureReason = "Proposed save snapshot is not V2.";
+            return false;
+        }
+
+        if (proposed.mergeGameplay == null ||
+            sessionCapacity < 0 || sessionCapacity > 4 ||
+            (!proposed.mergeGameplay.hasSession && sessionCapacity != 0) ||
+            (proposed.mergeGameplay.hasSession && sessionCapacity < 1))
+        {
+            failureReason = "Proposed session capacity is inconsistent.";
+            return false;
+        }
+
+        try
+        {
+            string detachedJson = JsonUtility.ToJson(proposed, false);
+            PlayerSaveData detached =
+                JsonUtility.FromJson<PlayerSaveData>(detachedJson);
+
+            if (detached == null)
+            {
+                failureReason = "Proposed save snapshot could not be cloned.";
+                return false;
+            }
+
+            string serialized = SerializeWithCapacity(detached, sessionCapacity);
+            if (!IsValidBackupCandidate(SaveEncoding.GetBytes(serialized)))
+            {
+                failureReason =
+                    "Proposed save snapshot failed strict V2 validation.";
+                return false;
+            }
+
+            detachedSnapshot = detached;
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            failureReason =
+                "Proposed save snapshot could not be validated: " +
+                exception.Message;
+            return false;
+        }
+    }
+
     // ==================================================
 
     // SINGLETON
@@ -109,10 +171,9 @@ public class SaveManager : MonoBehaviour
     // ==================================================
 
     private const string SaveFileName =
+        "player_save_v2.json";
 
-        "player_save.json";
-
-    private const int CurrentSaveVersion = 1;
+    private const int CurrentSaveVersion = 2;
 
     // Main-thread APIs. The guard covers capture, serialization, IO and logging.
 
@@ -225,7 +286,12 @@ public class SaveManager : MonoBehaviour
             Application.persistentDataPath,
 
             SaveFileName
+        );
 
+    public string LegacyV1SaveFilePath =>
+        Path.Combine(
+            Application.persistentDataPath,
+            "player_save.json"
         );
 
     // ==================================================
@@ -434,11 +500,9 @@ public class SaveManager : MonoBehaviour
 
     {
 
-        return File.Exists(
-
-            SaveFilePath
-
-        );
+        string primaryPath = SaveFilePath;
+        return File.Exists(primaryPath) ||
+               File.Exists(primaryPath + ".bak");
 
     }
 
@@ -613,6 +677,15 @@ public class SaveManager : MonoBehaviour
         saveData.progression.moneyMultiplierLevel =
 
             progressionManager.MoneyMultiplierLevel;
+
+        saveData.completedRebirthCount =
+            progressionManager.CurrentRebirthCount;
+
+        saveData.highestTierCreatedThisRun =
+            progressionManager.HighestTierCreatedThisRun;
+
+        saveData.campaignComplete =
+            progressionManager.CampaignComplete;
 
         Debug.Log(
 
@@ -978,6 +1051,15 @@ public class SaveManager : MonoBehaviour
 
             return false;
 
+        }
+
+        if (!progressionManager.RestoreRebirthProgression(
+                saveData.completedRebirthCount,
+                saveData.highestTierCreatedThisRun,
+                saveData.campaignComplete))
+        {
+            Debug.LogError("LOAD | Rebirth progression data is invalid.");
+            return false;
         }
 
         progressionManager.RestoreProgression(
@@ -1635,8 +1717,8 @@ public class SaveManager : MonoBehaviour
         // Guard even explicit/debug saves against overwriting a file written
         // by a different game build. A failed load normally blocks saving, but
         // this check also protects against an out-of-band file replacement.
-        // An unreadable/corrupt primary is handled by the existing recovery
-        // path; only a positively identified unsupported version is blocked.
+        // Invalid V2 files are preserved for recovery or diagnosis, never replaced
+        // automatically by a new snapshot.
         if (File.Exists(path))
         {
             byte[] onDiskBytes = File.ReadAllBytes(path);
@@ -1646,6 +1728,15 @@ public class SaveManager : MonoBehaviour
             {
                 Debug.LogError("SAVE VERSION | Refusing to overwrite unsupported or ambiguous " +
                     "on-disk save version (" + diskVersion + ").");
+                return false;
+            }
+
+            if (!IsValidBackupCandidate(onDiskBytes))
+            {
+                Debug.LogError(
+                    "SAVE | Refusing to overwrite an invalid V2 primary; " +
+                    "load/recovery or manual diagnosis is required."
+                );
                 return false;
             }
         }
@@ -1780,20 +1871,27 @@ public class SaveManager : MonoBehaviour
 
         {
 
-            Debug.LogWarning("SAVE BACKUP | Existing primary failed strict backup validation; " +
-
-                "backup retained unchanged.");
-
-            return;
+            throw new IOException(
+                "Existing V2 primary failed strict validation; refusing to replace it."
+            );
 
         }
 
         string backupPath = path + ".bak";
-
         string backupTemporaryPath = backupPath + ".tmp";
 
-        if (DiskMatchesSnapshot(backupPath, primaryBytes))
+        if (File.Exists(backupPath))
+        {
+            byte[] existingBackup = File.ReadAllBytes(backupPath);
+            if (!IsValidBackupCandidate(existingBackup))
+            {
+                throw new IOException(
+                    "Existing V2 backup is invalid; refusing to replace it."
+                );
+            }
+        }
 
+        if (DiskMatchesSnapshot(backupPath, primaryBytes))
             return; // Exact bytes of an independently validated primary already exist.
 
         // Never open .bak for writing. A stale .bak.tmp is never trusted.
@@ -2042,6 +2140,14 @@ public class SaveManager : MonoBehaviour
 
         }
 
+        if (!IsValidRebirthSaveState(
+                check.completedRebirthCount,
+                check.highestTierCreatedThisRun,
+                check.campaignComplete))
+        {
+            return false;
+        }
+
         int capacity = JsonUtility.FromJson<CustomerCapacityMetadata>(json).mergeSessionCustomerCapacity;
 
         if (check.mergeGameplay.hasSession && (capacity < 1 || capacity > 4)) return false;
@@ -2054,6 +2160,22 @@ public class SaveManager : MonoBehaviour
 
         return string.Equals(json, SerializeWithCapacity(check, capacity), StringComparison.Ordinal);
 
+    }
+
+    private static bool IsValidRebirthSaveState(
+        int completedRebirthCount,
+        int highestTierCreatedThisRun,
+        bool campaignComplete)
+    {
+        if (completedRebirthCount < 0 || completedRebirthCount > 10 ||
+            highestTierCreatedThisRun < 0 || highestTierCreatedThisRun > 30)
+        {
+            return false;
+        }
+
+        return campaignComplete ==
+               (completedRebirthCount == 10 &&
+                highestTierCreatedThisRun == 30);
     }
 
     private static bool DiskMatchesSnapshot(string path, byte[] expected)
@@ -2098,10 +2220,7 @@ public class SaveManager : MonoBehaviour
 
     // ==================================================
 
-    // Step 12.8.9.2 — non-destructive version preflight.
-    // Version 1 remains the ONLY supported format. No V2 migration is invented.
-    // An explicitly marked future version is never treated as corrupt V1:
-    // downgrading from a backup could destroy progress made by a newer build.
+    // V2 is isolated on its own path; V1 files are never considered for loading.
     private enum SaveVersionClassification
     {
         MissingOrUnreadable,
@@ -2138,12 +2257,7 @@ public class SaveManager : MonoBehaviour
         }
     }
 
-    // Step 12.8.9.3 — migration safety boundary.
-    // There are deliberately NO registered migrations while V1 is current.
-    // This coordinator is a pure decision gate: it never mutates the input,
-    // touches a file, changes version numbers, or updates live managers.
-    // When V2 is designed, implement an explicit V1 -> V2 transformer and
-    // validate the detached result before adding a transactional disk commit.
+    // V2 has no migration path from the isolated V1 save.
     private enum MigrationDecision
     {
         LoadCurrent,
@@ -2263,7 +2377,7 @@ public class SaveManager : MonoBehaviour
         int backupVersion;
         if (EvaluateMigration(backupBytes, out backupVersion) != MigrationDecision.LoadCurrent)
         {
-            Debug.LogError("LOAD VERSION | Backup is not a supported V1 save. No files changed.");
+            Debug.LogError("LOAD VERSION | Backup is not a supported V2 save. No files changed.");
             return false;
         }
 

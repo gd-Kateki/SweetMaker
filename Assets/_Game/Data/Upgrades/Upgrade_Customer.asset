@@ -22,12 +22,12 @@ MonoBehaviour:
   - level: 2
     intValue: 2
     floatValue: 0
-    upgradeCost: 0
+    upgradeCost: 250
   - level: 3
     intValue: 3
     floatValue: 0
-    upgradeCost: 0
+    upgradeCost: 1500
   - level: 4
     intValue: 4
     floatValue: 0
-    upgradeCost: 0
+    upgradeCost: 8000

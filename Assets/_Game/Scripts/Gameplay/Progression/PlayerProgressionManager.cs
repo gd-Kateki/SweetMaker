@@ -51,6 +51,11 @@ public class PlayerProgressionManager : MonoBehaviour
     [SerializeField]
     private int moneyMultiplierLevel = 1;
 
+    [Header("Rebirth Progression")]
+    [SerializeField]
+    private RebirthProgressionState rebirthProgression =
+        new RebirthProgressionState();
+
     // ==================================================
     // EVENTS
     // ==================================================
@@ -76,6 +81,33 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public int MoneyMultiplierLevel =>
         moneyMultiplierLevel;
+
+    public int CurrentRebirthCount =>
+        RebirthProgression.CurrentRebirthCount;
+
+    public int HighestTierCreatedThisRun =>
+        RebirthProgression.HighestTierCreatedThisRun;
+
+    public bool CampaignComplete =>
+        RebirthProgression.CampaignComplete;
+
+    public int NextRebirthNumber =>
+        RebirthProgression.NextRebirthNumber;
+
+    public int NextRebirthRequiredTier =>
+        RebirthProgression.NextRequiredTier;
+
+    public int NextRebirthRequiredCash =>
+        RebirthProgression.NextRequiredCash;
+
+    public int NextRebirthOvenUnlockLevel =>
+        RebirthProgression.NextOvenLevelUnlock;
+
+    public bool IsEligibleForNextRebirth =>
+        EconomyManager.Instance != null &&
+        RebirthProgression.CanRebirth(
+            EconomyManager.Instance.CurrentCash
+        );
 
     // ==================================================
     // GAMEPLAY VALUES
@@ -116,20 +148,71 @@ public class PlayerProgressionManager : MonoBehaviour
     // ==================================================
 
     private void Awake()
-{
-    if (Instance != null && Instance != this)
     {
-        Destroy(gameObject);
-        return;
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
+        DontDestroyOnLoad(gameObject);
+
+        ValidateDefinitions();
+        ClampRuntimeLevels();
     }
 
-    Instance = this;
+    private void OnEnable()
+    {
+        if (Instance != this)
+            return;
 
-    DontDestroyOnLoad(gameObject);
+        GameplayEvents.DessertSpawned -=
+            HandleCreatedDessert;
+        GameplayEvents.DessertSpawned +=
+            HandleCreatedDessert;
+        GameplayEvents.DessertMerged -=
+            HandleCreatedDessert;
+        GameplayEvents.DessertMerged +=
+            HandleCreatedDessert;
+    }
 
-    ValidateDefinitions();
-    ClampRuntimeLevels();
-}
+    private void OnDisable()
+    {
+        GameplayEvents.DessertSpawned -=
+            HandleCreatedDessert;
+        GameplayEvents.DessertMerged -=
+            HandleCreatedDessert;
+    }
+
+    private RebirthProgressionState RebirthProgression
+    {
+        get
+        {
+            if (rebirthProgression == null)
+                rebirthProgression = new RebirthProgressionState();
+
+            return rebirthProgression;
+        }
+    }
+
+    private void HandleCreatedDessert(int tier)
+    {
+        RebirthProgression.RegisterCreatedTier(tier);
+    }
+
+    public bool RestoreRebirthProgression(
+        int completedRebirthCount,
+        int highestTierCreatedThisRun,
+        bool campaignComplete)
+    {
+        return RebirthProgression.Restore(
+            completedRebirthCount,
+            highestTierCreatedThisRun,
+            campaignComplete
+        );
+    }
 
     // ==================================================
     // LEVEL LOOKUP

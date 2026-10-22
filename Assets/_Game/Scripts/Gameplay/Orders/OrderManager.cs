@@ -1,9 +1,18 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 public class OrderManager : MonoBehaviour
 {
+    internal sealed class SessionReplacementState
+    {
+        internal CustomerOrder[] Orders;
+        internal CustomerOrderDefinition[] RecentDefinitions;
+        internal int NextOrderId;
+        internal bool IsFulfilling;
+    }
+
     private const int MaxCustomerSlots = 4;
     [Header("References")]
     [SerializeField]
@@ -36,6 +45,8 @@ public class OrderManager : MonoBehaviour
             new List<CustomerOrderDefinition>();
     private int nextOrderId = 1;
     private bool isFulfilling;
+    private CustomerOrderState[] pendingFreshSessionOrders;
+    private int pendingFreshSessionNextOrderId;
     // --------------------------------------------------
     // EVENTS
     // --------------------------------------------------
@@ -347,6 +358,128 @@ public bool ExpandRestoredCustomerCapacity(int savedCapacity)
     return true;
 }
 
+internal bool TryPrepareFreshSessionOrders(
+    out CustomerOrderState[] preparedOrders,
+    out int preparedNextOrderId)
+{
+    ResolveReferences();
+    preparedOrders = null;
+    preparedNextOrderId = nextOrderId;
+    int capacity = ActiveCustomerCount;
+    if (progressionManager == null || capacity < 1 ||
+        nextOrderId <= 0 || (long)nextOrderId + capacity > int.MaxValue)
+        return false;
+
+    var selected = new List<CustomerOrderDefinition>(capacity);
+    var recent = new List<CustomerOrderDefinition>(2);
+    preparedOrders = new CustomerOrderState[capacity];
+    for (int customerIndex = 0; customerIndex < capacity; customerIndex++)
+    {
+        CustomerOrderDefinition definition =
+            GetRandomValidOrder(selected, recent);
+        if (definition == null)
+        {
+            preparedOrders = null;
+            return false;
+        }
+
+        preparedOrders[customerIndex] = new CustomerOrderState(
+            customerIndex,
+            nextOrderId + customerIndex,
+            definition);
+        selected.Add(definition);
+        recent.Remove(definition);
+        recent.Add(definition);
+        if (recent.Count > 2)
+            recent.RemoveAt(0);
+    }
+
+    preparedNextOrderId = nextOrderId + capacity;
+    pendingFreshSessionOrders = preparedOrders;
+    pendingFreshSessionNextOrderId = preparedNextOrderId;
+    return true;
+}
+
+internal SessionReplacementState CaptureSessionReplacementState()
+{
+    return new SessionReplacementState
+    {
+        Orders = customerOrders.ToArray(),
+        RecentDefinitions = recentOrderDefinitions.ToArray(),
+        NextOrderId = nextOrderId,
+        IsFulfilling = isFulfilling
+    };
+}
+
+internal bool ApplyPreparedFreshSessionOrders(
+    CustomerOrderState[] preparedOrders,
+    int preparedNextOrderId)
+{
+    if (preparedOrders == null ||
+        !ReferenceEquals(preparedOrders, pendingFreshSessionOrders) ||
+        preparedNextOrderId != pendingFreshSessionNextOrderId ||
+        preparedOrders.Length != ActiveCustomerCount ||
+        preparedNextOrderId <= nextOrderId)
+        return false;
+
+    var replacement = new CustomerOrder[MaxCustomerSlots];
+    foreach (CustomerOrderState state in preparedOrders)
+    {
+        if (state == null || state.customerIndex < 0 ||
+            state.customerIndex >= preparedOrders.Length ||
+            state.definition == null || !state.definition.IsValid)
+            return false;
+        replacement[state.customerIndex] =
+            new CustomerOrder(state.orderId, state.definition);
+    }
+
+    InitializeCustomerSlots();
+    recentOrderDefinitions.Clear();
+    nextOrderId = preparedNextOrderId;
+    isFulfilling = false;
+    for (int i = 0; i < preparedOrders.Length; i++)
+    {
+        customerOrders[i] = replacement[i];
+        TrackRecentDefinition(replacement[i].Definition);
+    }
+    pendingFreshSessionOrders = null;
+    pendingFreshSessionNextOrderId = 0;
+    return true;
+}
+
+internal void RestoreSessionReplacementState(
+    SessionReplacementState state)
+{
+    if (state == null || state.Orders == null ||
+        state.Orders.Length != MaxCustomerSlots)
+        throw new ArgumentException(
+            "Order session replacement state is invalid.",
+            nameof(state));
+
+    InitializeCustomerSlots();
+    for (int i = 0; i < MaxCustomerSlots; i++)
+        customerOrders[i] = state.Orders[i];
+    recentOrderDefinitions.Clear();
+    recentOrderDefinitions.AddRange(state.RecentDefinitions);
+    nextOrderId = state.NextOrderId;
+    isFulfilling = state.IsFulfilling;
+    pendingFreshSessionOrders = null;
+    pendingFreshSessionNextOrderId = 0;
+}
+
+internal void PublishPreparedFreshSessionOrders()
+{
+    for (int i = 0; i < ActiveCustomerCount; i++)
+    {
+        CustomerOrder order = customerOrders[i];
+        if (order == null)
+            continue;
+        OrderGenerated?.Invoke(order);
+        CustomerOrderChanged?.Invoke(i, order);
+    }
+    NotifyOrderCollectionsChanged();
+}
+
     // ==================================================
     // ORDER GENERATION
     // ==================================================
@@ -456,6 +589,19 @@ public bool ExpandRestoredCustomerCapacity(int savedCapacity)
     private CustomerOrderDefinition
         GetRandomValidOrder()
     {
+        var activeDefinitions = new List<CustomerOrderDefinition>();
+        foreach (CustomerOrder order in customerOrders)
+            if (order != null && order.Definition != null)
+                activeDefinitions.Add(order.Definition);
+        return GetRandomValidOrder(
+            activeDefinitions,
+            recentOrderDefinitions);
+    }
+
+    private CustomerOrderDefinition GetRandomValidOrder(
+        IReadOnlyCollection<CustomerOrderDefinition> activeDefinitions,
+        IReadOnlyCollection<CustomerOrderDefinition> recentDefinitions)
+    {
         if (orderPool == null ||
             orderPool.Length == 0)
         {
@@ -497,8 +643,7 @@ public bool ExpandRestoredCustomerCapacity(int savedCapacity)
                 CustomerOrderDefinition definition
                 in eligibleOrders)
             {
-                if (!IsDefinitionCurrentlyActive(
-                        definition))
+                if (!activeDefinitions.Contains(definition))
                 {
                     unusedOrders.Add(
                         definition
@@ -516,7 +661,7 @@ public bool ExpandRestoredCustomerCapacity(int savedCapacity)
         // alternatives exist.
         // ----------------------------------------------
         if (eligibleOrders.Count > 1 &&
-            recentOrderDefinitions.Count > 0)
+            recentDefinitions.Count > 0)
         {
             List<CustomerOrderDefinition>
                 lessRecentOrders =
@@ -526,8 +671,7 @@ public bool ExpandRestoredCustomerCapacity(int savedCapacity)
                 CustomerOrderDefinition definition
                 in eligibleOrders)
             {
-                if (!recentOrderDefinitions.Contains(
-                        definition))
+                if (!recentDefinitions.Contains(definition))
                 {
                     lessRecentOrders.Add(
                         definition

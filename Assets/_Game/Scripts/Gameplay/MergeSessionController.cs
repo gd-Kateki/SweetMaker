@@ -4,6 +4,13 @@ using System.Collections.Generic;
 using UnityEngine;
 public class MergeSessionController : MonoBehaviour
 {
+    private sealed class DessertPlacement
+    {
+        public Dessert Dessert;
+        public GridCell Cell;
+        public ShelfSlot Slot;
+    }
+
     [Header("References")]
     [SerializeField]
     private GridManager gridManager;
@@ -220,6 +227,256 @@ public class MergeSessionController : MonoBehaviour
             $"Next Dessert: T{data.nextDessertTier}"
         );
         return true;
+    }
+
+    public bool TryReplaceWithFreshSession()
+    {
+        if (!isActiveAndEnabled || restorationInProgress ||
+            !IsRestorationVerified ||
+            GameStartupCoordinator.Instance == null ||
+            !GameStartupCoordinator.Instance.IsStartupComplete ||
+            SaveManager.Instance == null ||
+            MergeSessionManager.Instance == null)
+            return false;
+
+        ResolveReferences();
+        string reason = null;
+        if (gridManager == null || shelfManager == null ||
+            dessertSpawner == null || orderManager == null ||
+            !ValidateLiveState(out reason))
+        {
+            Debug.LogError(
+                "SESSION REPLACEMENT FAILED | " +
+                (reason ?? "A gameplay dependency is unavailable."));
+            return false;
+        }
+
+        if (FindObjectsByType<MergeSessionController>().Length != 1)
+        {
+            Debug.LogError(
+                "SESSION REPLACEMENT FAILED | " +
+                "Exactly one active MergeSessionController is required.");
+            return false;
+        }
+
+        if (!orderManager.TryPrepareFreshSessionOrders(
+                out CustomerOrderState[] freshOrders,
+                out int freshNextOrderId) ||
+            !dessertSpawner.TryPrepareFreshSessionPreview(
+                out DessertDefinition freshPreview))
+        {
+            Debug.LogError(
+                "SESSION REPLACEMENT FAILED | " +
+                "A valid order set or Oven preview could not be prepared.");
+            return false;
+        }
+
+        var oldPlacements = CaptureDessertPlacements();
+        var oldOrders = orderManager.CaptureSessionReplacementState();
+        DessertDefinition oldPreview = dessertSpawner.NextDessert;
+        MergeSessionData oldSession = new MergeSessionData();
+        CaptureBoard(oldSession);
+        CaptureShelf(oldSession);
+        CaptureOrders(oldSession);
+        CaptureNextDessert(oldSession);
+        int oldCustomerCapacity = orderManager.ActiveCustomerCount;
+
+        var coordinator = GameStartupCoordinator.Instance;
+        var saveManager = SaveManager.Instance;
+        restorationInProgress = true;
+        IsRestorationVerified = false;
+        departurePrepared = false;
+        coordinator.BeginGameplayInitialization();
+        saveManager.SuspendLifecycleSaving();
+
+        try
+        {
+            DetachAndDisableDesserts(oldPlacements);
+            if (!orderManager.ApplyPreparedFreshSessionOrders(
+                    freshOrders,
+                    freshNextOrderId) ||
+                !dessertSpawner.SetFreshSessionPreview(
+                    freshPreview,
+                    false) ||
+                !ValidateLiveState(out reason))
+            {
+                RestorePreviousLiveSession(
+                    oldPlacements,
+                    oldOrders,
+                    oldPreview,
+                    oldSession,
+                    oldCustomerCapacity);
+                RestoreGameplayReadiness(coordinator, saveManager);
+                Debug.LogError(
+                    "SESSION REPLACEMENT FAILED | " +
+                    (reason ?? "Prepared state could not be applied."));
+                return false;
+            }
+
+            var freshSession = new MergeSessionData();
+            CaptureBoard(freshSession);
+            CaptureShelf(freshSession);
+            CaptureOrders(freshSession);
+            CaptureNextDessert(freshSession);
+            MergeSessionManager.Instance.SaveSession(freshSession);
+            saveManager.RecordSessionCustomerCapacity(
+                MergeSessionManager.Instance.SessionData,
+                orderManager.ActiveCustomerCount);
+
+            IsRestorationVerified = true;
+            if (!coordinator.ConfirmGameplayRestoration(this))
+            {
+                RestorePreviousLiveSession(
+                    oldPlacements,
+                    oldOrders,
+                    oldPreview,
+                    oldSession,
+                    oldCustomerCapacity);
+                IsRestorationVerified = false;
+                saveManager.SuspendLifecycleSaving();
+                Debug.LogError(
+                    "SESSION REPLACEMENT FAILED | " +
+                    "Startup coordinator refused the completed session.");
+                return false;
+            }
+
+            foreach (DessertPlacement placement in oldPlacements)
+                if (placement.Dessert != null)
+                    DestroyDetachedDessert(placement.Dessert);
+
+            hasRestoredAutomatically = true;
+            gridManager.NotifyBoardChanged();
+            shelfManager.NotifyShelfChanged();
+            dessertSpawner.PublishNextDessertChanged();
+            orderManager.PublishPreparedFreshSessionOrders();
+            return true;
+        }
+        finally
+        {
+            restorationInProgress = false;
+        }
+    }
+
+    private List<DessertPlacement> CaptureDessertPlacements()
+    {
+        var placements = new List<DessertPlacement>();
+        foreach (GridCell cell in gridManager.Cells)
+        {
+            if (cell != null && cell.CurrentDessert != null)
+            {
+                placements.Add(new DessertPlacement
+                {
+                    Dessert = cell.CurrentDessert,
+                    Cell = cell
+                });
+            }
+        }
+
+        foreach (ShelfSlot slot in shelfManager.Slots)
+        {
+            if (slot != null && slot.CurrentDessert != null)
+            {
+                placements.Add(new DessertPlacement
+                {
+                    Dessert = slot.CurrentDessert,
+                    Slot = slot
+                });
+            }
+        }
+
+        return placements;
+    }
+
+    private static void DetachAndDisableDesserts(
+        IReadOnlyList<DessertPlacement> placements)
+    {
+        foreach (DessertPlacement placement in placements)
+        {
+            if (placement.Dessert == null)
+                continue;
+            if (placement.Cell != null)
+                placement.Cell.RemoveDessert(placement.Dessert);
+            if (placement.Slot != null)
+                placement.Slot.RemoveDessert(placement.Dessert);
+            placement.Dessert.ClearLocation();
+            placement.Dessert.gameObject.SetActive(false);
+        }
+    }
+
+    private void RestorePreviousLiveSession(
+        IReadOnlyList<DessertPlacement> oldPlacements,
+        OrderManager.SessionReplacementState oldOrders,
+        DessertDefinition oldPreview,
+        MergeSessionData oldSession,
+        int oldCustomerCapacity)
+    {
+        foreach (GridCell cell in gridManager.Cells)
+        {
+            Dessert dessert = cell != null ? cell.CurrentDessert : null;
+            if (dessert == null)
+                continue;
+            cell.RemoveDessert(dessert);
+            dessert.ClearLocation();
+            dessert.gameObject.SetActive(false);
+            DestroyDetachedDessert(dessert);
+        }
+        foreach (ShelfSlot slot in shelfManager.Slots)
+        {
+            Dessert dessert = slot != null ? slot.CurrentDessert : null;
+            if (dessert == null)
+                continue;
+            slot.RemoveDessert(dessert);
+            dessert.ClearLocation();
+            dessert.gameObject.SetActive(false);
+            DestroyDetachedDessert(dessert);
+        }
+
+        foreach (DessertPlacement placement in oldPlacements)
+        {
+            Dessert dessert = placement.Dessert;
+            if (dessert == null)
+                continue;
+            dessert.gameObject.SetActive(true);
+            if (placement.Cell != null)
+                placement.Cell.PlaceDessert(dessert);
+            else if (placement.Slot != null &&
+                     !placement.Slot.TryStoreDessert(dessert))
+                throw new InvalidOperationException(
+                    "A prior shelf dessert could not be restored.");
+        }
+
+        orderManager.RestoreSessionReplacementState(oldOrders);
+        if (!dessertSpawner.SetFreshSessionPreview(oldPreview, false))
+            throw new InvalidOperationException(
+                "The prior Oven preview could not be restored.");
+
+        MergeSessionManager.Instance.SaveSession(oldSession);
+        SaveManager.Instance.RecordSessionCustomerCapacity(
+            MergeSessionManager.Instance.SessionData,
+            oldCustomerCapacity);
+    }
+
+    private void RestoreGameplayReadiness(
+        GameStartupCoordinator coordinator,
+        SaveManager saveManager)
+    {
+        IsRestorationVerified = true;
+        if (!coordinator.ConfirmGameplayRestoration(this))
+        {
+            IsRestorationVerified = false;
+            saveManager.SuspendLifecycleSaving();
+            Debug.LogError(
+                "SESSION REPLACEMENT ROLLBACK | " +
+                "The prior session was restored, but startup readiness could not be re-established.");
+        }
+    }
+
+    private void DestroyDetachedDessert(Dessert dessert)
+    {
+        if (Application.isPlaying)
+            Destroy(dessert.gameObject);
+        else
+            DestroyImmediate(dessert.gameObject);
     }
     // ==================================================
     // CAPTURE BOARD
@@ -775,4 +1032,3 @@ public class MergeSessionController : MonoBehaviour
         RestoreSession();
     }
 }
-

@@ -3,6 +3,46 @@ using UnityEngine;
 
 public class DessertSpawner : MonoBehaviour
 {
+    private static readonly string[] SpawnPoolIds =
+    {
+        "P1", "P2", "P3", "P4", "P5", "P6"
+    };
+
+    private static readonly int[] SpawnPoolUnlockLevels =
+    {
+        1, 2, 3, 4, 5, 6
+    };
+
+    private static readonly int[] SpawnPoolFirstTiers =
+    {
+        1, 4, 8, 12, 16, 21
+    };
+
+    private static readonly int[] SpawnPoolHighestTiers =
+    {
+        3, 7, 11, 15, 20, 25
+    };
+
+    private static readonly int[][] SpawnPoolTierWeights =
+    {
+        new[] { 60, 30, 10 },
+        new[] { 40, 30, 20, 10 },
+        new[] { 40, 30, 20, 10 },
+        new[] { 40, 30, 20, 10 },
+        new[] { 35, 25, 20, 12, 8 },
+        new[] { 35, 25, 20, 12, 8 }
+    };
+
+    private static readonly int[][] ReferencePoolWeightsByOvenLevel =
+    {
+        new[] { 100, 0, 0, 0, 0, 0 },
+        new[] { 25, 75, 0, 0, 0, 0 },
+        new[] { 5, 20, 75, 0, 0, 0 },
+        new[] { 3, 7, 15, 75, 0, 0 },
+        new[] { 2, 4, 7, 12, 75, 0 },
+        new[] { 1, 3, 4, 7, 10, 75 }
+    };
+
     [Header("References")]
     [SerializeField]
     private GridManager gridManager;
@@ -25,8 +65,25 @@ public class DessertSpawner : MonoBehaviour
     [SerializeField]
     private DessertDefinition nextDessert;
 
+    private string selectedSpawnPoolId = "P1";
+
     public DessertDefinition NextDessert =>
         nextDessert;
+
+    public string SelectedSpawnPoolId =>
+        selectedSpawnPoolId;
+
+    public IReadOnlyList<string> UnlockedSpawnPoolIds
+    {
+        get
+        {
+            ResolveProgressionManager();
+            int ovenLevel = progressionManager != null
+                ? progressionManager.OvenLevel
+                : 1;
+            return GetUnlockedSpawnPoolIds(ovenLevel);
+        }
+    }
 
     // ==================================================
     // DATABASE MAX TIER
@@ -75,8 +132,143 @@ public class DessertSpawner : MonoBehaviour
                 "could not be found."
             );
         }
+        else
+        {
+            progressionManager.UpgradeLevelChanged -=
+                HandleUpgradeLevelChanged;
+            progressionManager.UpgradeLevelChanged +=
+                HandleUpgradeLevelChanged;
+            selectedSpawnPoolId =
+                GetPoolIdForOvenLevel(
+                    progressionManager.OvenLevel
+                );
+        }
 
         PrepareNextDessert();
+    }
+
+    private void OnDestroy()
+    {
+        if (progressionManager != null)
+        {
+            progressionManager.UpgradeLevelChanged -=
+                HandleUpgradeLevelChanged;
+        }
+    }
+
+    private void HandleUpgradeLevelChanged(
+        UpgradeType type,
+        int newLevel)
+    {
+        if (type != UpgradeType.Oven)
+            return;
+
+        selectedSpawnPoolId =
+            GetPoolIdForOvenLevel(newLevel);
+    }
+
+    public bool TrySelectSpawnPool(string poolId)
+    {
+        ResolveProgressionManager();
+
+        if (progressionManager == null)
+        {
+            Debug.LogError(
+                "DessertSpawner: Cannot select a spawn pool " +
+                "without PlayerProgressionManager."
+            );
+            return false;
+        }
+
+        if (!IsSpawnPoolUnlocked(
+                poolId,
+                progressionManager.OvenLevel))
+        {
+            Debug.LogWarning(
+                $"SPAWN POOL SELECTION REJECTED | {poolId} | " +
+                $"Oven L{progressionManager.OvenLevel}"
+            );
+            return false;
+        }
+
+        selectedSpawnPoolId = poolId;
+        return true;
+    }
+
+    public static IReadOnlyList<string> GetUnlockedSpawnPoolIds(
+        int ovenLevel)
+    {
+        var unlockedPools = new List<string>();
+        for (int i = 0; i < SpawnPoolIds.Length; i++)
+        {
+            if (SpawnPoolUnlockLevels[i] <= ovenLevel)
+                unlockedPools.Add(SpawnPoolIds[i]);
+        }
+
+        return unlockedPools;
+    }
+
+    public static bool IsSpawnPoolUnlocked(
+        string poolId,
+        int ovenLevel)
+    {
+        int poolIndex = GetSpawnPoolIndex(poolId);
+        return poolIndex >= 0 &&
+               SpawnPoolUnlockLevels[poolIndex] <= ovenLevel;
+    }
+
+    public static int GetSpawnPoolTierWeight(
+        string poolId,
+        int tier)
+    {
+        int poolIndex = GetSpawnPoolIndex(poolId);
+        if (poolIndex < 0)
+            return 0;
+
+        int tierIndex = tier - SpawnPoolFirstTiers[poolIndex];
+        if (tierIndex < 0 ||
+            tierIndex >= SpawnPoolTierWeights[poolIndex].Length)
+        {
+            return 0;
+        }
+
+        return SpawnPoolTierWeights[poolIndex][tierIndex];
+    }
+
+    public static int GetReferencePoolWeightForOvenLevel(
+        int ovenLevel,
+        string poolId)
+    {
+        int poolIndex = GetSpawnPoolIndex(poolId);
+        if (poolIndex < 0 ||
+            ovenLevel < 1 ||
+            ovenLevel > ReferencePoolWeightsByOvenLevel.Length)
+        {
+            return 0;
+        }
+
+        return ReferencePoolWeightsByOvenLevel[ovenLevel - 1][poolIndex];
+    }
+
+    private static string GetPoolIdForOvenLevel(int ovenLevel)
+    {
+        int poolIndex = Mathf.Clamp(
+            ovenLevel - 1,
+            0,
+            SpawnPoolIds.Length - 1
+        );
+        return SpawnPoolIds[poolIndex];
+    }
+
+    private static int GetSpawnPoolIndex(string poolId)
+    {
+        for (int i = 0; i < SpawnPoolIds.Length; i++)
+        {
+            if (SpawnPoolIds[i] == poolId)
+                return i;
+        }
+
+        return -1;
     }
 
     // ==================================================
@@ -476,6 +668,37 @@ public class DessertSpawner : MonoBehaviour
         return true;
     }
 
+    internal bool TryPrepareFreshSessionPreview(
+        out DessertDefinition preparedPreview)
+    {
+        preparedPreview = GetRandomOvenDessert();
+        return preparedPreview != null &&
+               progressionManager != null &&
+               progressionManager.IsDessertTierUnlocked(
+                   preparedPreview.Tier);
+    }
+
+    internal bool SetFreshSessionPreview(
+        DessertDefinition preparedPreview,
+        bool notify)
+    {
+        if (preparedPreview == null ||
+            GetDefinitionByTier(preparedPreview.Tier) != preparedPreview ||
+            progressionManager == null ||
+            !progressionManager.IsDessertTierUnlocked(preparedPreview.Tier))
+            return false;
+
+        nextDessert = preparedPreview;
+        if (notify)
+            PublishNextDessertChanged();
+        return true;
+    }
+
+    internal void PublishNextDessertChanged()
+    {
+        GameplayEvents.RaiseNextDessertChanged(nextDessert);
+    }
+
     // ==================================================
     // DEFINITION LOOKUP
     // ==================================================
@@ -522,9 +745,7 @@ public class DessertSpawner : MonoBehaviour
             return;
         }
 
-        GameplayEvents.RaiseNextDessertChanged(
-            nextDessert
-        );
+        PublishNextDessertChanged();
 
         Debug.Log(
             $"OVEN PREVIEW | Next dessert: " +
@@ -545,95 +766,102 @@ public class DessertSpawner : MonoBehaviour
         List<DessertDefinition> candidates =
             new List<DessertDefinition>();
 
-        float totalWeight = 0f;
+        List<int> candidateWeights =
+            new List<int>();
+
+        int totalWeight = 0;
 
         if (dessertDefinitions == null)
             return null;
 
-        /*
-         * If progression exists, use the player's
-         * current Oven progression limit.
-         *
-         * MaxTier is only an emergency fallback.
-         */
         int maxUnlockedTier =
             progressionManager != null
                 ? progressionManager
                     .MaxUnlockedDessertTier
-                : MaxTier;
+                : SpawnPoolHighestTiers[
+                    GetSpawnPoolIndex(selectedSpawnPoolId) < 0
+                        ? 0
+                        : GetSpawnPoolIndex(selectedSpawnPoolId)
+                ];
 
-        foreach (
-            DessertDefinition definition
-            in dessertDefinitions)
+        int selectedPoolIndex =
+            GetSpawnPoolIndex(selectedSpawnPoolId);
+
+        if (selectedPoolIndex < 0 ||
+            !IsSpawnPoolUnlocked(
+                selectedSpawnPoolId,
+                progressionManager != null
+                    ? progressionManager.OvenLevel
+                    : 1))
         {
-            if (definition == null)
-                continue;
+            selectedSpawnPoolId =
+                GetPoolIdForOvenLevel(
+                    progressionManager != null
+                        ? progressionManager.OvenLevel
+                        : 1
+                );
+            selectedPoolIndex =
+                GetSpawnPoolIndex(selectedSpawnPoolId);
+        }
 
-            /*
-             * The dessert must explicitly be allowed
-             * to spawn directly from the Oven.
-             */
-            if (!definition.CanSpawnFromOven)
-                continue;
-
-            /*
-             * Zero or negative weight means it cannot
-             * participate in Oven RNG.
-             */
-            if (definition.SpawnWeight <= 0f)
-                continue;
-
-            /*
-             * Oven progression controls the maximum
-             * dessert tier that can currently enter
-             * the Oven RNG pool.
-             */
-            if (definition.Tier >
-                maxUnlockedTier)
+        for (
+            int tier = SpawnPoolFirstTiers[selectedPoolIndex];
+            tier <= SpawnPoolHighestTiers[selectedPoolIndex];
+            tier++)
+        {
+            int weight =
+                GetSpawnPoolTierWeight(
+                    selectedSpawnPoolId,
+                    tier
+                );
+            if (weight <= 0 ||
+                tier > maxUnlockedTier)
             {
                 continue;
             }
 
-            candidates.Add(
-                definition
-            );
+            DessertDefinition definition =
+                GetDefinitionByTier(tier);
+            if (definition == null ||
+                !definition.CanSpawnFromOven)
+            {
+                continue;
+            }
 
-            totalWeight +=
-                definition.SpawnWeight;
+            candidates.Add(definition);
+            candidateWeights.Add(weight);
+            totalWeight += weight;
         }
 
-        if (candidates.Count == 0 ||
-            totalWeight <= 0f)
+        if (candidates.Count == 0 || totalWeight <= 0)
         {
             Debug.LogWarning(
-                $"OVEN RNG | " +
-                $"No valid desserts available. | " +
-                $"Max Unlocked Tier: " +
-                $"T{maxUnlockedTier}"
+                $"OVEN RNG | No valid desserts in " +
+                $"{selectedSpawnPoolId}. | " +
+                $"Max Unlocked Tier: T{maxUnlockedTier}"
             );
-
             return null;
         }
 
-        float roll =
+        int roll =
             Random.Range(
-                0f,
+                0,
                 totalWeight
             );
 
-        float cumulativeWeight = 0f;
-
-        foreach (
-            DessertDefinition candidate
-            in candidates)
+        int cumulativeWeight = 0;
+        for (int i = 0; i < candidates.Count; i++)
         {
             cumulativeWeight +=
-                candidate.SpawnWeight;
+                candidateWeights[i];
 
-            if (roll <= cumulativeWeight)
+            if (roll < cumulativeWeight)
             {
+                DessertDefinition candidate =
+                    candidates[i];
                 Debug.Log(
                     $"OVEN RNG | " +
+                    $"Pool {selectedSpawnPoolId} | " +
                     $"Selected: " +
                     $"{candidate.DisplayName} | " +
                     $"Tier T{candidate.Tier} | " +
@@ -645,9 +873,6 @@ public class DessertSpawner : MonoBehaviour
             }
         }
 
-        /*
-         * Floating-point safety fallback.
-         */
         DessertDefinition fallback =
             candidates[
                 candidates.Count - 1
@@ -655,6 +880,7 @@ public class DessertSpawner : MonoBehaviour
 
         Debug.Log(
             $"OVEN RNG | " +
+            $"Pool {selectedSpawnPoolId} | " +
             $"Selected fallback: " +
             $"{fallback.DisplayName} | " +
             $"Tier T{fallback.Tier} | " +

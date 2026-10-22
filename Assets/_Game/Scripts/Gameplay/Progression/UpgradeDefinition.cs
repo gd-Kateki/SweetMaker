@@ -20,6 +20,10 @@ public class UpgradeDefinition :
     [SerializeField]
     private UpgradeLevelData[] levels;
 
+    [Min(0)]
+    [SerializeField]
+    private int maxPurchasableLevel;
+
     // ==================================================
     // PUBLIC DATA
     // ==================================================
@@ -45,6 +49,11 @@ public class UpgradeDefinition :
         }
     }
 
+    public int MaxPurchasableLevel =>
+        maxPurchasableLevel <= 0
+            ? MaxLevel
+            : Mathf.Min(maxPurchasableLevel, MaxLevel);
+
     // ==================================================
     // VALIDATION
     // ==================================================
@@ -55,6 +64,12 @@ public class UpgradeDefinition :
         {
             if (levels == null ||
                 levels.Length == 0)
+            {
+                return false;
+            }
+
+            if (maxPurchasableLevel < 0 ||
+                maxPurchasableLevel > levels.Length)
             {
                 return false;
             }
@@ -130,11 +145,11 @@ public class UpgradeDefinition :
     public bool IsMaxLevel(
         int currentLevel)
     {
-        if (MaxLevel <= 0)
+        if (MaxPurchasableLevel <= 0)
             return true;
 
         return currentLevel >=
-            MaxLevel;
+            MaxPurchasableLevel;
     }
 
     // ==================================================
