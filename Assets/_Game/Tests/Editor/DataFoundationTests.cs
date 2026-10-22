@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,17 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
+
+[ExecuteAlways]
+public class ReplacementApplyFailureTrigger : MonoBehaviour
+{
+    public Action OnDisabled;
+
+    private void OnDisable()
+    {
+        OnDisabled?.Invoke();
+    }
+}
 
 public class DataFoundationTests
 {
@@ -1480,6 +1492,563 @@ public class DataFoundationTests
             UnityEngine.Object.DestroyImmediate(orderObject);
             UnityEngine.Object.DestroyImmediate(progressionObject);
         }
+    }
+
+    [Test]
+    public void FreshSessionReplacementClearsLiveStateAndPublishesOncePerReplacement()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        EventInfo boardChanged = fixture.Grid.GetType().GetEvent("BoardChanged");
+        EventInfo shelfChanged = fixture.Shelf.GetType().GetEvent("ShelfChanged");
+        EventInfo generated = fixture.Orders.GetType().GetEvent("OrderGenerated");
+        EventInfo previewChanged = FindPlayerType("GameplayEvents")
+            .GetEvent("NextDessertChanged");
+        Delegate boardHandler = CreateCountingHandler(
+            boardChanged.EventHandlerType, nameof(RecordBoardChanged));
+        Delegate shelfHandler = CreateCountingHandler(
+            shelfChanged.EventHandlerType, nameof(RecordShelfChanged));
+        Delegate generatedHandler = CreateCountingHandler(
+            generated.EventHandlerType, nameof(RecordGeneratedEvent));
+        Delegate previewHandler = CreateCountingHandler(
+            previewChanged.EventHandlerType, nameof(RecordPreviewChanged));
+        boardChanged.AddEventHandler(fixture.Grid, boardHandler);
+        shelfChanged.AddEventHandler(fixture.Shelf, shelfHandler);
+        generated.AddEventHandler(fixture.Orders, generatedHandler);
+        previewChanged.AddEventHandler(null, previewHandler);
+
+        try
+        {
+            int boardCapacity = (int)fixture.Grid.GetType()
+                .GetProperty("UnlockedCellCount").GetValue(fixture.Grid);
+            int shelfCapacity = (int)fixture.Shelf.GetType()
+                .GetProperty("UnlockedSlotCount").GetValue(fixture.Shelf);
+            int customerCapacity = (int)fixture.Orders.GetType()
+                .GetProperty("ActiveCustomerCount").GetValue(fixture.Orders);
+            Assert.AreEqual(1, customerCapacity);
+
+            for (int replacement = 0; replacement < 2; replacement++)
+            {
+                activeGeneratedEventCount = 0;
+                activeBoardChangedCount = 0;
+                activeShelfChangedCount = 0;
+                activePreviewChangedCount = 0;
+                Array previousOrders = GetActiveOrders(fixture.Orders);
+                int previousNextOrderId = (int)fixture.Orders.GetType()
+                    .GetProperty("NextOrderId").GetValue(fixture.Orders);
+
+                Assert.IsTrue((bool)fixture.Controller.GetType()
+                    .GetMethod("TryReplaceWithFreshSession")
+                    .Invoke(fixture.Controller, null));
+
+                Assert.AreEqual(0, (int)fixture.Grid.GetType()
+                    .GetProperty("OccupiedCellCount").GetValue(fixture.Grid));
+                Assert.AreEqual(0, (int)fixture.Shelf.GetType()
+                    .GetProperty("OccupiedSlotCount").GetValue(fixture.Shelf));
+                Assert.AreEqual(boardCapacity, (int)fixture.Grid.GetType()
+                    .GetProperty("UnlockedCellCount").GetValue(fixture.Grid));
+                Assert.AreEqual(shelfCapacity, (int)fixture.Shelf.GetType()
+                    .GetProperty("UnlockedSlotCount").GetValue(fixture.Shelf));
+                Assert.AreEqual(customerCapacity, (int)fixture.Orders.GetType()
+                    .GetProperty("ActiveCustomerCount").GetValue(fixture.Orders));
+
+                Array activeOrders = GetActiveOrders(fixture.Orders);
+                Assert.AreEqual(customerCapacity, activeOrders.Length);
+                for (int i = 0; i < activeOrders.Length; i++)
+                {
+                    object order = activeOrders.GetValue(i);
+                    Assert.IsTrue((bool)order.GetType().GetProperty("IsValid")
+                        .GetValue(order));
+                    Assert.Greater((int)order.GetType().GetProperty("OrderId")
+                        .GetValue(order), previousNextOrderId - 1);
+                    Assert.AreNotSame(previousOrders.GetValue(i), order);
+                }
+
+                object preview = fixture.Spawner.GetType()
+                    .GetProperty("NextDessert").GetValue(fixture.Spawner);
+                Assert.IsNotNull(preview);
+                if (replacement == 0)
+                    Assert.AreNotSame(fixture.InitialPreview, preview);
+                Assert.IsTrue((bool)fixture.Progression.GetType()
+                    .GetMethod("IsDessertTierUnlocked")
+                    .Invoke(fixture.Progression, new[]
+                    {
+                        preview.GetType().GetProperty("Tier").GetValue(preview)
+                    }));
+                Assert.IsTrue((bool)fixture.Controller.GetType()
+                    .GetProperty("IsRestorationVerified").GetValue(fixture.Controller));
+                Assert.IsTrue((bool)fixture.Coordinator.GetType()
+                    .GetProperty("IsGameplayReady").GetValue(fixture.Coordinator));
+                Assert.IsTrue((bool)fixture.SaveManager.GetType()
+                    .GetProperty("IsLifecycleSavingReady").GetValue(fixture.SaveManager));
+                Assert.AreEqual(1, activeBoardChangedCount);
+                Assert.AreEqual(1, activeShelfChangedCount);
+                Assert.AreEqual(customerCapacity, activeGeneratedEventCount);
+                Assert.AreEqual(1, activePreviewChangedCount);
+
+                object savedSession = fixture.SessionManager.GetType()
+                    .GetProperty("SessionData").GetValue(fixture.SessionManager);
+                Assert.AreEqual(0, GetPublicList(savedSession, "boardDesserts").Count);
+                Assert.AreEqual(0, GetPublicList(savedSession, "shelfDesserts").Count);
+                Assert.AreEqual(
+                    customerCapacity,
+                    GetPublicList(savedSession, "customerOrders").Count);
+            }
+        }
+        finally
+        {
+            boardChanged.RemoveEventHandler(fixture.Grid, boardHandler);
+            shelfChanged.RemoveEventHandler(fixture.Shelf, shelfHandler);
+            generated.RemoveEventHandler(fixture.Orders, generatedHandler);
+            previewChanged.RemoveEventHandler(null, previewHandler);
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    public void FreshSessionReplacementApplyFailureRestoresOriginalLiveStateWithoutEvents()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        EventInfo boardChanged = fixture.Grid.GetType().GetEvent("BoardChanged");
+        EventInfo shelfChanged = fixture.Shelf.GetType().GetEvent("ShelfChanged");
+        EventInfo generated = fixture.Orders.GetType().GetEvent("OrderGenerated");
+        EventInfo previewChanged = FindPlayerType("GameplayEvents")
+            .GetEvent("NextDessertChanged");
+        Delegate boardHandler = CreateCountingHandler(
+            boardChanged.EventHandlerType, nameof(RecordBoardChanged));
+        Delegate shelfHandler = CreateCountingHandler(
+            shelfChanged.EventHandlerType, nameof(RecordShelfChanged));
+        Delegate generatedHandler = CreateCountingHandler(
+            generated.EventHandlerType, nameof(RecordGeneratedEvent));
+        Delegate previewHandler = CreateCountingHandler(
+            previewChanged.EventHandlerType, nameof(RecordPreviewChanged));
+        boardChanged.AddEventHandler(fixture.Grid, boardHandler);
+        shelfChanged.AddEventHandler(fixture.Shelf, shelfHandler);
+        generated.AddEventHandler(fixture.Orders, generatedHandler);
+        previewChanged.AddEventHandler(null, previewHandler);
+
+        object originalBoardDessert = fixture.Cells[0].GetType()
+            .GetProperty("CurrentDessert").GetValue(fixture.Cells[0]);
+        object originalShelfDessert = fixture.Slots[0].GetType()
+            .GetProperty("CurrentDessert").GetValue(fixture.Slots[0]);
+        Array originalOrders = GetActiveOrders(fixture.Orders);
+        object originalPreview = fixture.Spawner.GetType()
+            .GetProperty("NextDessert").GetValue(fixture.Spawner);
+        object originalSession = fixture.SessionManager.GetType()
+            .GetProperty("SessionData").GetValue(fixture.SessionManager);
+        int capacity = (int)fixture.Orders.GetType()
+            .GetProperty("ActiveCustomerCount").GetValue(fixture.Orders);
+
+        ReplacementApplyFailureTrigger failureTrigger =
+            ((UnityEngine.Component)originalBoardDessert).gameObject
+                .AddComponent<ReplacementApplyFailureTrigger>();
+        failureTrigger.OnDisabled = () =>
+        {
+            SetPrivateField(fixture.Orders, "pendingFreshSessionOrders", null);
+            SetPrivateField(fixture.Orders, "pendingFreshSessionNextOrderId", 0);
+        };
+
+        try
+        {
+            activeGeneratedEventCount = 0;
+            activeBoardChangedCount = 0;
+            activeShelfChangedCount = 0;
+            activePreviewChangedCount = 0;
+            LogAssert.Expect(
+                LogType.Error,
+                "SESSION REPLACEMENT FAILED | Prepared state could not be applied.");
+
+            Assert.IsFalse((bool)fixture.Controller.GetType()
+                .GetMethod("TryReplaceWithFreshSession")
+                .Invoke(fixture.Controller, null));
+
+            Assert.AreSame(originalBoardDessert, fixture.Cells[0].GetType()
+                .GetProperty("CurrentDessert").GetValue(fixture.Cells[0]));
+            Assert.AreSame(originalShelfDessert, fixture.Slots[0].GetType()
+                .GetProperty("CurrentDessert").GetValue(fixture.Slots[0]));
+            Assert.IsTrue(((UnityEngine.Component)originalBoardDessert).gameObject.activeSelf);
+            Assert.IsTrue(((UnityEngine.Component)originalShelfDessert).gameObject.activeSelf);
+            CollectionAssert.AreEqual(originalOrders, GetActiveOrders(fixture.Orders));
+            Assert.AreSame(originalPreview, fixture.Spawner.GetType()
+                .GetProperty("NextDessert").GetValue(fixture.Spawner));
+            Assert.AreNotSame(
+                originalSession,
+                fixture.SessionManager.GetType().GetProperty("SessionData")
+                    .GetValue(fixture.SessionManager),
+                "Rollback should persist a fresh snapshot of the restored state.");
+
+            object restoredSession = fixture.SessionManager.GetType()
+                .GetProperty("SessionData").GetValue(fixture.SessionManager);
+            Assert.AreEqual(1, GetPublicList(restoredSession, "boardDesserts").Count);
+            Assert.AreEqual(1, GetPublicList(restoredSession, "shelfDesserts").Count);
+            Assert.AreEqual(capacity, GetPublicList(restoredSession, "customerOrders").Count);
+            object[] capacityArguments =
+            {
+                restoredSession,
+                capacity,
+                0
+            };
+            Assert.IsTrue((bool)fixture.SaveManager.GetType()
+                .GetMethod("TryGetSessionCustomerCapacity")
+                .Invoke(fixture.SaveManager, capacityArguments));
+            Assert.AreEqual(capacity, capacityArguments[2]);
+            Assert.IsTrue((bool)fixture.Controller.GetType()
+                .GetProperty("IsRestorationVerified").GetValue(fixture.Controller));
+            Assert.IsTrue((bool)fixture.Coordinator.GetType()
+                .GetProperty("IsGameplayReady").GetValue(fixture.Coordinator));
+            Assert.IsTrue((bool)fixture.SaveManager.GetType()
+                .GetProperty("IsLifecycleSavingReady").GetValue(fixture.SaveManager));
+            Assert.AreEqual(0, activeBoardChangedCount);
+            Assert.AreEqual(0, activeShelfChangedCount);
+            Assert.AreEqual(0, activeGeneratedEventCount);
+            Assert.AreEqual(0, activePreviewChangedCount);
+        }
+        finally
+        {
+            failureTrigger.OnDisabled = null;
+            boardChanged.RemoveEventHandler(fixture.Grid, boardHandler);
+            shelfChanged.RemoveEventHandler(fixture.Shelf, shelfHandler);
+            generated.RemoveEventHandler(fixture.Orders, generatedHandler);
+            previewChanged.RemoveEventHandler(null, previewHandler);
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    private sealed class ReplacementFixture
+    {
+        public readonly List<GameObject> Objects = new List<GameObject>();
+        public readonly List<object> Cells = new List<object>();
+        public readonly List<object> Slots = new List<object>();
+        public object Progression;
+        public object Grid;
+        public object Shelf;
+        public object Orders;
+        public object Spawner;
+        public object Controller;
+        public object Coordinator;
+        public object SaveManager;
+        public object SessionManager;
+        public object InitialPreview;
+    }
+
+    private ReplacementFixture CreateReplacementFixture()
+    {
+        var fixture = new ReplacementFixture();
+        try
+        {
+            object saveManager = AddRuntimeComponent(fixture, "SaveManager");
+            SetStaticPropertyBackingField("SaveManager", "Instance", saveManager);
+            object economy = AddRuntimeComponent(fixture, "EconomyManager");
+            SetStaticPropertyBackingField("EconomyManager", "Instance", economy);
+            object progression = AddRuntimeComponent(
+                fixture, "PlayerProgressionManager", false);
+            SetProgressionDefinitions(progression);
+            SetPrivateField(progression, "ovenLevel", 6);
+            fixture.Progression = progression;
+            ((UnityEngine.Component)progression).gameObject.SetActive(true);
+            SetStaticPropertyBackingField(
+                "PlayerProgressionManager", "Instance", progression);
+
+            object coordinator = AddRuntimeComponent(
+                fixture, "GameStartupCoordinator");
+            SetStaticPropertyBackingField(
+                "GameStartupCoordinator", "Instance", coordinator);
+            SetPrivateField(
+                coordinator,
+                "<Status>k__BackingField",
+                Enum.Parse(
+                    coordinator.GetType().GetNestedType("StartupStatus"),
+                    "NewGame"));
+            object sessionManager = AddRuntimeComponent(
+                fixture, "MergeSessionManager");
+            SetStaticPropertyBackingField(
+                "MergeSessionManager", "Instance", sessionManager);
+
+            int boardCapacity = (int)progression.GetType()
+                .GetProperty("ActiveBoardCells").GetValue(progression);
+            int shelfCapacity = (int)progression.GetType()
+                .GetProperty("ShelfCapacity").GetValue(progression);
+            Assert.Greater(boardCapacity, 0);
+            Assert.Greater(shelfCapacity, 0, "The integration fixture needs an unlocked shelf slot.");
+
+            object grid = AddRuntimeComponent(fixture, "GridManager", false);
+            SetPrivateField(grid, "columns", 0);
+            SetPrivateField(grid, "rows", 0);
+            SetPrivateField(grid, "progressionManager", progression);
+            InvokeLifecycle(grid, "Awake");
+            ((UnityEngine.Component)grid).gameObject.SetActive(true);
+            fixture.Grid = grid;
+            IList cellList = (IList)grid.GetType()
+                .GetProperty("Cells").GetValue(grid);
+            for (int i = 0; i < boardCapacity + 1; i++)
+            {
+                object cell = AddRuntimeComponent(fixture, "GridCell");
+                cell.GetType().GetMethod("SetUnlocked")
+                    .Invoke(cell, new object[] { i < boardCapacity });
+                cellList.Add(cell);
+                fixture.Cells.Add(cell);
+            }
+
+            object shelf = AddRuntimeComponent(fixture, "ShelfManager", false);
+            SetPrivateField(shelf, "progressionManager", progression);
+            Array slots = Array.CreateInstance(
+                FindPlayerType("ShelfSlot"),
+                shelfCapacity + 1);
+            for (int i = 0; i < slots.Length; i++)
+            {
+                object slot = AddRuntimeComponent(fixture, "ShelfSlot");
+                slot.GetType().GetMethod("SetUnlocked")
+                    .Invoke(slot, new object[] { i < shelfCapacity });
+                slots.SetValue(slot, i);
+                fixture.Slots.Add(slot);
+            }
+            SetPrivateField(shelf, "slots", slots);
+            ((UnityEngine.Component)shelf).gameObject.SetActive(true);
+            fixture.Shelf = shelf;
+
+            object orders = AddRuntimeComponent(fixture, "OrderManager", false);
+            SetPrivateField(orders, "progressionManager", progression);
+            SetPrivateField(orders, "gridManager", grid);
+            SetPrivateField(orders, "orderPool", LoadOrderDefinitions());
+            ((UnityEngine.Component)orders).gameObject.SetActive(true);
+            InvokeLifecycle(orders, "Awake");
+            fixture.Orders = orders;
+
+            object spawner = AddRuntimeComponent(fixture, "DessertSpawner", false);
+            SetPrivateField(spawner, "progressionManager", progression);
+            SetPrivateField(spawner, "gridManager", grid);
+            SetPrivateField(spawner, "dessertDefinitions", LoadDessertDefinitions());
+            ((UnityEngine.Component)spawner).gameObject.SetActive(true);
+            fixture.InitialPreview = AssetDatabase.LoadMainAssetAtPath(
+                $"{DessertFolder}/Dessert_30.asset");
+            SetPrivateField(spawner, "nextDessert", fixture.InitialPreview);
+            fixture.Spawner = spawner;
+
+            SeedActiveOrders(orders);
+            PlaceFixtureDessert(fixture, 0, 0, 1);
+
+            object controller = AddRuntimeComponent(
+                fixture, "MergeSessionController", false);
+            SetPrivateField(controller, "gridManager", grid);
+            SetPrivateField(controller, "shelfManager", shelf);
+            SetPrivateField(controller, "orderManager", orders);
+            SetPrivateField(controller, "dessertSpawner", spawner);
+            ((UnityEngine.Component)controller).gameObject.SetActive(true);
+            InvokeLifecycle(controller, "Awake");
+            SetPrivateField(controller, "<IsRestorationVerified>k__BackingField", true);
+            bool readinessConfirmed = (bool)coordinator.GetType()
+                .GetMethod("ConfirmGameplayRestoration")
+                .Invoke(coordinator, new[] { controller });
+            Assert.IsTrue(
+                readinessConfirmed,
+                "Fixture readiness was rejected. Status=" +
+                coordinator.GetType().GetProperty("Status").GetValue(coordinator) +
+                ", save manager=" + (FindSingleton("SaveManager") != null) +
+                ", economy=" + (FindSingleton("EconomyManager") != null));
+            object[] validationArguments = { null, -1 };
+            bool liveStateValid = (bool)controller.GetType()
+                .GetMethod("ValidateLiveState", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(controller, validationArguments);
+            Assert.IsTrue(
+                liveStateValid,
+                "Fixture live-state validation failed: " +
+                (validationArguments[0] ?? "no reason provided"));
+            bool captured = (bool)controller.GetType()
+                .GetMethod("TryCaptureSession").Invoke(controller, null);
+            Assert.IsTrue(captured, "Controller could not capture the initialized fixture.");
+
+            fixture.Controller = controller;
+            fixture.Coordinator = coordinator;
+            fixture.SaveManager = saveManager;
+            fixture.SessionManager = sessionManager;
+            Assert.AreSame(economy, FindSingleton("EconomyManager"));
+            return fixture;
+        }
+        catch
+        {
+            DestroyReplacementFixture(fixture);
+            throw;
+        }
+    }
+
+    private object AddRuntimeComponent(
+        ReplacementFixture fixture,
+        string typeName,
+        bool activate = true)
+    {
+        var gameObject = new GameObject(typeName + " integration test");
+        fixture.Objects.Add(gameObject);
+        gameObject.SetActive(activate);
+        if (typeName == "Dessert")
+        {
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(gameObject.transform, false);
+            visual.AddComponent<SpriteRenderer>();
+        }
+        object component = gameObject.AddComponent(FindPlayerType(typeName));
+        return component;
+    }
+
+    private static void InvokeLifecycle(object target, string methodName)
+    {
+        MethodInfo method = target.GetType().GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method, $"Missing {methodName} on {target.GetType().Name}.");
+        method.Invoke(target, null);
+    }
+
+    private static void SetStaticPropertyBackingField(
+        string typeName,
+        string propertyName,
+        object value)
+    {
+        FieldInfo field = FindPlayerType(typeName).GetField(
+            $"<{propertyName}>k__BackingField",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(
+            field,
+            $"Missing backing field for {typeName}.{propertyName}.");
+        field.SetValue(null, value);
+    }
+
+    private void SetProgressionDefinitions(object progression)
+    {
+        string[] paths =
+        {
+            "Assets/_Game/Data/Upgrades/Upgrade_Oven.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_BoardSpace.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_Shelf.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_Customer.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset"
+        };
+        string[] fields =
+        {
+            "ovenUpgrade", "boardSpaceUpgrade", "shelfUpgrade",
+            "customerUpgrade", "moneyMultiplierUpgrade"
+        };
+        for (int i = 0; i < paths.Length; i++)
+        {
+            UnityEngine.Object definition = AssetDatabase.LoadMainAssetAtPath(paths[i]);
+            Assert.IsNotNull(definition, $"Missing upgrade definition: {paths[i]}");
+            SetPrivateField(progression, fields[i], definition);
+        }
+    }
+
+    private Array LoadOrderDefinitions()
+    {
+        Type definitionType = FindPlayerType("CustomerOrderDefinition");
+        Array definitions = Array.CreateInstance(definitionType, ExistingOrderDefinitionIds.Length);
+        for (int i = 0; i < ExistingOrderDefinitionIds.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(ExistingOrderDefinitionIds[i]);
+            UnityEngine.Object definition = AssetDatabase.LoadMainAssetAtPath(path);
+            Assert.IsNotNull(definition, $"Missing order definition {ExistingOrderDefinitionIds[i]}");
+            definitions.SetValue(definition, i);
+        }
+        return definitions;
+    }
+
+    private Array LoadDessertDefinitions()
+    {
+        Type definitionType = FindPlayerType("DessertDefinition");
+        Array definitions = Array.CreateInstance(definitionType, 30);
+        for (int tier = 1; tier <= 30; tier++)
+        {
+            UnityEngine.Object definition = AssetDatabase.LoadMainAssetAtPath(
+                $"{DessertFolder}/Dessert_{tier:00}.asset");
+            Assert.IsNotNull(definition, $"Missing dessert definition for tier {tier}");
+            definitions.SetValue(definition, tier - 1);
+        }
+        return definitions;
+    }
+
+    private void SeedActiveOrders(object orders)
+    {
+        object[] plan = { null, 0 };
+        Assert.IsTrue((bool)orders.GetType()
+            .GetMethod("TryPrepareFreshSessionOrders", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(orders, plan));
+        Assert.IsTrue((bool)orders.GetType()
+            .GetMethod("ApplyPreparedFreshSessionOrders", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(orders, new[] { plan[0], plan[1] }));
+    }
+
+    private void PlaceFixtureDessert(
+        ReplacementFixture fixture,
+        int cellIndex,
+        int slotIndex,
+        int tier)
+    {
+        UnityEngine.Object definition = AssetDatabase.LoadMainAssetAtPath(
+            $"{DessertFolder}/Dessert_{tier:00}.asset");
+        object boardDessert = AddRuntimeComponent(fixture, "Dessert");
+        boardDessert.GetType().GetMethod("Initialize").Invoke(
+            boardDessert, new[] { definition, fixture.Cells[cellIndex] });
+        fixture.Cells[cellIndex].GetType().GetMethod("PlaceDessert")
+            .Invoke(fixture.Cells[cellIndex], new[] { boardDessert, (object)true });
+
+        object shelfDessert = AddRuntimeComponent(fixture, "Dessert");
+        shelfDessert.GetType().GetMethod("Initialize").Invoke(
+            shelfDessert, new[] { definition, null });
+        object slot = fixture.Slots[slotIndex];
+        Assert.IsTrue((bool)slot.GetType().GetProperty("IsUnlocked").GetValue(slot),
+            $"Fixture shelf slot {slotIndex} should be unlocked.");
+        Assert.IsTrue((bool)slot.GetType().GetProperty("IsEmpty").GetValue(slot),
+            $"Fixture shelf slot {slotIndex} should be empty.");
+        Assert.IsTrue((bool)fixture.Slots[slotIndex].GetType()
+            .GetMethod("TryStoreDessert")
+            .Invoke(slot, new[] { shelfDessert, (object)true }),
+            $"Fixture shelf slot {slotIndex} rejected tier {tier}.");
+    }
+
+    private static Array GetActiveOrders(object orderManager)
+    {
+        return ((IEnumerable)orderManager.GetType()
+                .GetProperty("CustomerOrders").GetValue(orderManager))
+            .Cast<object>()
+            .Where(order => order != null)
+            .ToArray();
+    }
+
+    private static IList GetPublicList(object target, string fieldName)
+    {
+        return (IList)target.GetType()
+            .GetField(fieldName, BindingFlags.Instance | BindingFlags.Public)
+            .GetValue(target);
+    }
+
+    private static object FindSingleton(string typeName)
+    {
+        return FindPlayerType(typeName).GetProperty(
+            "Instance",
+            BindingFlags.Static | BindingFlags.Public)
+            .GetValue(null);
+    }
+
+    private static void DestroyReplacementFixture(ReplacementFixture fixture)
+    {
+        for (int i = fixture.Objects.Count - 1; i >= 0; i--)
+            if (fixture.Objects[i] != null)
+                UnityEngine.Object.DestroyImmediate(fixture.Objects[i]);
+    }
+
+    private int activeBoardChangedCount;
+    private int activeShelfChangedCount;
+    private int activePreviewChangedCount;
+
+    private void RecordBoardChanged()
+    {
+        activeBoardChangedCount++;
+    }
+
+    private void RecordShelfChanged()
+    {
+        activeShelfChangedCount++;
+    }
+
+    private void RecordPreviewChanged()
+    {
+        activePreviewChangedCount++;
     }
 
     private static Type FindPlayerType(string typeName)
