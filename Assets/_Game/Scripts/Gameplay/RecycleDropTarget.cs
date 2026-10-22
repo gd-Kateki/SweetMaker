@@ -7,6 +7,9 @@ public class RecycleDropTarget : MonoBehaviour
     private RectTransform hitArea;
 
     [SerializeField]
+    private RectTransform excludedArea;
+
+    [SerializeField]
     private Image targetImage;
 
     [SerializeField]
@@ -36,6 +39,13 @@ public class RecycleDropTarget : MonoBehaviour
                              parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay
             ? parentCanvas.worldCamera
             : null;
+        if (excludedArea != null &&
+            RectTransformUtility.RectangleContainsScreenPoint(
+                excludedArea,
+                screenPoint,
+                eventCamera))
+            return false;
+
         return RectTransformUtility.RectangleContainsScreenPoint(
             hitArea,
             screenPoint,

@@ -568,6 +568,13 @@ public class DessertSpawner : MonoBehaviour
 
     public bool TrySpawnRandomDessert()
     {
+        if (gridManager != null &&
+            gridManager.IsMergeTransactionActive)
+        {
+            Debug.Log("OVEN | Spawn rejected during a merge transaction.");
+            return false;
+        }
+
         if (!ValidateReferences())
             return false;
 
@@ -686,6 +693,31 @@ public class DessertSpawner : MonoBehaviour
         DessertDefinition definition,
         GridCell cell)
     {
+        return SpawnDessertInternal(definition, cell, null);
+    }
+
+    internal Dessert SpawnDessertForMerge(
+        DessertDefinition definition,
+        GridCell cell,
+        object mergeOwner)
+    {
+        if (gridManager == null ||
+            !gridManager.IsMergeTransactionActive ||
+            gridManager.IsMergeMutationBlocked(mergeOwner))
+            return null;
+
+        return SpawnDessertInternal(definition, cell, mergeOwner);
+    }
+
+    private Dessert SpawnDessertInternal(
+        DessertDefinition definition,
+        GridCell cell,
+        object mutationOwner)
+    {
+        if (gridManager != null &&
+            gridManager.IsMergeMutationBlocked(mutationOwner))
+            return null;
+
         if (definition == null)
         {
             Debug.LogError(

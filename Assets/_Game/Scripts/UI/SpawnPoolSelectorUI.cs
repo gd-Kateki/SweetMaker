@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -7,17 +8,42 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
 {
     private const float PanelWidth = 260f;
     private const float PanelHeight = 64f;
+    private const float PreviewGap = 12f;
+    private const float LayoutTolerance = 0.05f;
 
     [SerializeField]
     private Transform previewAnchor;
 
     private DessertSpawner dessertSpawner;
     private Canvas gameplayCanvas;
+    private RectTransform canvasRect;
     private RectTransform panel;
+    private SpriteRenderer previewRenderer;
     private Button previousButton;
     private Button nextButton;
     private TMP_Text poolText;
     private IReadOnlyList<string> unlockedPoolIds;
+    private Rect lastPreviewBounds;
+    private Rect lastUsableBounds;
+    private Vector2 lastPanelSize;
+    private Camera lastObservedCamera;
+    private Rect lastObservedCameraPixelRect;
+    private Rect lastObservedCanvasRect;
+    private Rect lastObservedSafeArea;
+    private Vector3 lastObservedCameraPosition;
+    private Quaternion lastObservedCameraRotation;
+    private float lastObservedOrthographicSize;
+    private float lastObservedCameraAspect;
+    private int lastObservedScreenWidth;
+    private int lastObservedScreenHeight;
+    private bool hasEvaluatedLayout;
+    private bool hasObservedScreenLayout;
+    private bool hasLoggedPlacementFailure;
+
+    private void OnEnable()
+    {
+        GameplayEvents.NextDessertChanged += HandleNextDessertChanged;
+    }
 
     private void Start()
     {
@@ -31,6 +57,20 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             return;
         }
 
+        gameplayCanvas = gameplayCanvas.rootCanvas;
+        canvasRect = gameplayCanvas.transform as RectTransform;
+        if (canvasRect == null ||
+            gameplayCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | A Screen Space Overlay Canvas is required.");
+            enabled = false;
+            return;
+        }
+
+        if (previewAnchor != null)
+            previewRenderer = previewAnchor.GetComponentInChildren<SpriteRenderer>(true);
+
         CreateControls();
         dessertSpawner.SpawnPoolChanged += HandleSpawnPoolChanged;
         Refresh();
@@ -42,14 +82,44 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             dessertSpawner.SpawnPoolChanged -= HandleSpawnPoolChanged;
     }
 
+    private void OnDisable()
+    {
+        GameplayEvents.NextDessertChanged -= HandleNextDessertChanged;
+        StopAllCoroutines();
+    }
+
     private void Update()
     {
-        UpdatePosition();
+        if (HasScreenLayoutChanged())
+            UpdatePosition();
     }
 
     private void HandleSpawnPoolChanged(string poolId, int firstTier, int highestTier)
     {
         Refresh();
+    }
+
+    private void HandleNextDessertChanged(DessertDefinition definition)
+    {
+        StartCoroutine(UpdatePositionAfterPreviewRefresh());
+    }
+
+    private IEnumerator UpdatePositionAfterPreviewRefresh()
+    {
+        yield return null;
+        UpdatePosition();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus)
+            UpdatePosition();
+    }
+
+    private void OnApplicationPause(bool isPaused)
+    {
+        if (!isPaused)
+            UpdatePosition();
     }
 
     private void CreateControls()
@@ -175,37 +245,215 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
 
     private void UpdatePosition()
     {
-        if (panel == null || gameplayCanvas == null)
+        if (panel == null || canvasRect == null)
             return;
 
         Camera gameCamera = Camera.main;
         if (gameCamera == null)
             return;
 
-        Transform anchor = previewAnchor != null ? previewAnchor : transform;
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(
-            gameCamera,
-            anchor.position);
-        screenPoint.x += 250f;
-        screenPoint.y -= 105f;
-        RectTransform canvasRect = gameplayCanvas.transform as RectTransform;
-        if (canvasRect == null ||
-            !RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect,
-                screenPoint,
-                null,
-                out Vector2 localPoint))
+        if (!TryGetPreviewCanvasBounds(gameCamera, out Rect previewBounds) ||
+            !TryGetCanvasLocalRect(Screen.safeArea, out Rect usableBounds))
             return;
 
-        Vector2 halfSize = canvasRect.rect.size * 0.5f;
-        localPoint.x = Mathf.Clamp(
-            localPoint.x,
-            -halfSize.x + PanelWidth * 0.5f,
-            halfSize.x - PanelWidth * 0.5f);
-        localPoint.y = Mathf.Clamp(
-            localPoint.y,
-            -halfSize.y + PanelHeight * 0.5f,
-            halfSize.y - PanelHeight * 0.5f);
-        panel.anchoredPosition = localPoint;
+        CaptureScreenLayout(gameCamera);
+
+        Vector2 panelSize = panel.rect.size;
+        if (hasEvaluatedLayout &&
+            Approximately(previewBounds, lastPreviewBounds) &&
+            Approximately(usableBounds, lastUsableBounds) &&
+            Approximately(panelSize, lastPanelSize))
+            return;
+
+        lastPreviewBounds = previewBounds;
+        lastUsableBounds = usableBounds;
+        lastPanelSize = panelSize;
+        hasEvaluatedLayout = true;
+
+        if (!TryCalculateSelectorBounds(
+                previewBounds,
+                usableBounds,
+                panelSize,
+                PreviewGap,
+                out Rect selectorBounds))
+        {
+            panel.gameObject.SetActive(false);
+            if (!hasLoggedPlacementFailure)
+            {
+                Debug.LogError(
+                    "SPAWN POOL UI | Selector cannot fit below the preview inside the safe area.",
+                    this);
+                hasLoggedPlacementFailure = true;
+            }
+            return;
+        }
+
+        panel.anchoredPosition = selectorBounds.center;
+        panel.gameObject.SetActive(true);
+        hasLoggedPlacementFailure = false;
+    }
+
+    public static bool TryCalculateSelectorBounds(
+        Rect previewBounds,
+        Rect usableBounds,
+        Vector2 panelSize,
+        float gap,
+        out Rect selectorBounds)
+    {
+        selectorBounds = default;
+        if (panelSize.x <= 0f ||
+            panelSize.y <= 0f ||
+            gap < 0f ||
+            usableBounds.width < panelSize.x)
+            return false;
+
+        float halfWidth = panelSize.x * 0.5f;
+        float bottom = previewBounds.yMin - gap - panelSize.y;
+        if (bottom < usableBounds.yMin ||
+            previewBounds.yMin - gap > usableBounds.yMax)
+            return false;
+
+        float centerX = Mathf.Clamp(
+            previewBounds.center.x,
+            usableBounds.xMin + halfWidth,
+            usableBounds.xMax - halfWidth);
+        selectorBounds = new Rect(
+            centerX - halfWidth,
+            bottom,
+            panelSize.x,
+            panelSize.y);
+        return true;
+    }
+
+    private bool HasScreenLayoutChanged()
+    {
+        if (!hasObservedScreenLayout ||
+            canvasRect == null)
+            return true;
+
+        Camera gameCamera = Camera.main;
+        return Screen.width != lastObservedScreenWidth ||
+               Screen.height != lastObservedScreenHeight ||
+               Screen.safeArea != lastObservedSafeArea ||
+               canvasRect.rect != lastObservedCanvasRect ||
+               gameCamera != lastObservedCamera ||
+               (gameCamera != null &&
+                (gameCamera.pixelRect != lastObservedCameraPixelRect ||
+                 gameCamera.transform.position != lastObservedCameraPosition ||
+                 gameCamera.transform.rotation != lastObservedCameraRotation ||
+                 !Mathf.Approximately(
+                     gameCamera.aspect,
+                     lastObservedCameraAspect) ||
+                 !Mathf.Approximately(
+                     gameCamera.orthographicSize,
+                     lastObservedOrthographicSize)));
+    }
+
+    private void CaptureScreenLayout(Camera gameCamera)
+    {
+        lastObservedScreenWidth = Screen.width;
+        lastObservedScreenHeight = Screen.height;
+        lastObservedSafeArea = Screen.safeArea;
+        lastObservedCanvasRect = canvasRect.rect;
+        lastObservedCamera = gameCamera;
+        lastObservedCameraPixelRect = gameCamera.pixelRect;
+        lastObservedCameraPosition = gameCamera.transform.position;
+        lastObservedCameraRotation = gameCamera.transform.rotation;
+        lastObservedOrthographicSize = gameCamera.orthographicSize;
+        lastObservedCameraAspect = gameCamera.aspect;
+        hasObservedScreenLayout = true;
+    }
+
+    private bool TryGetPreviewCanvasBounds(
+        Camera gameCamera,
+        out Rect localBounds)
+    {
+        Transform anchor = previewAnchor != null ? previewAnchor : transform;
+        Bounds worldBounds = previewRenderer != null
+            ? previewRenderer.bounds
+            : new Bounds(anchor.position, Vector3.zero);
+
+        Vector3 min = worldBounds.min;
+        Vector3 max = worldBounds.max;
+        Vector2 firstPoint = default;
+        float minX = float.PositiveInfinity;
+        float minY = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float maxY = float.NegativeInfinity;
+
+        for (int x = 0; x < 2; x++)
+        {
+            for (int y = 0; y < 2; y++)
+            {
+                for (int z = 0; z < 2; z++)
+                {
+                    Vector3 worldPoint = new Vector3(
+                        x == 0 ? min.x : max.x,
+                        y == 0 ? min.y : max.y,
+                        z == 0 ? min.z : max.z);
+                    Vector2 screenPoint = gameCamera.WorldToScreenPoint(worldPoint);
+                    if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                            canvasRect,
+                            screenPoint,
+                            null,
+                            out Vector2 localPoint))
+                    {
+                        localBounds = default;
+                        return false;
+                    }
+
+                    if (float.IsPositiveInfinity(minX))
+                        firstPoint = localPoint;
+                    minX = Mathf.Min(minX, localPoint.x);
+                    minY = Mathf.Min(minY, localPoint.y);
+                    maxX = Mathf.Max(maxX, localPoint.x);
+                    maxY = Mathf.Max(maxY, localPoint.y);
+                }
+            }
+        }
+
+        if (worldBounds.size == Vector3.zero)
+        {
+            minX = maxX = firstPoint.x;
+            minY = maxY = firstPoint.y;
+        }
+
+        localBounds = Rect.MinMaxRect(minX, minY, maxX, maxY);
+        return true;
+    }
+
+    private bool TryGetCanvasLocalRect(
+        Rect screenRect,
+        out Rect localRect)
+    {
+        Vector2 screenMin = new Vector2(screenRect.xMin, screenRect.yMin);
+        Vector2 screenMax = new Vector2(screenRect.xMax, screenRect.yMax);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, screenMin, null, out Vector2 localMin) ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, screenMax, null, out Vector2 localMax))
+        {
+            localRect = default;
+            return false;
+        }
+
+        localRect = Rect.MinMaxRect(
+            Mathf.Min(localMin.x, localMax.x),
+            Mathf.Min(localMin.y, localMax.y),
+            Mathf.Max(localMin.x, localMax.x),
+            Mathf.Max(localMin.y, localMax.y));
+        return true;
+    }
+
+    private static bool Approximately(Rect first, Rect second)
+    {
+        return Approximately(first.position, second.position) &&
+               Approximately(first.size, second.size);
+    }
+
+    private static bool Approximately(Vector2 first, Vector2 second)
+    {
+        return Mathf.Abs(first.x - second.x) <= LayoutTolerance &&
+               Mathf.Abs(first.y - second.y) <= LayoutTolerance;
     }
 }

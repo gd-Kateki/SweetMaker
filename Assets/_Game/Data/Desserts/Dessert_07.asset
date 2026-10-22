@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Apple Pie
   sprite: {fileID: -9174081112901248669, guid: 319a9d4bea4f7dc4db6379dc54d166f8, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 1

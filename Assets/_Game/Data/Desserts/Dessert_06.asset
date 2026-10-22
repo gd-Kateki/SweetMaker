@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Japanese Cheesecake
   sprite: {fileID: 1482115690467196943, guid: 80ce0265500e55648b633bd3b0031954, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 1
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 1

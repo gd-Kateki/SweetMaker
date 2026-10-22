@@ -45,6 +45,13 @@ public class DessertDragHandler :
     private bool isDragging;
     private bool isInteractionLocked;
     private bool hasBeenRecycled;
+    private bool mergeTransactionActive;
+    private bool sourceColliderWasEnabled;
+    private bool targetColliderWasEnabled;
+    private GridCell mergeSourceCell;
+    private GridCell mergeTargetCell;
+    private Dessert mergeTargetDessert;
+    private Collider2D mergeTargetCollider;
 
     private void Awake()
     {
@@ -61,6 +68,12 @@ public class DessertDragHandler :
             Camera.main;
 
         ResolveReferences();
+    }
+
+    private void OnDisable()
+    {
+        if (mergeTransactionActive)
+            AbortMergeTransaction();
     }
 
     private void ResolveReferences()
@@ -115,6 +128,10 @@ public class DessertDragHandler :
         PointerEventData eventData)
     {
         if (isInteractionLocked)
+            return;
+
+        if (gridManager != null &&
+            gridManager.IsMergeMutationBlocked(this))
             return;
 
         if (dessert == null)
@@ -201,6 +218,13 @@ public class DessertDragHandler :
         }
 
         isDragging = false;
+        if (gridManager != null &&
+            gridManager.IsMergeMutationBlocked(this))
+        {
+            ClearHighlights();
+            ReturnToOrigin();
+            return;
+        }
 
         Vector3 pointerPosition =
             GetWorldPointerPosition(
@@ -544,6 +568,10 @@ public class DessertDragHandler :
     private bool TryRecycleDraggedDessert()
     {
         if (hasBeenRecycled || dessert == null)
+            return false;
+
+        if (gridManager != null &&
+            gridManager.IsMergeTransactionActive)
             return false;
 
         if (originCell != null &&
@@ -1168,8 +1196,6 @@ public class DessertDragHandler :
         DessertDefinition nextDefinition,
         int resultingTier)
     {
-        isInteractionLocked = true;
-
         GridCell sourceCell =
             dessert.CurrentCell;
 
@@ -1177,7 +1203,6 @@ public class DessertDragHandler :
             targetCell == null ||
             targetDessert == null)
         {
-            isInteractionLocked = false;
             ReturnToOrigin();
             yield break;
         }
@@ -1185,149 +1210,198 @@ public class DessertDragHandler :
         if (!sourceCell.IsUnlocked ||
             !targetCell.IsUnlocked)
         {
-            isInteractionLocked = false;
             ReturnToOrigin();
             yield break;
         }
 
-        // Clear logical board occupancy before
-        // visual merge begins.
-        sourceCell.RemoveDessert(
-            dessert
-        );
-
-        targetCell.RemoveDessert(
-            targetDessert
-        );
-
-        dessert.ClearLocation();
-        targetDessert.ClearLocation();
-
-        if (dessertCollider != null)
+        if (gridManager == null ||
+            !gridManager.TryBeginMergeTransaction(this))
         {
-            dessertCollider.enabled =
-                false;
-        }
-
-        Collider2D targetCollider =
-            targetDessert
-                .GetComponent<Collider2D>();
-
-        if (targetCollider != null)
-        {
-            targetCollider.enabled =
-                false;
-        }
-
-        DessertAnimator targetAnimator =
-            targetDessert
-                .GetComponent<DessertAnimator>();
-
-        if (targetAnimator != null)
-        {
-            targetAnimator
-                .PlayMergeSquish();
-        }
-
-        if (dessertAnimator != null)
-        {
-            // Keep the Action parameter required
-            // by the existing DessertAnimator.
-            dessertAnimator
-                .MoveToForMerge(
-                    targetCell.ContentPosition,
-                    null
-                );
-        }
-        else
-        {
-            transform.position =
-                targetCell.ContentPosition;
-        }
-
-        yield return new WaitForSeconds(
-            0.1f
-        );
-
-        Dessert upgradedDessert =
-            dessertSpawner.SpawnDessert(
-                nextDefinition,
-                targetCell
-            );
-
-        if (upgradedDessert == null)
-        {
-            Debug.LogError(
-                "DessertDragHandler: " +
-                "Failed to create merged dessert."
-            );
-
-            // Emergency recovery.
-            targetCell.PlaceDessert(
-                targetDessert
-            );
-
-            sourceCell.PlaceDessert(
-                dessert
-            );
-
-            if (dessertCollider != null)
-            {
-                dessertCollider.enabled =
-                    true;
-            }
-
-            if (targetCollider != null)
-            {
-                targetCollider.enabled =
-                    true;
-            }
-
-            dessert.ApplyNormalRendering();
-
-            targetDessert
-                .ApplyNormalRendering();
-
-            originCell =
-                sourceCell;
-
-            originShelfSlot =
-                null;
-
-            isInteractionLocked =
-                false;
-
+            ReturnToOrigin();
             yield break;
         }
 
-        DessertAnimator upgradedAnimator =
-            upgradedDessert
-                .GetComponent<DessertAnimator>();
+        mergeTransactionActive = true;
+        mergeSourceCell = sourceCell;
+        mergeTargetCell = targetCell;
+        mergeTargetDessert = targetDessert;
+        sourceColliderWasEnabled =
+            dessertCollider != null && dessertCollider.enabled;
+        mergeTargetCollider =
+            targetDessert.GetComponent<Collider2D>();
+        targetColliderWasEnabled =
+            mergeTargetCollider != null && mergeTargetCollider.enabled;
+        isInteractionLocked = true;
 
-        if (upgradedAnimator != null)
+        try
         {
-            upgradedAnimator
-                .PlayMergePop();
+            DessertAnimator targetAnimator =
+                targetDessert.GetComponent<DessertAnimator>();
+            if (targetAnimator != null)
+                targetAnimator.PlayMergeSquish();
+
+            if (dessertAnimator != null)
+            {
+                dessertAnimator.MoveToForMerge(
+                    targetCell.ContentPosition,
+                    null);
+            }
+            else
+            {
+                transform.position = targetCell.ContentPosition;
+            }
+
+            yield return new WaitForSeconds(0.1f);
+
+            if (!mergeTransactionActive ||
+                !sourceCell.IsUnlocked ||
+                !targetCell.IsUnlocked ||
+                sourceCell.CurrentDessert != dessert ||
+                targetCell.CurrentDessert != targetDessert)
+                yield break;
+
+            if (dessertCollider != null)
+                dessertCollider.enabled = false;
+            if (mergeTargetCollider != null)
+                mergeTargetCollider.enabled = false;
+
+            sourceCell.RemoveDessert(dessert);
+            targetCell.RemoveDessert(targetDessert);
+            dessert.ClearLocation();
+            targetDessert.ClearLocation();
+
+            Dessert upgradedDessert =
+                dessertSpawner.SpawnDessertForMerge(
+                    nextDefinition,
+                    targetCell,
+                    this);
+
+            if (upgradedDessert == null)
+            {
+                Debug.LogError(
+                    "DessertDragHandler: Failed to create merged dessert.");
+                RestoreMergeParticipants();
+                yield break;
+            }
+
+            DessertAnimator upgradedAnimator =
+                upgradedDessert.GetComponent<DessertAnimator>();
+            if (upgradedAnimator != null)
+                upgradedAnimator.PlayMergePop();
+
+            if (gridManager != null)
+                gridManager.NotifyBoardChanged();
+
+            GameplayEvents.RaiseDessertMerged(resultingTier);
+            CompleteMergeTransaction();
+
+            Destroy(targetDessert.gameObject);
+            Destroy(gameObject);
+        }
+        finally
+        {
+            if (mergeTransactionActive)
+                AbortMergeTransaction();
+        }
+    }
+
+    private void RestoreMergeParticipants()
+    {
+        if (mergeSourceCell == null || mergeTargetCell == null ||
+            dessert == null || mergeTargetDessert == null)
+            return;
+
+        bool sourceRestored =
+            RestoreMergeDessert(dessert, mergeSourceCell);
+        bool targetRestored =
+            RestoreMergeDessert(mergeTargetDessert, mergeTargetCell);
+        if (!sourceRestored || !targetRestored)
+        {
+            Debug.LogError(
+                "MERGE ABORTED | Could not restore both desserts to available Board cells.");
         }
 
-        Destroy(
-            targetDessert.gameObject
-        );
+        if (dessertCollider != null)
+            dessertCollider.enabled = sourceColliderWasEnabled;
+        if (mergeTargetCollider != null)
+            mergeTargetCollider.enabled = targetColliderWasEnabled;
 
-        Destroy(
-            gameObject
-        );
+        if (dessert.CurrentCell != null)
+            dessert.transform.position = dessert.CurrentCell.ContentPosition;
+        if (mergeTargetDessert.CurrentCell != null)
+            mergeTargetDessert.transform.position =
+                mergeTargetDessert.CurrentCell.ContentPosition;
+        dessert.ApplyNormalRendering();
+        mergeTargetDessert.ApplyNormalRendering();
+        originCell = dessert.CurrentCell;
+        originShelfSlot = null;
+    }
 
+    private bool RestoreMergeDessert(
+        Dessert dessertToRestore,
+        GridCell preferredCell)
+    {
+        if (dessertToRestore == null || gridManager == null)
+            return false;
+
+        GridCell destination = preferredCell != null &&
+                               preferredCell.IsUnlocked &&
+                               (preferredCell.IsEmpty ||
+                                preferredCell.CurrentDessert == dessertToRestore)
+            ? preferredCell
+            : null;
+        if (destination == null &&
+            !gridManager.TryGetEmptyCell(out destination))
+            return false;
+
+        if (dessertToRestore.CurrentCell != null &&
+            dessertToRestore.CurrentCell != destination &&
+            dessertToRestore.CurrentCell.CurrentDessert == dessertToRestore)
+        {
+            dessertToRestore.CurrentCell.RemoveDessert(dessertToRestore);
+        }
+
+        destination.PlaceDessert(dessertToRestore);
+        return dessertToRestore.CurrentCell == destination &&
+               destination.CurrentDessert == dessertToRestore;
+    }
+
+    private void CompleteMergeTransaction()
+    {
         if (gridManager != null)
-        {
-            gridManager
-                .NotifyBoardChanged();
-        }
+            gridManager.EndMergeTransaction(this);
+        ClearMergeTransactionState();
+    }
 
-        GameplayEvents
-            .RaiseDessertMerged(
-                resultingTier
-            );
+    private void AbortMergeTransaction()
+    {
+        if (!mergeTransactionActive)
+            return;
+
+        try
+        {
+            RestoreMergeParticipants();
+        }
+        finally
+        {
+            if (gridManager != null)
+                gridManager.EndMergeTransaction(this);
+
+            ClearMergeTransactionState();
+
+            if (gridManager != null)
+                gridManager.NotifyBoardChanged();
+        }
+    }
+
+    private void ClearMergeTransactionState()
+    {
+        mergeTransactionActive = false;
+        isInteractionLocked = false;
+        mergeSourceCell = null;
+        mergeTargetCell = null;
+        mergeTargetDessert = null;
+        mergeTargetCollider = null;
     }
 
     // ==================================================

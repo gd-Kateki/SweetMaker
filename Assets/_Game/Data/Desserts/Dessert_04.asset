@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Ice Cream Sundae
   sprite: {fileID: 1523112602026689366, guid: ec6d56a6700c50f4886fa5f96a9b175c, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 1

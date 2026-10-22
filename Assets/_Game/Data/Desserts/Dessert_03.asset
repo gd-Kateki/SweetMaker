@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Dorayaki
   sprite: {fileID: 6870548194696487090, guid: b4dc09d6de5e1164488c9d44b3a06ec7, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 10

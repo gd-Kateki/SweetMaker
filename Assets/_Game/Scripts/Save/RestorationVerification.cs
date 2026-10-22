@@ -152,7 +152,37 @@ public static class RestorationVerification
             order.cashReward != 0 ||
             (order.requirements != null && order.requirements.Length > 0);
 
-        if (order.definition != null)
+        if (!string.IsNullOrEmpty(order.proceduralDefinitionId))
+        {
+            if (!ProceduralCustomerOrderSaveCodec.TryDecode(
+                    order.proceduralDefinitionId,
+                    out ProceduralCustomerOrderSaveData payload))
+                return false;
+
+            displayName = payload.displayName;
+            cashReward = payload.cashReward;
+            requirements = new List<string>(payload.requirements.Count);
+            foreach (ProceduralCustomerOrderRequirementSaveData requirement in payload.requirements)
+                requirements.Add($"{requirement.dessertTier}:{requirement.amount}");
+
+            if (hasExpandedDetails &&
+                (!TryGetExpandedDetails(
+                        order.displayName,
+                        order.cashReward,
+                        order.requirements,
+                        out string expandedName,
+                        out int expandedReward,
+                        out List<string> expandedRequirements) ||
+                 !EquivalentDetails(
+                     displayName,
+                     cashReward,
+                     requirements,
+                     expandedName,
+                     expandedReward,
+                     expandedRequirements)))
+                return false;
+        }
+        else if (order.definition != null)
         {
             string definitionId = order.definition.DefinitionId;
             if (ProceduralCustomerOrderSaveCodec.IsProceduralDefinitionId(definitionId))

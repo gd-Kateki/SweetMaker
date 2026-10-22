@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Matcha Roll Cake
   sprite: {fileID: 6683841946033005149, guid: 176fa240931147b458d091bb9a353f1a, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 1

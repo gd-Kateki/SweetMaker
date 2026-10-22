@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Custtard Pudding
   sprite: {fileID: 6506292920167615114, guid: fbebd557b3c8a814fa96f60e158a9f6c, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 30

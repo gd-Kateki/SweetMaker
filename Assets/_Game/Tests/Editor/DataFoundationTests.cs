@@ -7,7 +7,9 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 [ExecuteAlways]
@@ -23,6 +25,20 @@ public class ReplacementApplyFailureTrigger : MonoBehaviour
 
 public class DataFoundationTests
 {
+    private sealed class ShelfSlotSceneData
+    {
+        public readonly Collider2D Collider;
+        public readonly SpriteRenderer Renderer;
+
+        public ShelfSlotSceneData(
+            Collider2D collider,
+            SpriteRenderer renderer)
+        {
+            Collider = collider;
+            Renderer = renderer;
+        }
+    }
+
     private sealed class RecycleFixture
     {
         public readonly List<GameObject> Objects = new List<GameObject>();
@@ -31,6 +47,7 @@ public class DataFoundationTests
         public object Slot;
         public object DragHandler;
         public object Target;
+        public RectTransform ExcludedArea;
         public object Grid;
         public object Shelf;
     }
@@ -1038,6 +1055,314 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("Step6A.3.1")]
+    public void ProceduralV2OrderRestoresWithoutSpawnerThenResolvesInGameplay()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            object sourceOrder = fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 });
+            object[] encodeArguments =
+            {
+                GetPropertyValue(sourceOrder, "DisplayName"),
+                GetPropertyValue(sourceOrder, "CashReward"),
+                GetPropertyValue(sourceOrder, "Requirements"),
+                null
+            };
+            Assert.IsTrue((bool)FindPlayerType("ProceduralCustomerOrderSaveCodec")
+                .GetMethod("TryEncode")
+                .Invoke(null, encodeArguments));
+
+            object saveData = Activator.CreateInstance(
+                FindPlayerType("MergeGameplaySaveData"));
+            SetField(saveData, "hasSession", true);
+            SetField(saveData, "nextOrderId", 14);
+            var savedOrders = GetPublicList(saveData, "customerOrders");
+            Type saveOrderType = FindPlayerType("CustomerOrderSaveData");
+            savedOrders.Add(Activator.CreateInstance(
+                saveOrderType,
+                new object[] { 0, 13, encodeArguments[3] }));
+
+            SetPrivateField(fixture.SessionManager, "dessertSpawner", null);
+            Assert.IsTrue((bool)fixture.SessionManager.GetType()
+                .GetMethod("RestoreFromSaveData")
+                .Invoke(fixture.SessionManager, new[] { saveData }),
+                "A valid compact procedural order must not require a gameplay spawner during persistent loading.");
+
+            var capturedData = Activator.CreateInstance(
+                FindPlayerType("MergeGameplaySaveData"));
+            Assert.IsTrue((bool)fixture.SessionManager.GetType()
+                .GetMethod("CaptureToSaveData")
+                .Invoke(fixture.SessionManager, new[] { capturedData }));
+            object capturedOrder = GetPublicList(capturedData, "customerOrders")[0];
+            Assert.AreEqual(13, GetField(capturedOrder, "orderId"));
+            Assert.AreEqual(
+                encodeArguments[3],
+                GetField(capturedOrder, "definitionId"),
+                "Persistent restore must preserve the compact order payload exactly.");
+            object playerSave = Activator.CreateInstance(
+                FindPlayerType("PlayerSaveData"));
+            SetField(playerSave, "mergeGameplay", capturedData);
+            Type saveManagerType = fixture.SaveManager.GetType();
+            string json = (string)saveManagerType.GetMethod(
+                    "SerializeWithCapacity",
+                    BindingFlags.Static | BindingFlags.NonPublic)
+                .Invoke(null, new object[] { playerSave, 1 });
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                    "IsValidSerializedSnapshot",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.SaveManager, new object[] { json }),
+                "The preserved compact procedural order remains a valid V2 snapshot.");
+
+            object restoredSession = Activator.CreateInstance(
+                FindPlayerType("MergeSessionData"));
+            Assert.IsTrue((bool)fixture.SessionManager.GetType().GetMethod(
+                    "RestoreOrdersFromSaveData",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(
+                    fixture.SessionManager,
+                    new[] { saveData, restoredSession }));
+            object restoredState = GetField(restoredSession, "customerOrders");
+            Assert.AreEqual(
+                encodeArguments[3],
+                GetField(((IList)restoredState)[0], "proceduralDefinitionId"));
+
+            Assert.IsTrue((bool)fixture.Orders.GetType()
+                .GetMethod(
+                    "RestoreCustomerOrders",
+                    new[]
+                    {
+                        typeof(IReadOnlyList<>).MakeGenericType(
+                            FindPlayerType("CustomerOrderState")),
+                        typeof(int),
+                        typeof(int)
+                    })
+                .Invoke(
+                    fixture.Orders,
+                    new object[]
+                    {
+                        restoredState,
+                        14,
+                        1
+                    }),
+                "The gameplay spawner resolves compact tier requirements into dessert assets.");
+
+            object resolvedOrder = fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 });
+            Assert.IsTrue((bool)GetPropertyValue(resolvedOrder, "IsValid"));
+            Assert.AreEqual(13, GetPropertyValue(resolvedOrder, "OrderId"));
+            Type orderType = FindPlayerType("CustomerOrder");
+            object expectedOrder = orderType.GetConstructor(
+                    BindingFlags.Instance | BindingFlags.NonPublic,
+                    null,
+                    new[]
+                    {
+                        typeof(int),
+                        typeof(string),
+                        typeof(int),
+                        typeof(IReadOnlyList<>).MakeGenericType(
+                            FindPlayerType("OrderRequirement"))
+                    },
+                    null)
+                .Invoke(
+                    new object[]
+                    {
+                        13,
+                        GetPropertyValue(sourceOrder, "DisplayName"),
+                        GetPropertyValue(sourceOrder, "CashReward"),
+                        GetPropertyValue(sourceOrder, "Requirements")
+                    });
+            AssertOrdersEqual(expectedOrder, resolvedOrder);
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step6A.3.1")]
+    public void DefinitionBackedSavedOrdersStillRestoreNormally()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            var definition = (UnityEngine.Object)AssetDatabase.LoadAssetAtPath(
+                "Assets/_Game/Data/Orders/Order_03.asset",
+                FindPlayerType("CustomerOrderDefinition"));
+            Assert.IsNotNull(definition);
+            Assert.IsTrue((bool)GetPropertyValue(definition, "IsValid"));
+
+            Type stateType = FindPlayerType("CustomerOrderState");
+            object state = stateType.GetConstructor(
+                    new[]
+                    {
+                        typeof(int),
+                        typeof(int),
+                        FindPlayerType("CustomerOrderDefinition")
+                    })
+                .Invoke(new object[] { 0, 12, definition });
+            IList states = (IList)Activator.CreateInstance(
+                typeof(List<>).MakeGenericType(stateType));
+            states.Add(state);
+
+            Assert.IsTrue((bool)fixture.Orders.GetType()
+                .GetMethod(
+                    "RestoreCustomerOrders",
+                    new[]
+                    {
+                        typeof(IReadOnlyList<>).MakeGenericType(stateType),
+                        typeof(int),
+                        typeof(int)
+                    })
+                .Invoke(fixture.Orders, new object[] { states, 13, 1 }));
+            object restored = fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 });
+            Assert.IsTrue((bool)GetPropertyValue(restored, "IsValid"));
+            Assert.AreSame(
+                definition,
+                GetPropertyValue(restored, "Definition"));
+            Assert.AreEqual(12, GetPropertyValue(restored, "OrderId"));
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step6A.3")]
+    public void FailedReplacementOrderRecoversWithoutRepeatingPayout()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            object order = fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 });
+            Assert.IsNotNull(order);
+            int completedOrderId = (int)GetPropertyValue(order, "OrderId");
+            int nextOrderId = (int)GetPropertyValue(fixture.Orders, "NextOrderId");
+
+            List<object> requirements = ((IEnumerable)GetPropertyValue(
+                order,
+                "Requirements")).Cast<object>().ToList();
+            int requiredDesserts = requirements.Sum(
+                requirement => (int)GetPropertyValue(requirement, "Amount"));
+            Assert.LessOrEqual(requiredDesserts, fixture.Cells.Count - 1);
+
+            int cellIndex = 1;
+            foreach (object requirement in requirements)
+            {
+                int amountRequired = (int)GetPropertyValue(requirement, "Amount");
+                object definition = GetPropertyValue(requirement, "Dessert");
+                for (int amount = 0; amount < amountRequired; amount++)
+                {
+                    if ((UnityEngine.Object)GetPropertyValue(definition, "Sprite") == null)
+                    {
+                        LogAssert.Expect(
+                            LogType.Error,
+                            $"{GetPropertyValue(definition, "DisplayName")} has no sprite assigned.");
+                    }
+
+                    object dessert = AddRuntimeComponent(fixture, "Dessert");
+                    object cell = fixture.Cells[cellIndex++];
+                    dessert.GetType().GetMethod("Initialize").Invoke(
+                        dessert, new[] { definition, cell });
+                    cell.GetType().GetMethod("PlaceDessert")
+                        .Invoke(cell, new[] { dessert, (object)true });
+                }
+            }
+
+            object economy = FindSingleton("EconomyManager");
+            economy.GetType().GetMethod(
+                    "ResolveReferences",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(economy, null);
+            economy.GetType().GetMethod(
+                    "SubscribeToOrderManager",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(economy, null);
+            int cashBeforeCompletion = (int)GetPropertyValue(economy, "CurrentCash");
+            int expectedReward = (int)economy.GetType()
+                .GetMethod("CalculateOrderReward")
+                .Invoke(economy, new[] { order });
+
+            Array savedDefinitions = (Array)GetPropertyValue(
+                fixture.Spawner,
+                "DessertDefinitions");
+            SetPrivateField(
+                fixture.Spawner,
+                "dessertDefinitions",
+                Array.CreateInstance(savedDefinitions.GetType().GetElementType(), 0));
+            for (int i = 0; i < requiredDesserts; i++)
+            {
+                LogAssert.Expect(
+                    LogType.Error,
+                    new Regex("Destroy may not be called from edit mode"));
+            }
+            LogAssert.Expect(
+                LogType.Error,
+                "ORDER GENERATION FAILED | Customer 1 | Procedural order generation found no valid order within the current Oven tier cap.");
+
+            Assert.IsTrue((bool)fixture.Orders.GetType()
+                .GetMethod("TryFulfillOrderAtIndex")
+                .Invoke(fixture.Orders, new object[] { 0 }));
+            Assert.AreEqual(cashBeforeCompletion + expectedReward,
+                GetPropertyValue(economy, "CurrentCash"));
+            Assert.IsNull(fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 }));
+            Assert.AreEqual(nextOrderId,
+                GetPropertyValue(fixture.Orders, "NextOrderId"),
+                "A failed generation must not consume an order ID.");
+
+            Assert.IsFalse((bool)fixture.Orders.GetType()
+                .GetMethod("TryFulfillOrderAtIndex")
+                .Invoke(fixture.Orders, new object[] { 0 }),
+                "An empty slot cannot pay out the completed order again.");
+            Assert.AreEqual(cashBeforeCompletion + expectedReward,
+                GetPropertyValue(economy, "CurrentCash"));
+
+            SetPrivateField(
+                fixture.Spawner,
+                "dessertDefinitions",
+                savedDefinitions);
+            fixture.Orders.GetType().GetMethod(
+                    "HandleUpgradeLevelChanged",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(
+                    fixture.Orders,
+                    new[]
+                    {
+                        Enum.Parse(FindPlayerType("UpgradeType"), "Oven"),
+                        (object)GetPropertyValue(fixture.Progression, "OvenLevel")
+                    });
+
+            object replacement = fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 0 });
+            Assert.IsNotNull(replacement,
+                "An Oven progression event retries the previously empty slot.");
+            Assert.IsTrue((bool)GetPropertyValue(replacement, "IsValid"));
+            Assert.Greater((int)GetPropertyValue(replacement, "OrderId"), completedOrderId);
+            Assert.AreEqual(nextOrderId + 1,
+                GetPropertyValue(fixture.Orders, "NextOrderId"));
+            Assert.AreEqual(cashBeforeCompletion + expectedReward,
+                GetPropertyValue(economy, "CurrentCash"),
+                "Recovering the slot must not pay the completed order again.");
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
     public void OvenLevelSixHasT30CapButRemainsUnavailableForPurchase()
     {
         var asset = AssetDatabase.LoadMainAssetAtPath(
@@ -1765,6 +2090,397 @@ public class DataFoundationTests
         }
         finally
         {
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step6B.2")]
+    public void RecycleTargetExcludesHomeAreaEvenWhenRectanglesOverlap()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+        try
+        {
+            fixture.ExcludedArea.anchoredPosition = Vector2.zero;
+            Vector2 homePoint = GetRecycleBinScreenPoint(fixture);
+            Assert.IsFalse((bool)fixture.Target.GetType()
+                .GetMethod("ContainsScreenPoint")
+                .Invoke(fixture.Target, new object[] { homePoint }),
+                "The Home button region takes priority over recycling.");
+
+            SetPrivateField(fixture.DragHandler, "isDragging", true);
+            fixture.DragHandler.GetType().GetMethod("OnPointerUp").Invoke(
+                fixture.DragHandler,
+                new object[]
+                {
+                    new UnityEngine.EventSystems.PointerEventData(null)
+                    {
+                        position = homePoint
+                    }
+                });
+
+            Assert.AreSame(fixture.Dessert,
+                GetPropertyValue(fixture.Cell, "CurrentDessert"),
+                "Releasing over Home must not remove the Board dessert.");
+            Assert.AreSame(fixture.Cell,
+                GetPropertyValue(fixture.Dessert, "CurrentCell"));
+        }
+        finally
+        {
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step6B.2")]
+    public void RightAnchoredBottomControlsStaySeparatedAcrossPortraitWidths()
+    {
+        GameObject canvasObject = new GameObject(
+            "Bottom layout test canvas",
+            typeof(RectTransform),
+            typeof(Canvas));
+        var createdObjects = new List<GameObject> { canvasObject };
+        try
+        {
+            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+            var navigationObject = new GameObject(
+                "BottomNavigation",
+                typeof(RectTransform));
+            createdObjects.Add(navigationObject);
+            RectTransform navigation = navigationObject.GetComponent<RectTransform>();
+            navigation.SetParent(canvasRect, false);
+            navigation.anchorMin = new Vector2(0, 0);
+            navigation.anchorMax = new Vector2(1, 0);
+            navigation.anchoredPosition = new Vector2(0, 50);
+            navigation.sizeDelta = new Vector2(0, 100);
+
+            RectTransform home = CreateLayoutRect(
+                navigation,
+                "HomeButton",
+                new Vector2(1, 0),
+                new Vector2(1, 0),
+                new Vector2(-34.4f, 11.9f),
+                new Vector2(125, 125),
+                new Vector2(1, 0),
+                createdObjects);
+            RectTransform recycle = CreateLayoutRect(
+                navigation,
+                "RecycleBinDropTarget",
+                new Vector2(1, 0),
+                new Vector2(1, 0),
+                new Vector2(-180, 11.9f),
+                new Vector2(170, 78),
+                new Vector2(1, 0),
+                createdObjects);
+
+            foreach (float width in new[] { 1080f, 1170f, 1200f })
+            {
+                canvasRect.sizeDelta = new Vector2(width, 1920);
+                Canvas.ForceUpdateCanvases();
+                Assert.IsFalse(RectanglesOverlap(home, recycle),
+                    $"Home and recycle overlap at portrait width {width}.");
+            }
+        }
+        finally
+        {
+            for (int i = createdObjects.Count - 1; i >= 0; i--)
+                if (createdObjects[i] != null)
+                    UnityEngine.Object.DestroyImmediate(createdObjects[i]);
+        }
+    }
+
+    [Test]
+    [Category("Step6B.3")]
+    public void SafeAreaAnchorConversionFitsTopAndBottomUiIntoCanvasPixelRect()
+    {
+        Rect canvasRect = new Rect(100, 50, 1000, 1800);
+        Rect safeArea = new Rect(120, 90, 950, 1700);
+
+        Vector4 topBarAnchors = CalculateSafeAreaAnchors(
+            new Vector2(0, 1),
+            new Vector2(1, 1),
+            safeArea,
+            canvasRect);
+        Assert.That(topBarAnchors.x, Is.EqualTo(0.02f).Within(0.0001f));
+        Assert.That(topBarAnchors.y, Is.EqualTo(0.9666667f).Within(0.0001f));
+        Assert.That(topBarAnchors.z, Is.EqualTo(0.97f).Within(0.0001f));
+        Assert.That(topBarAnchors.w, Is.EqualTo(0.9666667f).Within(0.0001f));
+
+        Vector4 bottomNavigationAnchors =
+            CalculateSafeAreaAnchors(
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                safeArea,
+                canvasRect);
+        Assert.That(bottomNavigationAnchors.x,
+            Is.EqualTo(topBarAnchors.x).Within(0.0001f));
+        Assert.That(bottomNavigationAnchors.y,
+            Is.EqualTo(0.0222222f).Within(0.0001f));
+        Assert.That(bottomNavigationAnchors.z,
+            Is.EqualTo(topBarAnchors.z).Within(0.0001f));
+        Assert.That(bottomNavigationAnchors.w,
+            Is.EqualTo(0.0222222f).Within(0.0001f));
+    }
+
+    [Test]
+    [Category("Step6B.3")]
+    public void SafeAreaAnchorConversionPreservesBaseLayoutAndHandlesInvalidRectangles()
+    {
+        Vector2 baseMin = new Vector2(0.2f, 0.25f);
+        Vector2 baseMax = new Vector2(0.8f, 0.75f);
+        Rect fullSafeArea = new Rect(0, 0, 1080, 1920);
+        Rect canvasRect = new Rect(0, 0, 1080, 1920);
+
+        Vector4 anchors = CalculateSafeAreaAnchors(
+            baseMin,
+            baseMax,
+            fullSafeArea,
+            canvasRect);
+        Assert.AreEqual(baseMin.x, anchors.x);
+        Assert.AreEqual(baseMin.y, anchors.y);
+        Assert.AreEqual(baseMax.x, anchors.z);
+        Assert.AreEqual(baseMax.y, anchors.w);
+
+        Vector4 invalidCanvasAnchors = CalculateSafeAreaAnchors(
+            baseMin,
+            baseMax,
+            fullSafeArea,
+            new Rect(0, 0, 0, 1920));
+        Assert.AreEqual(anchors, invalidCanvasAnchors);
+    }
+
+    [Test]
+    [Category("Step6B.5")]
+    public void SpawnPoolSelectorFitsBelowPreviewInsidePortraitSafeAreas()
+    {
+        const float gap = 12f;
+        Vector2 panelSize = new Vector2(260f, 64f);
+        Rect previewBounds = new Rect(-40f, 620f, 80f, 80f);
+        Rect[] safeAreas =
+        {
+            new Rect(-500f, -900f, 1000f, 1800f),
+            new Rect(-540f, -900f, 1080f, 1800f),
+            new Rect(-560f, -900f, 1120f, 1800f)
+        };
+
+        foreach (Rect safeArea in safeAreas)
+        {
+            Assert.IsTrue(TryCalculateSpawnPoolSelectorBounds(
+                previewBounds,
+                safeArea,
+                panelSize,
+                gap,
+                out Rect selectorBounds));
+            Assert.GreaterOrEqual(selectorBounds.xMin, safeArea.xMin);
+            Assert.LessOrEqual(selectorBounds.xMax, safeArea.xMax);
+            Assert.GreaterOrEqual(selectorBounds.yMin, safeArea.yMin);
+            Assert.LessOrEqual(selectorBounds.yMax, safeArea.yMax);
+            Assert.LessOrEqual(
+                selectorBounds.yMax,
+                previewBounds.yMin - gap);
+            Assert.IsFalse(selectorBounds.Overlaps(previewBounds));
+        }
+    }
+
+    [Test]
+    [Category("Step6B.5")]
+    public void SpawnPoolSelectorRejectsSafeAreasWithInsufficientSpace()
+    {
+        Assert.IsFalse(TryCalculateSpawnPoolSelectorBounds(
+            new Rect(-40f, -50f, 80f, 80f),
+            new Rect(-100f, -200f, 200f, 220f),
+            new Vector2(260f, 64f),
+            12f,
+            out Rect unusedBounds));
+
+        Assert.IsFalse(TryCalculateSpawnPoolSelectorBounds(
+            new Rect(-40f, -50f, 80f, 80f),
+            new Rect(-400f, -40f, 800f, 140f),
+            new Vector2(260f, 64f),
+            12f,
+            out unusedBounds));
+    }
+
+    [Test]
+    [Category("Step6B.4")]
+    public void AllShelfSlotVisualsAndTouchAreasFitSupportedPortraitCameraBounds()
+    {
+        Scene previewScene = EditorSceneManager.OpenPreviewScene(
+            "Assets/_Game/Scenes/Game.unity");
+
+        try
+        {
+            Camera sceneCamera = null;
+            ShelfSlotSceneData[] slotData =
+                new ShelfSlotSceneData[5];
+
+            foreach (GameObject root in previewScene.GetRootGameObjects())
+            {
+                Transform[] transforms =
+                    root.GetComponentsInChildren<Transform>(true);
+
+                foreach (Transform item in transforms)
+                {
+                    if (item.CompareTag("MainCamera"))
+                        sceneCamera = item.GetComponent<Camera>();
+
+                    int slotIndex = GetShelfSlotIndex(item.name);
+                    if (slotIndex < 0)
+                        continue;
+
+                    slotData[slotIndex] = new ShelfSlotSceneData(
+                        item.GetComponent<Collider2D>(),
+                        item.GetComponent<SpriteRenderer>());
+                }
+            }
+
+            Assert.IsNotNull(sceneCamera, "Game scene camera was not found.");
+            Assert.IsTrue(sceneCamera.orthographic);
+
+            float[] portraitAspects =
+            {
+                9f / 16f,
+                9f / 19.5f,
+                9f / 20f
+            };
+
+            foreach (float aspect in portraitAspects)
+            {
+                float halfWidth = sceneCamera.orthographicSize * aspect;
+                float halfHeight = sceneCamera.orthographicSize;
+                Bounds viewBounds = new Bounds(
+                    sceneCamera.transform.position,
+                    new Vector3(halfWidth * 2f, halfHeight * 2f, 100f));
+
+                for (int i = 0; i < slotData.Length; i++)
+                {
+                    Assert.IsNotNull(slotData[i].Collider,
+                        $"ShelfSlot_{i + 1} has no touch collider.");
+                    Assert.IsNotNull(slotData[i].Renderer,
+                        $"ShelfSlot_{i + 1} has no visible renderer.");
+                    Assert.GreaterOrEqual(
+                        slotData[i].Collider.bounds.size.x,
+                        1f,
+                        $"ShelfSlot_{i + 1} touch width is too small.");
+                    Assert.GreaterOrEqual(
+                        slotData[i].Collider.bounds.size.y,
+                        1f,
+                        $"ShelfSlot_{i + 1} touch height is too small.");
+                    AssertBoundsContained(
+                        viewBounds,
+                        slotData[i].Collider.bounds,
+                        $"ShelfSlot_{i + 1} touch area at aspect {aspect}.");
+                    AssertBoundsContained(
+                        viewBounds,
+                        slotData[i].Renderer.bounds,
+                        $"ShelfSlot_{i + 1} visual at aspect {aspect}.");
+                }
+            }
+        }
+        finally
+        {
+            EditorSceneManager.ClosePreviewScene(previewScene);
+        }
+    }
+
+    [Test]
+    [Category("Step6A.2")]
+    public void MergeTransactionBlocksOvenDragAndRecycleMutations()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+        GameObject spawnerObject = new GameObject("Merge guard spawner");
+        spawnerObject.SetActive(false);
+        fixture.Objects.Add(spawnerObject);
+        object spawner = spawnerObject.AddComponent(
+            FindPlayerType("DessertSpawner"));
+        SetPrivateField(spawner, "gridManager", fixture.Grid);
+
+        object transactionOwner = new object();
+        Type gridType = FindPlayerType("GridManager");
+        MethodInfo beginTransaction = gridType.GetMethod("TryBeginMergeTransaction");
+        MethodInfo endTransaction = gridType.GetMethod("EndMergeTransaction");
+        try
+        {
+            Assert.IsTrue((bool)beginTransaction.Invoke(
+                fixture.Grid,
+                new[] { transactionOwner }));
+
+            Assert.IsFalse((bool)spawner.GetType()
+                .GetMethod("TrySpawnRandomDessert")
+                .Invoke(spawner, null),
+                "Oven spawning must be rejected during a merge.");
+
+            fixture.DragHandler.GetType().GetMethod("OnPointerDown").Invoke(
+                fixture.DragHandler,
+                new object[]
+                {
+                    new UnityEngine.EventSystems.PointerEventData(null)
+                });
+            Assert.IsFalse((bool)fixture.DragHandler.GetType()
+                .GetField("isDragging",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(fixture.DragHandler),
+                "A new drag must not begin during a merge.");
+
+            SetPrivateField(fixture.DragHandler, "isDragging", true);
+            fixture.DragHandler.GetType().GetMethod("OnPointerUp").Invoke(
+                fixture.DragHandler,
+                new object[]
+                {
+                    new UnityEngine.EventSystems.PointerEventData(null)
+                });
+            Assert.AreSame(fixture.Dessert,
+                GetPropertyValue(fixture.Cell, "CurrentDessert"),
+                "A drag started before the merge must not transfer its dessert.");
+
+            Assert.IsFalse((bool)fixture.DragHandler.GetType().GetMethod(
+                    "TryRecycleDraggedDessert",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.DragHandler, null),
+                "Recycling must be rejected during a merge.");
+        }
+        finally
+        {
+            endTransaction.Invoke(fixture.Grid, new[] { transactionOwner });
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step6A.2")]
+    public void MergeTransactionCompletionAndAbortReleaseSharedGuard()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+        object handler = fixture.DragHandler;
+        Type gridType = FindPlayerType("GridManager");
+        MethodInfo beginTransaction = gridType.GetMethod("TryBeginMergeTransaction");
+        MethodInfo endTransaction = gridType.GetMethod("EndMergeTransaction");
+        PropertyInfo active = gridType.GetProperty("IsMergeTransactionActive");
+        try
+        {
+            Assert.IsTrue((bool)beginTransaction.Invoke(
+                fixture.Grid, new[] { handler }));
+            SetPrivateField(handler, "mergeTransactionActive", true);
+            handler.GetType().GetMethod(
+                    "AbortMergeTransaction",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(handler, null);
+            Assert.IsFalse((bool)active.GetValue(fixture.Grid),
+                "Abort must release the lock.");
+
+            Assert.IsTrue((bool)beginTransaction.Invoke(
+                fixture.Grid, new[] { handler }));
+            SetPrivateField(handler, "mergeTransactionActive", true);
+            handler.GetType().GetMethod(
+                    "CompleteMergeTransaction",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(handler, null);
+            Assert.IsFalse((bool)active.GetValue(fixture.Grid),
+                "Successful completion must release the lock.");
+        }
+        finally
+        {
+            endTransaction.Invoke(fixture.Grid, new[] { handler });
             DestroyRecycleFixture(fixture);
         }
     }
@@ -3494,6 +4210,31 @@ public class DataFoundationTests
         activePreviewChangedCount++;
     }
 
+    private static bool TryCalculateSpawnPoolSelectorBounds(
+        Rect previewBounds,
+        Rect safeAreaBounds,
+        Vector2 panelSize,
+        float gap,
+        out Rect selectorBounds)
+    {
+        MethodInfo method = FindPlayerType("SpawnPoolSelectorUI").GetMethod(
+            "TryCalculateSelectorBounds",
+            BindingFlags.Public | BindingFlags.Static);
+        Assert.IsNotNull(method,
+            "SpawnPoolSelectorUI bounds method was not found.");
+        object[] arguments =
+        {
+            previewBounds,
+            safeAreaBounds,
+            panelSize,
+            gap,
+            default(Rect)
+        };
+        bool fits = (bool)method.Invoke(null, arguments);
+        selectorBounds = (Rect)arguments[4];
+        return fits;
+    }
+
     private static Type FindPlayerType(string typeName)
     {
         Type type = AppDomain.CurrentDomain.GetAssemblies()
@@ -3501,6 +4242,49 @@ public class DataFoundationTests
             .FirstOrDefault(candidate => candidate != null);
         Assert.IsNotNull(type, $"Could not find runtime type {typeName}");
         return type;
+    }
+
+    private static int GetShelfSlotIndex(string objectName)
+    {
+        const string prefix = "ShelfSlot_";
+        if (!objectName.StartsWith(prefix, StringComparison.Ordinal) ||
+            !int.TryParse(objectName.Substring(prefix.Length), out int slotNumber) ||
+            slotNumber < 1 ||
+            slotNumber > 5)
+            return -1;
+
+        return slotNumber - 1;
+    }
+
+    private static void AssertBoundsContained(
+        Bounds outer,
+        Bounds inner,
+        string message)
+    {
+        const float tolerance = 0.0001f;
+        Assert.GreaterOrEqual(inner.min.x, outer.min.x - tolerance, message);
+        Assert.LessOrEqual(inner.max.x, outer.max.x + tolerance, message);
+        Assert.GreaterOrEqual(inner.min.y, outer.min.y - tolerance, message);
+        Assert.LessOrEqual(inner.max.y, outer.max.y + tolerance, message);
+    }
+
+    private static Vector4 CalculateSafeAreaAnchors(
+        Vector2 baseAnchorMin,
+        Vector2 baseAnchorMax,
+        Rect safeArea,
+        Rect canvasPixelRect)
+    {
+        MethodInfo method = FindPlayerType("SafeAreaFitter").GetMethod(
+            "CalculateSafeAreaAnchors",
+            BindingFlags.Public | BindingFlags.Static);
+        Assert.IsNotNull(method, "SafeAreaFitter conversion method was not found.");
+        return (Vector4)method.Invoke(null, new object[]
+        {
+            baseAnchorMin,
+            baseAnchorMax,
+            safeArea,
+            canvasPixelRect
+        });
     }
 
     private static object GetField(object target, string fieldName)
@@ -3556,8 +4340,22 @@ public class DataFoundationTests
         targetRect.anchorMin = new Vector2(0.5f, 0.5f);
         targetRect.anchorMax = new Vector2(0.5f, 0.5f);
         targetRect.sizeDelta = new Vector2(170, 78);
+        var excludedObject = new GameObject(
+            "Recycle test Home exclusion",
+            typeof(RectTransform));
+        fixture.Objects.Add(excludedObject);
+        fixture.ExcludedArea = excludedObject.GetComponent<RectTransform>();
+        fixture.ExcludedArea.SetParent(canvas.transform, false);
+        fixture.ExcludedArea.anchorMin = fixture.ExcludedArea.anchorMax =
+            new Vector2(0.5f, 0.5f);
+        fixture.ExcludedArea.anchoredPosition = new Vector2(250, 0);
+        fixture.ExcludedArea.sizeDelta = new Vector2(100, 78);
         fixture.Target = targetObject.AddComponent(
             FindPlayerType("RecycleDropTarget"));
+        SetPrivateField(
+            fixture.Target,
+            "excludedArea",
+            fixture.ExcludedArea);
         InvokeLifecycle(fixture.Target, "Awake");
 
         GameObject gridObject = new GameObject("Recycle test grid");
@@ -3610,6 +4408,49 @@ public class DataFoundationTests
         SetPrivateField(fixture.DragHandler, "originCell", fixture.Cell);
         SetPrivateField(fixture.DragHandler, "originShelfSlot", fixture.Slot);
         return fixture;
+    }
+
+    private static RectTransform CreateLayoutRect(
+        RectTransform parent,
+        string objectName,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 anchoredPosition,
+        Vector2 size,
+        Vector2 pivot,
+        List<GameObject> createdObjects)
+    {
+        var gameObject = new GameObject(objectName, typeof(RectTransform));
+        createdObjects.Add(gameObject);
+        RectTransform rect = gameObject.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+        rect.pivot = pivot;
+        return rect;
+    }
+
+    private static bool RectanglesOverlap(
+        RectTransform first,
+        RectTransform second)
+    {
+        Vector3[] firstCorners = new Vector3[4];
+        Vector3[] secondCorners = new Vector3[4];
+        first.GetWorldCorners(firstCorners);
+        second.GetWorldCorners(secondCorners);
+        Rect firstRect = Rect.MinMaxRect(
+            firstCorners[0].x,
+            firstCorners[0].y,
+            firstCorners[2].x,
+            firstCorners[2].y);
+        Rect secondRect = Rect.MinMaxRect(
+            secondCorners[0].x,
+            secondCorners[0].y,
+            secondCorners[2].x,
+            secondCorners[2].y);
+        return firstRect.Overlaps(secondRect);
     }
 
     private static Vector2 GetRecycleBinScreenPoint(RecycleFixture fixture)

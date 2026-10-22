@@ -29,7 +29,12 @@ public class GridManager : MonoBehaviour
         cells =
             new List<GridCell>();
 
+    private object mergeTransactionOwner;
+
     public event Action BoardChanged;
+
+    public bool IsMergeTransactionActive =>
+        mergeTransactionOwner != null;
 
     public IReadOnlyList<GridCell> Cells =>
         cells;
@@ -94,6 +99,27 @@ public class GridManager : MonoBehaviour
     public bool IsFull =>
         UnlockedCellCount > 0 &&
         EmptyCellCount == 0;
+
+    public bool IsMergeMutationBlocked(object requester = null)
+    {
+        return IsMergeTransactionActive &&
+               !ReferenceEquals(mergeTransactionOwner, requester);
+    }
+
+    public bool TryBeginMergeTransaction(object owner)
+    {
+        if (owner == null || IsMergeTransactionActive)
+            return false;
+
+        mergeTransactionOwner = owner;
+        return true;
+    }
+
+    public void EndMergeTransaction(object owner)
+    {
+        if (ReferenceEquals(mergeTransactionOwner, owner))
+            mergeTransactionOwner = null;
+    }
 
     private void Awake()
     {

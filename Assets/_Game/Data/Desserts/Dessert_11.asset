@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Golden Dream Cake
   sprite: {fileID: 3605881939859906434, guid: 14303dbc1a163054b84f6516c0da3951, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 1

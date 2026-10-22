@@ -27,13 +27,6 @@ public class MergeSessionManager : MonoBehaviour
     public MergeSessionData SessionData =>
         sessionData;
 
-    private DessertSpawner ResolveDessertSpawner()
-    {
-        if (dessertSpawner == null)
-            dessertSpawner = FindAnyObjectByType<DessertSpawner>();
-        return dessertSpawner;
-    }
-
     public bool HasSession =>
         sessionData != null;
 
@@ -370,6 +363,21 @@ public class MergeSessionManager : MonoBehaviour
         out CustomerOrderSaveData savedOrder)
     {
         savedOrder = null;
+        if (state != null &&
+            !string.IsNullOrWhiteSpace(state.proceduralDefinitionId))
+        {
+            if (!ProceduralCustomerOrderSaveCodec.TryDecode(
+                    state.proceduralDefinitionId,
+                    out _))
+                return false;
+
+            savedOrder = new CustomerOrderSaveData(
+                state.customerIndex,
+                state.orderId,
+                state.proceduralDefinitionId);
+            return true;
+        }
+
         if (state == null ||
             !ProceduralCustomerOrderSaveCodec.TryEncode(
                 state.displayName,
@@ -603,7 +611,7 @@ public class MergeSessionManager : MonoBehaviour
             {
                 if (!ProceduralCustomerOrderSaveCodec.TryDecode(
                         state.definitionId,
-                        out ProceduralCustomerOrderSaveData payload))
+                        out _))
                 {
                     Debug.LogError(
                         $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
@@ -611,48 +619,11 @@ public class MergeSessionManager : MonoBehaviour
                     return false;
                 }
 
-                DessertSpawner spawner = ResolveDessertSpawner();
-                var requirements = new OrderRequirement[payload.requirements.Count];
-                for (int i = 0; i < requirements.Length; i++)
-                {
-                    ProceduralCustomerOrderRequirementSaveData savedRequirement =
-                        payload.requirements[i];
-                    if (savedRequirement == null ||
-                        savedRequirement.dessertTier < 1 ||
-                        savedRequirement.dessertTier > 30 ||
-                        savedRequirement.amount <= 0 ||
-                        spawner == null)
-                    {
-                        Debug.LogError(
-                            $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
-                            "has an invalid requirement.");
-                        return false;
-                    }
-
-                    DessertDefinition dessert =
-                        spawner.GetDessertDefinitionByTier(savedRequirement.dessertTier);
-                    if (dessert == null)
-                    {
-                        Debug.LogError(
-                            $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
-                            $"references missing dessert T{savedRequirement.dessertTier}.");
-                        return false;
-                    }
-
-                    requirements[i] = new OrderRequirement(
-                        dessert,
-                        savedRequirement.amount);
-                }
-
-                CustomerOrder proceduralOrder = new CustomerOrder(
-                    state.orderId,
-                    payload.displayName,
-                    payload.cashReward,
-                    requirements);
-                if (!proceduralOrder.IsValid)
-                    return false;
                 restoredData.customerOrders.Add(
-                    new CustomerOrderState(state.customerIndex, proceduralOrder));
+                    new CustomerOrderState(
+                        state.customerIndex,
+                        state.orderId,
+                        state.definitionId));
                 continue;
             }
 

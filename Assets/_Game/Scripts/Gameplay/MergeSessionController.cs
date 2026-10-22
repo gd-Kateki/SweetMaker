@@ -176,6 +176,9 @@ public class MergeSessionController : MonoBehaviour
             GameStartupCoordinator.Instance == null ||
             !GameStartupCoordinator.Instance.IsStartupComplete)
             return false;
+        if (gridManager != null &&
+            gridManager.IsMergeTransactionActive)
+            return false;
         if (!ValidateLiveState(out string reason))
             return FailRestoration(reason);
         ResolveReferences();

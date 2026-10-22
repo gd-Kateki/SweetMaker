@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Tier 23 Placeholder
   sprite: {fileID: 4009135708203240437, guid: 395d281645563594eb1cf661ad3fc4af, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 0

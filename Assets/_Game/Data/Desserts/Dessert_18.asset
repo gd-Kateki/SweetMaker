@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Tier 18 Placeholder
   sprite: {fileID: 5147512584961140606, guid: 3ef6a9c60a2617d49a31b8c66ca19713, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.8
+  visualScale: 0.5
   canSpawnFromOven: 1
   spawnWeight: 0

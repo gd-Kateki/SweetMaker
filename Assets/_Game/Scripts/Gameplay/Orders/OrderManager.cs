@@ -310,9 +310,10 @@ public bool ValidateSavedOrders(IReadOnlyList<CustomerOrderState> savedOrders,
     foreach (var state in savedOrders)
     {
         if (state == null || state.customerIndex < 0 || state.customerIndex >= savedCapacity ||
-            !slots.Add(state.customerIndex) || !state.CreateOrder().IsValid ||
-            state.orderId <= 0 || !ids.Add(state.orderId) || state.orderId >= savedNextOrderId)
-        { reason = "Saved order has an invalid definition, slot, identity or counter."; return false; }
+        !slots.Add(state.customerIndex) ||
+        state.CreateOrder(dessertSpawner) == null ||
+        state.orderId <= 0 || !ids.Add(state.orderId) || state.orderId >= savedNextOrderId)
+    { reason = "Saved order has an invalid definition, slot, identity or counter."; return false; }
     }
     // Count plus unique indices in [0, savedCapacity) proves a complete prefix.
     return true;
@@ -334,7 +335,7 @@ public bool RestoreCustomerOrders(IReadOnlyList<CustomerOrderState> savedOrders,
     { Debug.LogError("ORDER RESTORE FAILED | Restoring would rewind the live order counter."); return false; }
     var restored = new CustomerOrder[MaxCustomerSlots];
     foreach (var state in savedOrders)
-        restored[state.customerIndex] = state.CreateOrder();
+        restored[state.customerIndex] = state.CreateOrder(dessertSpawner);
     InitializeCustomerSlots();
     recentOrderDefinitions.Clear();
     nextOrderId = savedNextOrderId;
@@ -832,6 +833,9 @@ internal void PublishPreparedFreshSessionOrders()
     {
         if (isFulfilling)
             return false;
+        if (gridManager != null &&
+            gridManager.IsMergeTransactionActive)
+            return false;
         if (gridManager == null)
         {
             Debug.LogError(
@@ -991,9 +995,9 @@ internal void PublishPreparedFreshSessionOrders()
                 $"Maximum Order Tier: " +
                 $"T{progressionManager.MaxUnlockedDessertTier}"
             );
-            // Existing orders remain unchanged.
-            // Only future generated orders gain
-            // access to newly unlocked tiers.
+            // Existing orders remain unchanged; retry only empty slots now
+            // that the newly unlocked tier may make generation possible.
+            RefreshCustomerSlots();
             return;
         }
         if (type == UpgradeType.Customer)
