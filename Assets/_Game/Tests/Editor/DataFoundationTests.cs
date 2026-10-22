@@ -683,18 +683,54 @@ public class DataFoundationTests
         buttonTextObject.SetActive(false);
         object buttonText = buttonTextObject.AddComponent(
             FindPlayerType("TMPro.TextMeshProUGUI"));
+        var entryButtonObject = new GameObject("RebirthEntryButton");
+        entryButtonObject.SetActive(false);
+        entryButtonObject.AddComponent<UnityEngine.UI.Image>();
+        var entryButton = entryButtonObject.AddComponent<UnityEngine.UI.Button>();
+        var entryButtonTextObject = new GameObject("EntryButtonText");
+        entryButtonTextObject.SetActive(false);
+        object entryButtonText = entryButtonTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var closeButtonObject = new GameObject("CloseButton");
+        closeButtonObject.SetActive(false);
+        closeButtonObject.AddComponent<UnityEngine.UI.Image>();
+        var closeButton = closeButtonObject.AddComponent<UnityEngine.UI.Button>();
+        var indicatorObject = new GameObject("ReadyIndicator");
+        object readyIndicator = indicatorObject.AddComponent(
+            typeof(UnityEngine.UI.Image));
+        var modalPanel = new GameObject("RebirthPanel");
+        var modalBackdrop = new GameObject("RebirthBackdrop");
+        var notificationObject = new GameObject("AvailabilityNotification");
+        object notification = notificationObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
         SetPrivateField(ui, "progressionManager", setup.Progression);
         SetPrivateField(ui, "economyManager", setup.Economy);
         SetPrivateField(ui, "dessertSpawner", spawner);
         SetPrivateField(ui, "requirementsText", requirementText);
         SetPrivateField(ui, "rebirthButton", button);
         SetPrivateField(ui, "rebirthButtonText", buttonText);
+        SetPrivateField(ui, "entryButton", entryButton);
+        SetPrivateField(ui, "entryButtonText", entryButtonText);
+        SetPrivateField(ui, "readyIndicator", readyIndicator);
+        SetPrivateField(ui, "modalPanel", modalPanel);
+        SetPrivateField(ui, "modalBackdrop", modalBackdrop);
+        SetPrivateField(ui, "closeButton", closeButton);
+        SetPrivateField(ui, "availabilityNotification", notification);
         setup.Economy.GetType()
             .GetMethod("RestoreCash")
             .Invoke(setup.Economy, new object[] { 0 });
 
         try
         {
+            ui.GetType().GetMethod(
+                    "Awake",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(ui, null);
+            Assert.IsFalse(modalPanel.activeSelf,
+                "The Rebirth modal should start closed.");
+            Assert.IsFalse(modalBackdrop.activeSelf,
+                "The closed modal backdrop must not intercept gameplay.");
+
             MethodInfo start = ui.GetType().GetMethod(
                 "Start",
                 BindingFlags.Instance | BindingFlags.NonPublic);
@@ -712,6 +748,9 @@ public class DataFoundationTests
                 text);
             StringAssert.Contains("$0 / $128", text);
             Assert.IsFalse(button.interactable);
+            Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
+            Assert.IsFalse(((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled);
 
             setup.Progression.GetType()
                 .GetMethod("HandleCreatedDessert", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -724,9 +763,49 @@ public class DataFoundationTests
                 .Invoke(setup.Economy, new object[] { 128 });
             Assert.IsTrue(button.interactable,
                 "The UI should refresh when cash completes the requirements.");
+            Assert.IsTrue(((UnityEngine.UI.Image)readyIndicator).enabled);
             text = (string)requirementText.GetType()
                 .GetProperty("text").GetValue(requirementText);
             StringAssert.Contains("Eligibility: READY", text);
+            Assert.AreEqual(
+                "Rebirth Available! Tap Rebirth to continue!",
+                notification.GetType().GetProperty("text")
+                    .GetValue(notification));
+            Assert.IsTrue(((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled);
+
+            ui.GetType().GetMethod("Refresh").Invoke(ui, null);
+            ((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled = false;
+            ui.GetType().GetMethod("Refresh").Invoke(ui, null);
+            Assert.IsFalse(((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled,
+                "Repeated refreshes must not replay the same eligibility notification.");
+
+            setup.Economy.GetType()
+                .GetMethod("RestoreCash")
+                .Invoke(setup.Economy, new object[] { 0 });
+            Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
+            setup.Economy.GetType()
+                .GetMethod("RestoreCash")
+                .Invoke(setup.Economy, new object[] { 128 });
+            Assert.IsTrue(((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled,
+                "A later false-to-true eligibility transition should notify again.");
+
+            ((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled = false;
+            ui.GetType().GetMethod("Refresh").Invoke(ui, null);
+            Assert.IsFalse(((UnityEngine.Component)notification)
+                .GetComponent<UnityEngine.UI.Graphic>().enabled,
+                "Repeated refreshes while eligible must not display it again.");
+
+            entryButton.onClick.Invoke();
+            Assert.IsTrue(modalPanel.activeSelf);
+            Assert.IsTrue(modalBackdrop.activeSelf);
+            closeButton.onClick.Invoke();
+            Assert.IsFalse(modalPanel.activeSelf);
+            Assert.IsFalse(modalBackdrop.activeSelf);
 
             setup.Progression.GetType()
                 .GetMethod("RestoreRebirthProgression")
@@ -738,6 +817,10 @@ public class DataFoundationTests
             Assert.AreEqual(
                 "COMPLETE",
                 buttonText.GetType().GetProperty("text").GetValue(buttonText));
+            Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
+            Assert.AreEqual(
+                "REBIRTH COMPLETE",
+                entryButtonText.GetType().GetProperty("text").GetValue(entryButtonText));
         }
         finally
         {
@@ -749,6 +832,13 @@ public class DataFoundationTests
             UnityEngine.Object.DestroyImmediate(requirementTextObject);
             UnityEngine.Object.DestroyImmediate(buttonObject);
             UnityEngine.Object.DestroyImmediate(buttonTextObject);
+            UnityEngine.Object.DestroyImmediate(entryButtonObject);
+            UnityEngine.Object.DestroyImmediate(entryButtonTextObject);
+            UnityEngine.Object.DestroyImmediate(closeButtonObject);
+            UnityEngine.Object.DestroyImmediate(indicatorObject);
+            UnityEngine.Object.DestroyImmediate(modalPanel);
+            UnityEngine.Object.DestroyImmediate(modalBackdrop);
+            UnityEngine.Object.DestroyImmediate(notificationObject);
             UnityEngine.Object.DestroyImmediate(spawnerObject);
             DestroyProgressionPurchaseTestSetup(setup);
         }
@@ -761,17 +851,30 @@ public class DataFoundationTests
         StringAssert.Contains("m_Name: RebirthPanel", scene);
         StringAssert.Contains("Assembly-CSharp::RebirthUI", scene);
         StringAssert.Contains("m_Name: RebirthButton", scene);
+        StringAssert.Contains("m_Name: RebirthEntryButton", scene);
+        StringAssert.Contains("m_Name: RebirthBackdrop", scene);
+        StringAssert.Contains("m_Name: CloseButton", scene);
 
         Match component = Regex.Match(
             scene,
             @"m_EditorClassIdentifier: Assembly-CSharp::RebirthUI\s+" +
             @"requirementsText: \{fileID: (?<text>\d+)\}\s+" +
             @"rebirthButton: \{fileID: (?<button>\d+)\}\s+" +
-            @"rebirthButtonText: \{fileID: (?<label>\d+)\}");
+            @"rebirthButtonText: \{fileID: (?<label>\d+)\}\s+" +
+            @"entryButton: \{fileID: (?<entry>\d+)\}\s+" +
+            @"entryButtonText: \{fileID: (?<entryLabel>\d+)\}\s+" +
+            @"readyIndicator: \{fileID: (?<indicator>\d+)\}\s+" +
+            @"modalPanel: \{fileID: (?<panel>\d+)\}\s+" +
+            @"modalBackdrop: \{fileID: (?<backdrop>\d+)\}\s+" +
+            @"closeButton: \{fileID: (?<close>\d+)\}\s+" +
+            @"availabilityNotification: \{fileID: (?<notification>\d+)\}");
         Assert.IsTrue(component.Success, "Rebirth UI references are not serialized.");
-        Assert.AreNotEqual("0", component.Groups["text"].Value);
-        Assert.AreNotEqual("0", component.Groups["button"].Value);
-        Assert.AreNotEqual("0", component.Groups["label"].Value);
+        foreach (string reference in new[]
+                 {
+                     "text", "button", "label", "entry", "entryLabel",
+                     "indicator", "panel", "backdrop", "close", "notification"
+                 })
+            Assert.AreNotEqual("0", component.Groups[reference].Value, reference);
     }
 
     [Test]

@@ -1,9 +1,13 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public sealed class RebirthUI : MonoBehaviour
 {
+    private const string AvailableNotification =
+        "Rebirth Available! Tap Rebirth to continue!";
+
     [SerializeField]
     private TMP_Text requirementsText;
 
@@ -13,10 +17,44 @@ public sealed class RebirthUI : MonoBehaviour
     [SerializeField]
     private TMP_Text rebirthButtonText;
 
+    [SerializeField]
+    private Button entryButton;
+
+    [SerializeField]
+    private TMP_Text entryButtonText;
+
+    [SerializeField]
+    private Image readyIndicator;
+
+    [SerializeField]
+    private GameObject modalPanel;
+
+    [SerializeField]
+    private GameObject modalBackdrop;
+
+    [SerializeField]
+    private Button closeButton;
+
+    [SerializeField]
+    private TMP_Text availabilityNotification;
+
+    [SerializeField, Min(0.1f)]
+    private float notificationDuration = 3f;
+
     private PlayerProgressionManager progressionManager;
     private EconomyManager economyManager;
     private DessertSpawner dessertSpawner;
     private bool rebirthClickInProgress;
+    private bool hasEligibilityState;
+    private bool wasEligible;
+    private Coroutine notificationCoroutine;
+
+    private void Awake()
+    {
+        Close();
+        if (availabilityNotification != null)
+            availabilityNotification.enabled = false;
+    }
 
     private void Start()
     {
@@ -44,11 +82,24 @@ public sealed class RebirthUI : MonoBehaviour
         else
             Debug.LogError("REBIRTH UI | Rebirth button reference is missing.");
 
+        if (entryButton != null)
+            entryButton.onClick.AddListener(Open);
+        else
+            Debug.LogError("REBIRTH UI | Entry button reference is missing.");
+
+        if (closeButton != null)
+            closeButton.onClick.AddListener(Close);
+        else
+            Debug.LogError("REBIRTH UI | Close button reference is missing.");
+
         Refresh();
     }
 
     private void OnDestroy()
     {
+        if (notificationCoroutine != null)
+            StopCoroutine(notificationCoroutine);
+
         if (progressionManager != null)
             progressionManager.RebirthProgressionChanged -= Refresh;
 
@@ -57,6 +108,12 @@ public sealed class RebirthUI : MonoBehaviour
 
         if (rebirthButton != null)
             rebirthButton.onClick.RemoveListener(HandleRebirthClicked);
+
+        if (entryButton != null)
+            entryButton.onClick.RemoveListener(Open);
+
+        if (closeButton != null)
+            closeButton.onClick.RemoveListener(Close);
     }
 
     private void ResolveReferences()
@@ -93,6 +150,8 @@ public sealed class RebirthUI : MonoBehaviour
         {
             if (!progressionManager.TryRebirth())
                 Debug.LogWarning("REBIRTH UI | Rebirth transaction was not completed.");
+            else
+                Close();
         }
         finally
         {
@@ -115,6 +174,9 @@ public sealed class RebirthUI : MonoBehaviour
             if (requirementsText != null)
                 requirementsText.text = "All Rebirths Complete";
             SetButtonState(false, "COMPLETE");
+            SetReadyIndicator(false);
+            SetEntryButtonState("REBIRTH COMPLETE");
+            UpdateEligibilityState(false);
             return;
         }
 
@@ -136,6 +198,9 @@ public sealed class RebirthUI : MonoBehaviour
         bool cashReady = cashHeld >= requiredCash;
         bool eligible = tierReady && cashReady &&
                         progressionManager.IsEligibleForNextRebirth;
+        UpdateEligibilityState(eligible);
+        SetReadyIndicator(eligible);
+        SetEntryButtonState("REBIRTH");
 
         if (requirementsText != null)
         {
@@ -148,6 +213,22 @@ public sealed class RebirthUI : MonoBehaviour
         }
 
         SetButtonState(eligible && !rebirthClickInProgress, "REBIRTH");
+    }
+
+    public void Open()
+    {
+        if (modalBackdrop != null)
+            modalBackdrop.SetActive(true);
+        if (modalPanel != null)
+            modalPanel.SetActive(true);
+    }
+
+    public void Close()
+    {
+        if (modalPanel != null)
+            modalPanel.SetActive(false);
+        if (modalBackdrop != null)
+            modalBackdrop.SetActive(false);
     }
 
     private static string FormatTierProgress(int createdTier, int requiredTier, bool tierReady)
@@ -165,10 +246,57 @@ public sealed class RebirthUI : MonoBehaviour
             rebirthButtonText.text = label;
     }
 
+    private void SetEntryButtonState(string label)
+    {
+        if (entryButtonText != null)
+            entryButtonText.text = label;
+        if (entryButton != null)
+            entryButton.interactable = true;
+    }
+
+    private void SetReadyIndicator(bool visible)
+    {
+        if (readyIndicator != null)
+            readyIndicator.enabled = visible;
+    }
+
+    private void UpdateEligibilityState(bool eligible)
+    {
+        if (hasEligibilityState && !wasEligible && eligible)
+            ShowAvailabilityNotification();
+
+        hasEligibilityState = true;
+        wasEligible = eligible;
+    }
+
+    private void ShowAvailabilityNotification()
+    {
+        if (availabilityNotification == null)
+            return;
+
+        if (notificationCoroutine != null)
+            StopCoroutine(notificationCoroutine);
+
+        availabilityNotification.text = AvailableNotification;
+        availabilityNotification.enabled = true;
+        if (Application.isPlaying)
+            notificationCoroutine = StartCoroutine(HideNotificationAfterDelay());
+    }
+
+    private IEnumerator HideNotificationAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(notificationDuration);
+        if (availabilityNotification != null)
+            availabilityNotification.enabled = false;
+        notificationCoroutine = null;
+    }
+
     private void RefreshUnavailable()
     {
         if (requirementsText != null)
             requirementsText.text = "Rebirth unavailable";
         SetButtonState(false, "REBIRTH");
+        SetReadyIndicator(false);
+        SetEntryButtonState("REBIRTH");
     }
 }
