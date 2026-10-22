@@ -22,9 +22,14 @@ public class MergeSessionController : MonoBehaviour
     private OrderManager orderManager;
     private bool hasRestoredAutomatically;
     private bool restorationInProgress;
+    private bool replacementSessionPreparedForCommit;
     private bool departurePrepared;
     public bool IsRestorationVerified { get; private set; }
     public string LastRestorationError { get; private set; }
+    internal bool IsPreparedFreshSessionForCommit =>
+        restorationInProgress &&
+        replacementSessionPreparedForCommit &&
+        IsRestorationVerified;
     internal void InvalidateRestoration()
     {
         IsRestorationVerified = false;
@@ -231,6 +236,11 @@ public class MergeSessionController : MonoBehaviour
 
     public bool TryReplaceWithFreshSession()
     {
+        return TryReplaceWithFreshSession(null);
+    }
+
+    internal bool TryReplaceWithFreshSession(Func<bool> commitBeforeFinalizing)
+    {
         if (!isActiveAndEnabled || restorationInProgress ||
             !IsRestorationVerified ||
             GameStartupCoordinator.Instance == null ||
@@ -284,6 +294,7 @@ public class MergeSessionController : MonoBehaviour
         var coordinator = GameStartupCoordinator.Instance;
         var saveManager = SaveManager.Instance;
         restorationInProgress = true;
+        replacementSessionPreparedForCommit = false;
         IsRestorationVerified = false;
         departurePrepared = false;
         coordinator.BeginGameplayInitialization();
@@ -300,13 +311,14 @@ public class MergeSessionController : MonoBehaviour
                     false) ||
                 !ValidateLiveState(out reason))
             {
-                RestorePreviousLiveSession(
+                TryRestorePreviousLiveSession(
                     oldPlacements,
                     oldOrders,
                     oldPreview,
                     oldSession,
-                    oldCustomerCapacity);
-                RestoreGameplayReadiness(coordinator, saveManager);
+                    oldCustomerCapacity,
+                    coordinator,
+                    saveManager);
                 Debug.LogError(
                     "SESSION REPLACEMENT FAILED | " +
                     (reason ?? "Prepared state could not be applied."));
@@ -322,16 +334,19 @@ public class MergeSessionController : MonoBehaviour
             saveManager.RecordSessionCustomerCapacity(
                 MergeSessionManager.Instance.SessionData,
                 orderManager.ActiveCustomerCount);
+            replacementSessionPreparedForCommit = true;
 
             IsRestorationVerified = true;
             if (!coordinator.ConfirmGameplayRestoration(this))
             {
-                RestorePreviousLiveSession(
+                TryRestorePreviousLiveSession(
                     oldPlacements,
                     oldOrders,
                     oldPreview,
                     oldSession,
-                    oldCustomerCapacity);
+                    oldCustomerCapacity,
+                    coordinator,
+                    saveManager);
                 IsRestorationVerified = false;
                 saveManager.SuspendLifecycleSaving();
                 Debug.LogError(
@@ -340,19 +355,71 @@ public class MergeSessionController : MonoBehaviour
                 return false;
             }
 
+            if (commitBeforeFinalizing != null)
+            {
+                bool committed;
+                try
+                {
+                    committed = commitBeforeFinalizing();
+                }
+                catch (Exception exception)
+                {
+                    TryRestorePreviousLiveSession(
+                        oldPlacements,
+                        oldOrders,
+                        oldPreview,
+                        oldSession,
+                        oldCustomerCapacity,
+                        coordinator,
+                        saveManager);
+                    Debug.LogError(
+                        "SESSION REPLACEMENT FAILED | " +
+                        "The transaction commit callback threw before completion.\n" +
+                        exception);
+                    return false;
+                }
+
+                if (!committed)
+                {
+                    TryRestorePreviousLiveSession(
+                        oldPlacements,
+                        oldOrders,
+                        oldPreview,
+                        oldSession,
+                        oldCustomerCapacity,
+                        coordinator,
+                        saveManager);
+                    Debug.LogError(
+                        "SESSION REPLACEMENT FAILED | " +
+                        "The transaction commit callback rejected the fresh session.");
+                    return false;
+                }
+            }
+
             foreach (DessertPlacement placement in oldPlacements)
                 if (placement.Dessert != null)
                     DestroyDetachedDessert(placement.Dessert);
 
             hasRestoredAutomatically = true;
-            gridManager.NotifyBoardChanged();
-            shelfManager.NotifyShelfChanged();
-            dessertSpawner.PublishNextDessertChanged();
-            orderManager.PublishPreparedFreshSessionOrders();
+            try
+            {
+                gridManager.NotifyBoardChanged();
+                shelfManager.NotifyShelfChanged();
+                dessertSpawner.PublishNextDessertChanged();
+                orderManager.PublishPreparedFreshSessionOrders();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    "SESSION REPLACEMENT COMMITTED | " +
+                    "A post-commit gameplay notification failed.\n" +
+                    exception);
+            }
             return true;
         }
         finally
         {
+            replacementSessionPreparedForCommit = false;
             restorationInProgress = false;
         }
     }
@@ -454,6 +521,40 @@ public class MergeSessionController : MonoBehaviour
         SaveManager.Instance.RecordSessionCustomerCapacity(
             MergeSessionManager.Instance.SessionData,
             oldCustomerCapacity);
+    }
+
+    private bool TryRestorePreviousLiveSession(
+        IReadOnlyList<DessertPlacement> oldPlacements,
+        OrderManager.SessionReplacementState oldOrders,
+        DessertDefinition oldPreview,
+        MergeSessionData oldSession,
+        int oldCustomerCapacity,
+        GameStartupCoordinator coordinator,
+        SaveManager saveManager)
+    {
+        try
+        {
+            RestorePreviousLiveSession(
+                oldPlacements,
+                oldOrders,
+                oldPreview,
+                oldSession,
+                oldCustomerCapacity);
+            RestoreGameplayReadiness(coordinator, saveManager);
+            return IsRestorationVerified;
+        }
+        catch (Exception exception)
+        {
+            IsRestorationVerified = false;
+            saveManager.SuspendLifecycleSaving();
+            coordinator.ReportGameplayRestorationFailure(
+                "The previous merge session could not be restored after replacement failed.");
+            Debug.LogError(
+                "SESSION REPLACEMENT ROLLBACK FAILED | " +
+                "Lifecycle saving was suspended.\n" +
+                exception);
+            return false;
+        }
     }
 
     private void RestoreGameplayReadiness(

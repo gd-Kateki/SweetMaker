@@ -56,12 +56,17 @@ public class PlayerProgressionManager : MonoBehaviour
     private RebirthProgressionState rebirthProgression =
         new RebirthProgressionState();
 
+    private bool rebirthInProgress;
+
     // ==================================================
     // EVENTS
     // ==================================================
 
     public event Action<UpgradeType, int>
         UpgradeLevelChanged;
+
+    public event Action
+        RebirthProgressionChanged;
 
     // ==================================================
     // LEVEL PROPERTIES
@@ -199,7 +204,8 @@ public class PlayerProgressionManager : MonoBehaviour
 
     private void HandleCreatedDessert(int tier)
     {
-        RebirthProgression.RegisterCreatedTier(tier);
+        if (RebirthProgression.RegisterCreatedTier(tier))
+            RebirthProgressionChanged?.Invoke();
     }
 
     public bool RestoreRebirthProgression(
@@ -207,11 +213,132 @@ public class PlayerProgressionManager : MonoBehaviour
         int highestTierCreatedThisRun,
         bool campaignComplete)
     {
-        return RebirthProgression.Restore(
+        if (!RebirthProgression.Restore(
             completedRebirthCount,
             highestTierCreatedThisRun,
             campaignComplete
-        );
+        ))
+        {
+            return false;
+        }
+
+        if (!SynchronizeOvenLevelWithRebirth())
+            return false;
+
+        RebirthProgressionChanged?.Invoke();
+        return true;
+    }
+
+    internal static int GetOvenLevelForRebirthCount(int rebirthCount)
+    {
+        return RebirthProgressionState.GetOvenLevelForRebirthCount(rebirthCount);
+    }
+
+    private bool SynchronizeOvenLevelWithRebirth()
+    {
+        UpgradeDefinition definition = GetDefinition(UpgradeType.Oven);
+        if (definition == null || !definition.IsValid)
+        {
+            Debug.LogError("REBIRTH PROGRESSION | A valid Oven definition is required.");
+            return false;
+        }
+
+        int unlockedLevel = Mathf.Clamp(
+            RebirthProgression.RebirthUnlockedOvenLevel,
+            1,
+            definition.MaxLevel);
+        if (ovenLevel != unlockedLevel)
+            SetLevel(UpgradeType.Oven, unlockedLevel);
+
+        return ovenLevel == unlockedLevel;
+    }
+
+    public bool TryRebirth()
+    {
+        if (rebirthInProgress)
+            return false;
+
+        EconomyManager economy = EconomyManager.Instance;
+        SaveManager saveManager = SaveManager.Instance;
+        MergeSessionController[] sessionControllers =
+            FindObjectsByType<MergeSessionController>();
+
+        if (economy == null || saveManager == null ||
+            sessionControllers.Length != 1 ||
+            !RebirthProgression.CanRebirth(economy.CurrentCash))
+        {
+            return false;
+        }
+
+        int cashHeld = economy.CurrentCash;
+        int nextRebirthCount = CurrentRebirthCount + 1;
+        bool snapshotCommitted = false;
+        rebirthInProgress = true;
+
+        try
+        {
+            return sessionControllers[0].TryReplaceWithFreshSession(() =>
+            {
+                bool saved = saveManager.TryCommitRebirthSnapshot(
+                    nextRebirthCount,
+                    out bool committed);
+                snapshotCommitted = committed;
+
+                if (!saved && !committed)
+                    return false;
+
+                if (!RebirthProgression.TryCommitRebirth(cashHeld))
+                {
+                    if (!RestoreRebirthProgression(
+                            nextRebirthCount,
+                            0,
+                            CampaignComplete))
+                    {
+                        Debug.LogError(
+                            "REBIRTH COMMITTED | " +
+                            "The persisted progression could not be applied in memory.");
+                    }
+                }
+                else if (!SynchronizeOvenLevelWithRebirth())
+                {
+                    Debug.LogError(
+                        "REBIRTH COMMITTED | " +
+                        "The free Oven unlock could not be applied in memory.");
+                }
+                RebirthProgressionChanged?.Invoke();
+
+                try
+                {
+                    economy.RestoreCash(0);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogError(
+                        "REBIRTH COMMITTED | Cash reset notification failed.\n" +
+                        exception);
+                }
+
+                return true;
+            });
+        }
+        catch (Exception exception)
+        {
+            if (snapshotCommitted)
+            {
+                Debug.LogError(
+                    "REBIRTH COMMITTED | " +
+                    "A post-commit session operation failed.\n" +
+                    exception);
+                return true;
+            }
+
+            Debug.LogError("REBIRTH FAILED | Transaction was not committed.\n" + exception);
+            return false;
+        }
+        finally
+        {
+            rebirthInProgress = false;
+        }
     }
 
     // ==================================================
@@ -429,6 +556,13 @@ public class PlayerProgressionManager : MonoBehaviour
     public bool TryUpgradeForDebug(
         UpgradeType type)
     {
+        if (type == UpgradeType.Oven)
+        {
+            Debug.LogWarning(
+                "DEBUG UPGRADE BLOCKED | Oven levels are unlocked by completed Rebirths.");
+            return false;
+        }
+
         UpgradeDefinition definition =
             GetDefinition(type);
 
@@ -772,7 +906,7 @@ public void RestoreProgression(
 
     ovenLevel =
         ClampLevel(
-            restoredOvenLevel,
+            RebirthProgression.RebirthUnlockedOvenLevel,
             ovenUpgrade
         );
 

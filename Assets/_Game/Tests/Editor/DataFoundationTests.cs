@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public class DataFoundationTests
 {
@@ -369,6 +370,7 @@ public class DataFoundationTests
         {
             128, 278, 320, 1070, 960, 3960, 2880, 14880, 8000, 58000
         };
+        int[] ovenLevels = { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6 };
 
         for (int rebirthCount = 0; rebirthCount < 10; rebirthCount++)
         {
@@ -384,12 +386,380 @@ public class DataFoundationTests
                 GetRebirthProperty(state, "NextOvenLevelUnlock"));
         }
 
+        MethodInfo getOvenLevel = FindPlayerType("RebirthProgressionState")
+            .GetMethod("GetOvenLevelForRebirthCount");
+        for (int rebirthCount = 0; rebirthCount <= 10; rebirthCount++)
+        {
+            Assert.AreEqual(
+                ovenLevels[rebirthCount],
+                getOvenLevel.Invoke(null, new object[] { rebirthCount }),
+                $"Incorrect Oven unlock at R{rebirthCount}.");
+        }
+
         object completed = CreateRebirthState(10);
         Assert.IsFalse((bool)GetRebirthProperty(completed, "HasNextRebirth"));
         Assert.AreEqual(0, GetRebirthProperty(completed, "NextRebirthNumber"));
         Assert.AreEqual(0, GetRebirthProperty(completed, "NextRequiredTier"));
         Assert.AreEqual(0, GetRebirthProperty(completed, "NextRequiredCash"));
         Assert.AreEqual(0, GetRebirthProperty(completed, "NextOvenLevelUnlock"));
+    }
+
+    [Test]
+    public void RebirthRestoreSynchronizesFreeOvenLevelAndSpawnPool()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        var spawnerObject = new GameObject("Rebirth Oven spawn pool test");
+        spawnerObject.SetActive(false);
+        object spawner = spawnerObject.AddComponent(
+            FindPlayerType("DessertSpawner"));
+        SetPrivateField(spawner, "progressionManager", setup.Progression);
+        Array dessertDefinitions = Array.CreateInstance(
+            FindPlayerType("DessertDefinition"), 30);
+        for (int tier = 1; tier <= 30; tier++)
+        {
+            dessertDefinitions.SetValue(
+                AssetDatabase.LoadMainAssetAtPath(
+                    $"{DessertFolder}/Dessert_{tier:00}.asset"),
+                tier - 1);
+        }
+        SetPrivateField(spawner, "dessertDefinitions", dessertDefinitions);
+
+        try
+        {
+            MethodInfo start = spawner.GetType().GetMethod(
+                "Start",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            start.Invoke(spawner, null);
+            int[] ovenLevels = { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6 };
+
+            for (int rebirthCount = 0; rebirthCount <= 10; rebirthCount++)
+            {
+                bool campaignComplete = rebirthCount == 10;
+                Assert.IsTrue((bool)setup.Progression.GetType()
+                    .GetMethod("RestoreRebirthProgression")
+                    .Invoke(setup.Progression, new object[]
+                    {
+                        rebirthCount,
+                        campaignComplete ? 30 : 0,
+                        campaignComplete
+                    }));
+                setup.Progression.GetType()
+                    .GetMethod("RestoreProgression")
+                    .Invoke(setup.Progression, new object[] { 6, 3, 2, 1, 1 });
+
+                Assert.AreEqual(
+                    ovenLevels[rebirthCount],
+                    setup.Progression.GetType()
+                        .GetProperty("OvenLevel").GetValue(setup.Progression));
+                Assert.AreEqual(
+                    "P" + ovenLevels[rebirthCount],
+                    spawner.GetType()
+                        .GetProperty("SelectedSpawnPoolId").GetValue(spawner));
+                Assert.AreEqual(
+                    3,
+                    setup.Progression.GetType()
+                        .GetProperty("BoardSpaceLevel").GetValue(setup.Progression),
+                    "A Rebirth must preserve purchased support levels.");
+                Assert.AreEqual(
+                    2,
+                    setup.Progression.GetType()
+                        .GetProperty("ShelfLevel").GetValue(setup.Progression),
+                    "A Rebirth must preserve purchased support levels.");
+                Assert.AreEqual(
+                    100000,
+                    setup.Economy.GetType()
+                        .GetProperty("CurrentCash").GetValue(setup.Economy),
+                    "Free Oven unlocks must not charge cash.");
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(spawnerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void SupportUpgradePurchasesRespectEveryRebirthGate()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        GameObject managerObject = new GameObject("Support upgrade gate test");
+        try
+        {
+            managerObject.SetActive(false);
+            object purchaseManager = managerObject.AddComponent(
+                FindPlayerType("UpgradePurchaseManager"));
+            SetPrivateField(purchaseManager, "progressionManager", setup.Progression);
+            SetPrivateField(purchaseManager, "economyManager", setup.Economy);
+            managerObject.SetActive(true);
+
+            var gates = new (string type, int level, int rebirthCount)[]
+            {
+                ("BoardSpace", 2, 2),
+                ("Shelf", 2, 2),
+                ("Customer", 2, 2),
+                ("MoneyMultiplier", 2, 2),
+                ("BoardSpace", 3, 5),
+                ("Shelf", 3, 5),
+                ("Customer", 3, 5),
+                ("MoneyMultiplier", 3, 5),
+                ("BoardSpace", 4, 7),
+                ("Shelf", 4, 7),
+                ("Customer", 4, 7),
+                ("MoneyMultiplier", 4, 7),
+                ("BoardSpace", 5, 9),
+                ("Shelf", 5, 9),
+                ("BoardSpace", 6, 10),
+                ("BoardSpace", 7, 10)
+            };
+            Type upgradeType = FindPlayerType("UpgradeType");
+
+            MethodInfo restoreRebirth = setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression");
+            MethodInfo setLevel = setup.Progression.GetType()
+                .GetMethod("TrySetLevel");
+            MethodInfo getLevel = setup.Progression.GetType()
+                .GetMethod("GetLevel");
+            MethodInfo canPurchase = purchaseManager.GetType()
+                .GetMethod("CanPurchaseUpgrade");
+            MethodInfo purchase = purchaseManager.GetType()
+                .GetMethod("TryPurchaseUpgrade");
+
+            foreach (var gate in gates)
+            {
+                object type = Enum.Parse(upgradeType, gate.type);
+                int requiredTier = gate.rebirthCount == 10 ? 30 : 0;
+                bool completed = gate.rebirthCount == 10;
+                Assert.IsTrue((bool)restoreRebirth.Invoke(
+                    setup.Progression,
+                    new object[] { gate.rebirthCount - 1, 0, false }));
+                setLevel.Invoke(
+                    setup.Progression,
+                    new[] { type, (object)(gate.level - 1) });
+                Assert.AreEqual(
+                    gate.level - 1,
+                    getLevel.Invoke(setup.Progression, new[] { type }));
+
+                int cashBefore = (int)setup.Economy.GetType()
+                    .GetProperty("CurrentCash").GetValue(setup.Economy);
+                Assert.IsFalse((bool)canPurchase.Invoke(
+                    purchaseManager, new[] { type }),
+                    $"{gate.type} L{gate.level} should be locked before R{gate.rebirthCount}.");
+                Assert.IsFalse((bool)purchase.Invoke(
+                    purchaseManager, new[] { type }),
+                    $"{gate.type} L{gate.level} purchase should be rejected before its gate.");
+                Assert.AreEqual(
+                    cashBefore,
+                    setup.Economy.GetType()
+                        .GetProperty("CurrentCash").GetValue(setup.Economy),
+                    "A rejected purchase must not charge cash.");
+
+                Assert.IsTrue((bool)restoreRebirth.Invoke(
+                    setup.Progression,
+                    new object[] { gate.rebirthCount, requiredTier, completed }));
+                Assert.IsTrue((bool)canPurchase.Invoke(
+                    purchaseManager, new[] { type }),
+                    $"{gate.type} L{gate.level} should unlock at R{gate.rebirthCount}.");
+            }
+
+            object ovenType = Enum.Parse(upgradeType, "Oven");
+            Assert.IsFalse((bool)canPurchase.Invoke(
+                purchaseManager, new[] { ovenType }),
+                "Oven levels are Rebirth unlocks, not cash purchases.");
+            int ovenCash = (int)setup.Economy.GetType()
+                .GetProperty("CurrentCash").GetValue(setup.Economy);
+            Assert.IsFalse((bool)purchase.Invoke(
+                purchaseManager, new[] { ovenType }));
+            Assert.AreEqual(
+                ovenCash,
+                setup.Economy.GetType()
+                    .GetProperty("CurrentCash").GetValue(setup.Economy));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void SupportUpgradeChargesOnceAndRemainsPurchasedAcrossRebirth()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        var managerObject = new GameObject("Support upgrade purchase test");
+        managerObject.SetActive(false);
+        object purchaseManager = managerObject.AddComponent(
+            FindPlayerType("UpgradePurchaseManager"));
+        SetPrivateField(purchaseManager, "progressionManager", setup.Progression);
+        SetPrivateField(purchaseManager, "economyManager", setup.Economy);
+        managerObject.SetActive(true);
+
+        try
+        {
+            MethodInfo restoreRebirth = setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression");
+            Assert.IsTrue((bool)restoreRebirth.Invoke(
+                setup.Progression, new object[] { 2, 0, false }));
+
+            MethodInfo purchase = purchaseManager.GetType()
+                .GetMethod("TryPurchaseUpgrade");
+            object boardSpace = Enum.Parse(
+                FindPlayerType("UpgradeType"), "BoardSpace");
+            Assert.IsTrue((bool)purchase.Invoke(
+                purchaseManager, new[] { boardSpace }));
+            Assert.AreEqual(
+                99900,
+                setup.Economy.GetType()
+                    .GetProperty("CurrentCash").GetValue(setup.Economy));
+            Assert.IsFalse((bool)purchase.Invoke(
+                purchaseManager, new[] { boardSpace }),
+                "A second purchase must respect the next level's R5 gate.");
+            Assert.AreEqual(
+                99900,
+                setup.Economy.GetType()
+                    .GetProperty("CurrentCash").GetValue(setup.Economy));
+
+            Assert.IsTrue((bool)restoreRebirth.Invoke(
+                setup.Progression, new object[] { 3, 0, false }));
+            Assert.AreEqual(
+                2,
+                setup.Progression.GetType()
+                    .GetProperty("BoardSpaceLevel").GetValue(setup.Progression));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void RebirthUIReflectsRequirementsProgressAndCompletion()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        SetPrivateStaticProperty(
+            setup.Economy.GetType(),
+            "Instance",
+            setup.Economy);
+        var spawnerObject = new GameObject("Rebirth UI dessert names");
+        spawnerObject.SetActive(false);
+        object spawner = spawnerObject.AddComponent(
+            FindPlayerType("DessertSpawner"));
+        Array dessertDefinitions = Array.CreateInstance(
+            FindPlayerType("DessertDefinition"), 30);
+        for (int tier = 1; tier <= 30; tier++)
+        {
+            dessertDefinitions.SetValue(
+                AssetDatabase.LoadMainAssetAtPath(
+                    $"{DessertFolder}/Dessert_{tier:00}.asset"),
+                tier - 1);
+        }
+        SetPrivateField(spawner, "dessertDefinitions", dessertDefinitions);
+
+        var uiObject = new GameObject("Rebirth UI state test");
+        uiObject.SetActive(false);
+        object ui = uiObject.AddComponent(FindPlayerType("RebirthUI"));
+        var requirementTextObject = new GameObject("Requirements");
+        requirementTextObject.SetActive(false);
+        object requirementText = requirementTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var buttonObject = new GameObject("RebirthButton");
+        buttonObject.SetActive(false);
+        buttonObject.AddComponent<UnityEngine.UI.Image>();
+        var button = buttonObject.AddComponent<UnityEngine.UI.Button>();
+        var buttonTextObject = new GameObject("ButtonText");
+        buttonTextObject.SetActive(false);
+        object buttonText = buttonTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        SetPrivateField(ui, "progressionManager", setup.Progression);
+        SetPrivateField(ui, "economyManager", setup.Economy);
+        SetPrivateField(ui, "dessertSpawner", spawner);
+        SetPrivateField(ui, "requirementsText", requirementText);
+        SetPrivateField(ui, "rebirthButton", button);
+        SetPrivateField(ui, "rebirthButtonText", buttonText);
+        setup.Economy.GetType()
+            .GetMethod("RestoreCash")
+            .Invoke(setup.Economy, new object[] { 0 });
+
+        try
+        {
+            MethodInfo start = ui.GetType().GetMethod(
+                "Start",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            start.Invoke(ui, null);
+            string text = (string)requirementText.GetType()
+                .GetProperty("text").GetValue(requirementText);
+            StringAssert.Contains("REBIRTH 1", text);
+            StringAssert.Contains("Create T7", text);
+            object requiredDessert = spawner.GetType()
+                .GetMethod("GetDefinitionByTier")
+                .Invoke(spawner, new object[] { 7 });
+            StringAssert.Contains(
+                (string)requiredDessert.GetType()
+                    .GetProperty("DisplayName").GetValue(requiredDessert),
+                text);
+            StringAssert.Contains("$0 / $128", text);
+            Assert.IsFalse(button.interactable);
+
+            setup.Progression.GetType()
+                .GetMethod("HandleCreatedDessert", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[] { 7 });
+            Assert.IsFalse(button.interactable,
+                "Created-tier eligibility alone must not enable Rebirth.");
+
+            setup.Economy.GetType()
+                .GetMethod("RestoreCash")
+                .Invoke(setup.Economy, new object[] { 128 });
+            Assert.IsTrue(button.interactable,
+                "The UI should refresh when cash completes the requirements.");
+            text = (string)requirementText.GetType()
+                .GetProperty("text").GetValue(requirementText);
+            StringAssert.Contains("Eligibility: READY", text);
+
+            setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 30, true });
+            Assert.IsFalse(button.interactable);
+            Assert.AreEqual(
+                "All Rebirths Complete",
+                requirementText.GetType().GetProperty("text").GetValue(requirementText));
+            Assert.AreEqual(
+                "COMPLETE",
+                buttonText.GetType().GetProperty("text").GetValue(buttonText));
+        }
+        finally
+        {
+            SetPrivateStaticProperty(
+                setup.Economy.GetType(),
+                "Instance",
+                null);
+            UnityEngine.Object.DestroyImmediate(uiObject);
+            UnityEngine.Object.DestroyImmediate(requirementTextObject);
+            UnityEngine.Object.DestroyImmediate(buttonObject);
+            UnityEngine.Object.DestroyImmediate(buttonTextObject);
+            UnityEngine.Object.DestroyImmediate(spawnerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void GameSceneHasFunctionalRebirthPanelAndSerializedReferences()
+    {
+        string scene = File.ReadAllText("Assets/_Game/Scenes/Game.unity");
+        StringAssert.Contains("m_Name: RebirthPanel", scene);
+        StringAssert.Contains("Assembly-CSharp::RebirthUI", scene);
+        StringAssert.Contains("m_Name: RebirthButton", scene);
+
+        Match component = Regex.Match(
+            scene,
+            @"m_EditorClassIdentifier: Assembly-CSharp::RebirthUI\s+" +
+            @"requirementsText: \{fileID: (?<text>\d+)\}\s+" +
+            @"rebirthButton: \{fileID: (?<button>\d+)\}\s+" +
+            @"rebirthButtonText: \{fileID: (?<label>\d+)\}");
+        Assert.IsTrue(component.Success, "Rebirth UI references are not serialized.");
+        Assert.AreNotEqual("0", component.Groups["text"].Value);
+        Assert.AreNotEqual("0", component.Groups["button"].Value);
+        Assert.AreNotEqual("0", component.Groups["label"].Value);
     }
 
     [Test]
@@ -407,6 +777,29 @@ public class DataFoundationTests
         Assert.IsFalse(CanRebirth(
             CreateRebirthState(10, 30),
             int.MaxValue));
+    }
+
+    [Test]
+    public void RebirthCommitFailureIsNoOpAndSuccessResetsOnlyRunTier()
+    {
+        object state = CreateRebirthState(0, 7);
+        string beforeFailure = JsonUtility.ToJson(state);
+        MethodInfo commit = state.GetType().GetMethod(
+            "TryCommitRebirth",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.IsFalse((bool)commit.Invoke(state, new object[] { 127 }));
+        Assert.AreEqual(beforeFailure, JsonUtility.ToJson(state));
+
+        Assert.IsTrue((bool)commit.Invoke(state, new object[] { 128 }));
+        Assert.AreEqual(1, GetRebirthProperty(state, "CurrentRebirthCount"));
+        Assert.AreEqual(0, GetRebirthProperty(state, "HighestTierCreatedThisRun"));
+        Assert.IsFalse((bool)GetRebirthProperty(state, "CampaignComplete"));
+
+        string afterCommit = JsonUtility.ToJson(state);
+        Assert.IsFalse((bool)commit.Invoke(state, new object[] { int.MaxValue }));
+        Assert.AreEqual(afterCommit, JsonUtility.ToJson(state),
+            "A repeated call must not advance a second time without new-run eligibility.");
     }
 
     [Test]
@@ -705,6 +1098,204 @@ public class DataFoundationTests
     }
 
     [Test]
+    public void RebirthV2SnapshotPromotionAndBackupRollbackPreserveBothSnapshots()
+    {
+        Type saveType = FindPlayerType("PlayerSaveData");
+        Type managerType = FindPlayerType("SaveManager");
+        object prior = Activator.CreateInstance(saveType);
+        SetField(prior, "highestTierCreatedThisRun", 7);
+        SetField(GetField(prior, "economy"), "cash", 128);
+        SetField(GetField(prior, "progression"), "boardSpaceLevel", 3);
+
+        object proposed = Activator.CreateInstance(saveType);
+        SetField(proposed, "completedRebirthCount", 1);
+        SetField(proposed, "highestTierCreatedThisRun", 0);
+        SetField(GetField(proposed, "economy"), "cash", 0);
+        SetField(GetField(proposed, "progression"), "boardSpaceLevel", 3);
+
+        MethodInfo serialize = managerType.GetMethod(
+            "SerializeWithCapacity",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo promote = managerType.GetMethod(
+            "WriteSnapshotAtomically",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo restore = managerType.GetMethod(
+            "RestorePrimaryFromBackup",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        byte[] priorBytes = System.Text.Encoding.UTF8.GetBytes(
+            (string)serialize.Invoke(null, new[] { prior, (object)0 }));
+        byte[] proposedBytes = System.Text.Encoding.UTF8.GetBytes(
+            (string)serialize.Invoke(null, new[] { proposed, (object)0 }));
+        var managerObject = new GameObject("Rebirth snapshot transaction test");
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "SweetMergeRebirthSave_" + Guid.NewGuid().ToString("N"));
+        string primaryPath = Path.Combine(directory, "player_save_v2.json");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            object manager = managerObject.AddComponent(managerType);
+            promote.Invoke(manager, new object[] { primaryPath, priorBytes });
+            promote.Invoke(manager, new object[] { primaryPath, proposedBytes });
+
+            CollectionAssert.AreEqual(proposedBytes, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(priorBytes, File.ReadAllBytes(primaryPath + ".bak"));
+
+            restore.Invoke(
+                manager,
+                new object[] { primaryPath, priorBytes, true, proposedBytes });
+            CollectionAssert.AreEqual(priorBytes, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(priorBytes, File.ReadAllBytes(primaryPath + ".bak"));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void RebirthCommitUsesPreparedSessionWhenLiveCaptureIsBlocked()
+    {
+        RebirthTransactionTestSetup setup =
+            CreateRebirthTransactionTestSetup();
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "SweetMergeRebirthCapture_" + Guid.NewGuid().ToString("N"));
+        string snapshotPath = Path.Combine(directory, "player_save_v2.json");
+        try
+        {
+            setup.SessionManager.GetType()
+                .GetMethod("SaveSession")
+                .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
+            setup.SaveManager.GetType()
+                .GetMethod("RecordSessionCustomerCapacity")
+                .Invoke(setup.SaveManager,
+                    new object[] { setup.FreshSession, 1 });
+
+            MethodInfo capture = setup.Controller.GetType().GetMethod(
+                "TryCaptureSession");
+            Assert.IsFalse((bool)capture.Invoke(setup.Controller, null),
+                "Live capture must remain blocked during replacement.");
+            Assert.IsTrue((bool)setup.Controller.GetType()
+                .GetProperty("IsPreparedFreshSessionForCommit",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(setup.Controller));
+
+            MethodInfo commit = GetRebirthSnapshotCommitMethod(
+                setup.SaveManager);
+            object[] arguments = { 1, snapshotPath, false };
+            Assert.IsTrue((bool)commit.Invoke(setup.SaveManager, arguments));
+            Assert.IsTrue((bool)arguments[2]);
+
+            object committed = JsonUtility.FromJson(
+                File.ReadAllText(snapshotPath),
+                FindPlayerType("PlayerSaveData"));
+            Assert.AreEqual(1, GetField(committed, "completedRebirthCount"));
+            Assert.AreEqual(0, GetField(GetField(committed, "economy"), "cash"));
+            Assert.AreEqual(
+                0,
+                GetField(committed, "highestTierCreatedThisRun"));
+            object mergeGameplay = GetField(committed, "mergeGameplay");
+            var committedOrders = (System.Collections.IList)GetField(
+                mergeGameplay, "customerOrders");
+            Assert.AreEqual(
+                4,
+                GetField(committedOrders[0], "orderId"),
+                "The committed save must use the staged fresh session.");
+        }
+        finally
+        {
+            DestroyRebirthTransactionTestSetup(setup);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void FailedRebirthSnapshotCommitRestoresPreviousSessionAndCapacity()
+    {
+        RebirthTransactionTestSetup setup =
+            CreateRebirthTransactionTestSetup();
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "SweetMergeRebirthRollback_" + Guid.NewGuid().ToString("N"));
+        string blockingFile = Path.Combine(directory, "not-a-directory");
+        string snapshotPath = Path.Combine(
+            blockingFile,
+            "player_save_v2.json");
+        object previousSession = setup.PreviousSession;
+        object previousOrders = setup.PreviousOrderState;
+        object previousPreview = setup.PreviousPreview;
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(blockingFile, "preserve");
+            setup.SessionManager.GetType()
+                .GetMethod("SaveSession")
+                .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
+            setup.SaveManager.GetType()
+                .GetMethod("RecordSessionCustomerCapacity")
+                .Invoke(setup.SaveManager, new object[] { setup.FreshSession, 1 });
+
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("^REBIRTH SAVE \\| Snapshot commit failed\\."));
+            MethodInfo commit = GetRebirthSnapshotCommitMethod(
+                setup.SaveManager);
+            object[] arguments = { 1, snapshotPath, false };
+            Assert.IsFalse((bool)commit.Invoke(setup.SaveManager, arguments));
+            Assert.IsFalse((bool)arguments[2]);
+
+            Type controllerType = setup.Controller.GetType();
+            Type placementType = controllerType.GetNestedType(
+                "DessertPlacement",
+                BindingFlags.NonPublic);
+            object emptyPlacements = Activator.CreateInstance(
+                typeof(List<>).MakeGenericType(placementType));
+            MethodInfo rollback = controllerType.GetMethod(
+                "TryRestorePreviousLiveSession",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsTrue((bool)rollback.Invoke(
+                setup.Controller,
+                new[]
+                {
+                    emptyPlacements,
+                    previousOrders,
+                    previousPreview,
+                    previousSession,
+                    (object)1,
+                    setup.Coordinator,
+                    setup.SaveManager
+                }));
+
+            Assert.AreSame(
+                previousSession,
+                setup.SessionManager.GetType()
+                    .GetProperty("SessionData").GetValue(setup.SessionManager));
+            object[] capacityArguments = { previousSession, 1, 0 };
+            Assert.IsTrue((bool)setup.SaveManager.GetType()
+                .GetMethod("TryGetSessionCustomerCapacity")
+                .Invoke(setup.SaveManager, capacityArguments));
+            Assert.AreEqual(1, capacityArguments[2]);
+            Assert.AreEqual("preserve", File.ReadAllText(blockingFile));
+            Assert.AreEqual(0, setup.Progression.GetType()
+                .GetProperty("CurrentRebirthCount").GetValue(setup.Progression));
+            Assert.AreEqual(128, setup.Economy.GetType()
+                .GetProperty("CurrentCash").GetValue(setup.Economy));
+        }
+        finally
+        {
+            DestroyRebirthTransactionTestSetup(setup);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
     public void InvalidV2PrimaryOrBackupIsNeverReplacedAutomatically()
     {
         object save = Activator.CreateInstance(FindPlayerType("PlayerSaveData"));
@@ -928,6 +1519,20 @@ public class DataFoundationTests
             .SetValue(target, value);
     }
 
+    private static void SetPrivateStaticProperty(
+        Type targetType,
+        string propertyName,
+        object value)
+    {
+        targetType.GetProperty(
+                propertyName,
+                BindingFlags.Static |
+                BindingFlags.Public |
+                BindingFlags.NonPublic)
+            .GetSetMethod(true)
+            .Invoke(null, new[] { value });
+    }
+
     private int activeGeneratedEventCount;
 
     private void RecordGeneratedEvent()
@@ -1011,6 +1616,277 @@ public class DataFoundationTests
         return Activator.CreateInstance(
             stateType,
             new object[] { rebirthCount, highestTierCreatedThisRun });
+    }
+
+    private sealed class ProgressionPurchaseTestSetup
+    {
+        public GameObject ProgressionObject;
+        public GameObject EconomyObject;
+        public object Progression;
+        public object Economy;
+    }
+
+    private sealed class RebirthTransactionTestSetup
+    {
+        public ProgressionPurchaseTestSetup ProgressionSetup;
+        public List<GameObject> Objects = new List<GameObject>();
+        public object Progression;
+        public object Economy;
+        public object SaveManager;
+        public object SessionManager;
+        public object Controller;
+        public object Coordinator;
+        public object PreviousSession;
+        public object FreshSession;
+        public object PreviousOrderState;
+        public object PreviousPreview;
+    }
+
+    private static RebirthTransactionTestSetup
+        CreateRebirthTransactionTestSetup()
+    {
+        var setup = new RebirthTransactionTestSetup
+        {
+            ProgressionSetup = CreateProgressionPurchaseTestSetup()
+        };
+        setup.Progression = setup.ProgressionSetup.Progression;
+        setup.Economy = setup.ProgressionSetup.Economy;
+        SetPrivateStaticProperty(
+            setup.Progression.GetType(), "Instance", setup.Progression);
+        SetPrivateStaticProperty(
+            setup.Economy.GetType(), "Instance", setup.Economy);
+        SetPrivateField(setup.Progression, "rebirthProgression",
+            CreateRebirthState(0, 7));
+        SetPrivateField(setup.Economy, "currentCash", 128);
+
+        object orderDefinition = AssetDatabase.LoadMainAssetAtPath(
+            AssetDatabase.GUIDToAssetPath(ExistingOrderDefinitionIds[0]));
+        object freshOrderDefinition = AssetDatabase.LoadMainAssetAtPath(
+            AssetDatabase.GUIDToAssetPath(ExistingOrderDefinitionIds[1]));
+        object[] dessertDefinitions = Enumerable.Range(1, 30)
+            .Select(tier => AssetDatabase.LoadMainAssetAtPath(
+                $"{DessertFolder}/Dessert_{tier:00}.asset"))
+            .ToArray();
+
+        setup.SaveManager = AddInactiveComponent(
+            setup, "Rebirth transaction save", "SaveManager");
+        setup.SessionManager = AddInactiveComponent(
+            setup, "Rebirth transaction session", "MergeSessionManager");
+        setup.Coordinator = AddInactiveComponent(
+            setup, "Rebirth transaction startup", "GameStartupCoordinator");
+        object gridManager = AddInactiveComponent(
+            setup, "Rebirth transaction board", "GridManager");
+        object shelfManager = AddInactiveComponent(
+            setup, "Rebirth transaction shelf", "ShelfManager");
+        object orderManager = AddInactiveComponent(
+            setup, "Rebirth transaction orders", "OrderManager");
+        object dessertSpawner = AddInactiveComponent(
+            setup, "Rebirth transaction preview", "DessertSpawner");
+        setup.Controller = AddInactiveComponent(
+            setup, "Rebirth transaction controller", "MergeSessionController");
+
+        SetPrivateField(orderManager, "progressionManager", setup.Progression);
+        orderManager.GetType().GetMethod(
+                "InitializeCustomerSlots",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(orderManager, null);
+        SetPrivateField(dessertSpawner, "progressionManager", setup.Progression);
+        SetPrivateField(
+            dessertSpawner,
+            "dessertDefinitions",
+            ConvertArray(dessertDefinitions, "DessertDefinition"));
+        object preview = dessertDefinitions[0];
+        SetPrivateField(dessertSpawner, "nextDessert", preview);
+        SetPrivateField(
+            shelfManager,
+            "slots",
+            Array.CreateInstance(FindPlayerType("ShelfSlot"), 0));
+
+        SetPrivateField(setup.Controller, "gridManager", gridManager);
+        SetPrivateField(setup.Controller, "shelfManager", shelfManager);
+        SetPrivateField(setup.Controller, "orderManager", orderManager);
+        SetPrivateField(setup.Controller, "dessertSpawner", dessertSpawner);
+
+        setup.PreviousSession = CreateTestMergeSession(
+            orderDefinition, 1, 1);
+        setup.FreshSession = CreateTestMergeSession(
+            freshOrderDefinition, 4, 2);
+        setup.PreviousOrderState = orderManager.GetType().GetMethod(
+                "CaptureSessionReplacementState",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(orderManager, null);
+        setup.PreviousPreview = preview;
+        setup.SessionManager.GetType().GetMethod("SaveSession")
+            .Invoke(setup.SessionManager, new object[] { setup.PreviousSession });
+        setup.SaveManager.GetType().GetMethod("RecordSessionCustomerCapacity")
+            .Invoke(setup.SaveManager,
+                new object[] { setup.PreviousSession, 1 });
+
+        SetPrivateStaticProperty(
+            setup.SaveManager.GetType(), "Instance", setup.SaveManager);
+        SetPrivateStaticProperty(
+            setup.SessionManager.GetType(), "Instance", setup.SessionManager);
+        SetPrivateStaticProperty(
+            setup.Coordinator.GetType(), "Instance", setup.Coordinator);
+
+        GameObject controllerObject =
+            setup.Controller is Component controllerComponent
+                ? controllerComponent.gameObject
+                : null;
+        controllerObject.SetActive(true);
+        SetPrivateField(setup.Controller, "restorationInProgress", true);
+        SetPrivateField(
+            setup.Controller,
+            "replacementSessionPreparedForCommit",
+            true);
+        SetPropertyValue(
+            setup.Controller,
+            "IsRestorationVerified",
+            true);
+
+        SetPrivateField(
+            setup.Coordinator,
+            "verifiedController",
+            setup.Controller);
+        SetPropertyValue(
+            setup.Coordinator,
+            "Status",
+            Enum.Parse(
+                setup.Coordinator.GetType().GetProperty("Status").PropertyType,
+                "NewGame"));
+        SetPrivateField(setup.SaveManager, "lifecycleSavingReady", true);
+        return setup;
+    }
+
+    private static object AddInactiveComponent(
+        RebirthTransactionTestSetup setup,
+        string objectName,
+        string componentType)
+    {
+        var gameObject = new GameObject(objectName);
+        gameObject.SetActive(false);
+        setup.Objects.Add(gameObject);
+        return gameObject.AddComponent(FindPlayerType(componentType));
+    }
+
+    private static Array ConvertArray(object[] values, string elementType)
+    {
+        Array result = Array.CreateInstance(
+            FindPlayerType(elementType),
+            values.Length);
+        for (int i = 0; i < values.Length; i++)
+            result.SetValue(values[i], i);
+        return result;
+    }
+
+    private static object CreateTestMergeSession(
+        object orderDefinition,
+        int orderId,
+        int nextDessertTier)
+    {
+        object session = Activator.CreateInstance(
+            FindPlayerType("MergeSessionData"));
+        SetField(session, "nextOrderId", orderId + 1);
+        SetField(session, "nextDessertTier", nextDessertTier);
+        object customerOrder = Activator.CreateInstance(
+            FindPlayerType("CustomerOrderState"),
+            new[] { (object)0, orderId, orderDefinition });
+        ((System.Collections.IList)GetField(session, "customerOrders"))
+            .Add(customerOrder);
+        return session;
+    }
+
+    private static MethodInfo GetRebirthSnapshotCommitMethod(object saveManager)
+    {
+        return saveManager.GetType().GetMethod(
+            "TryCommitRebirthSnapshot",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(int), typeof(string), typeof(bool).MakeByRefType() },
+            null);
+    }
+
+    private static void SetPropertyValue(
+        object target,
+        string propertyName,
+        object value)
+    {
+        target.GetType().GetProperty(
+                propertyName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .GetSetMethod(true)
+            .Invoke(target, new[] { value });
+    }
+
+    private static void DestroyRebirthTransactionTestSetup(
+        RebirthTransactionTestSetup setup)
+    {
+        SetPrivateStaticProperty(
+            setup.SaveManager.GetType(), "Instance", null);
+        SetPrivateStaticProperty(
+            setup.SessionManager.GetType(), "Instance", null);
+        SetPrivateStaticProperty(
+            setup.Coordinator.GetType(), "Instance", null);
+        SetPrivateStaticProperty(
+            setup.Progression.GetType(), "Instance", null);
+        SetPrivateStaticProperty(
+            setup.Economy.GetType(), "Instance", null);
+
+        foreach (GameObject gameObject in setup.Objects)
+            UnityEngine.Object.DestroyImmediate(gameObject);
+        DestroyProgressionPurchaseTestSetup(setup.ProgressionSetup);
+    }
+
+    private static ProgressionPurchaseTestSetup CreateProgressionPurchaseTestSetup()
+    {
+        var setup = new ProgressionPurchaseTestSetup
+        {
+            ProgressionObject = new GameObject("Progression purchase test"),
+            EconomyObject = new GameObject("Economy purchase test")
+        };
+        setup.ProgressionObject.SetActive(false);
+        setup.EconomyObject.SetActive(false);
+
+        Type progressionType = FindPlayerType("PlayerProgressionManager");
+        setup.Progression =
+            setup.ProgressionObject.AddComponent(progressionType);
+        string[] upgradeTypes =
+        {
+            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier"
+        };
+        string[] assetNames =
+        {
+            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier"
+        };
+        string[] fieldNames =
+        {
+            "ovenUpgrade", "boardSpaceUpgrade", "shelfUpgrade",
+            "customerUpgrade", "moneyMultiplierUpgrade"
+        };
+        for (int i = 0; i < upgradeTypes.Length; i++)
+        {
+            object definition = AssetDatabase.LoadMainAssetAtPath(
+                $"Assets/_Game/Data/Upgrades/Upgrade_{assetNames[i]}.asset");
+            Assert.IsNotNull(definition);
+            Assert.AreEqual(
+                upgradeTypes[i],
+                definition.GetType().GetProperty("UpgradeType")
+                    .GetValue(definition).ToString());
+            SetPrivateField(setup.Progression, fieldNames[i], definition);
+        }
+
+        setup.Economy = setup.EconomyObject.AddComponent(
+            FindPlayerType("EconomyManager"));
+        SetPrivateField(setup.Economy, "currentCash", 100000);
+        SetPrivateField(setup.Economy, "initialized", true);
+        return setup;
+    }
+
+    private static void DestroyProgressionPurchaseTestSetup(
+        ProgressionPurchaseTestSetup setup)
+    {
+        UnityEngine.Object.DestroyImmediate(setup.ProgressionObject);
+        UnityEngine.Object.DestroyImmediate(setup.EconomyObject);
     }
 
     private static object GetRebirthProperty(object state, string propertyName)

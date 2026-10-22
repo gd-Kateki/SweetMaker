@@ -28,6 +28,9 @@ public sealed class RebirthProgressionState
     public int CurrentRebirthCount =>
         Mathf.Clamp(currentRebirthCount, 0, MaximumRebirthCount);
 
+    public int RebirthUnlockedOvenLevel =>
+        GetOvenLevelForRebirthCount(CurrentRebirthCount);
+
     public int HighestTierCreatedThisRun =>
         Mathf.Clamp(highestTierCreatedThisRun, 0, 30);
 
@@ -110,5 +113,20 @@ public sealed class RebirthProgressionState
         return HasNextRebirth &&
                HighestTierCreatedThisRun >= NextRequiredTier &&
                cashHeld >= NextRequiredCash;
+    }
+
+    public static int GetOvenLevelForRebirthCount(int rebirthCount)
+    {
+        return Mathf.Clamp(rebirthCount, 0, MaximumRebirthCount) / 2 + 1;
+    }
+
+    internal bool TryCommitRebirth(int cashHeld)
+    {
+        if (!CanRebirth(cashHeld))
+            return false;
+
+        currentRebirthCount++;
+        highestTierCreatedThisRun = 0;
+        return true;
     }
 }

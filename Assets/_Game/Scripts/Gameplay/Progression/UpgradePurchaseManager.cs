@@ -201,23 +201,7 @@ public class UpgradePurchaseManager : MonoBehaviour
     public bool CanAffordNextUpgrade(
         UpgradeType type)
     {
-        ResolveReferences();
-
-        if (economyManager == null)
-            return false;
-
-        if (IsMaxLevel(type))
-            return false;
-
-        UpgradeLevelData nextLevel =
-            GetNextLevel(type);
-
-        if (nextLevel == null)
-            return false;
-
-        return economyManager.CanAfford(
-            nextLevel.UpgradeCost
-        );
+        return CanPurchaseUpgrade(type);
     }
 
     public bool CanPurchaseUpgrade(
@@ -244,9 +228,26 @@ public class UpgradePurchaseManager : MonoBehaviour
         if (nextLevel == null)
             return false;
 
+        if (!IsUnlockedByRebirth(type, nextLevel.Level))
+            return false;
+
         return economyManager.CanAfford(
             nextLevel.UpgradeCost
         );
+    }
+
+    public bool IsNextUpgradeUnlockedByRebirth(UpgradeType type)
+    {
+        if (!EnsureReferences() || type == UpgradeType.Oven)
+            return false;
+
+        UpgradeDefinition definition = GetDefinition(type);
+        if (definition == null || !definition.IsValid || IsMaxLevel(type))
+            return false;
+
+        UpgradeLevelData nextLevel = GetNextLevel(type);
+        return nextLevel != null &&
+               IsUnlockedByRebirth(type, nextLevel.Level);
     }
 
     // ==================================================
@@ -298,6 +299,14 @@ public class UpgradePurchaseManager : MonoBehaviour
                 type
             );
 
+        if (type == UpgradeType.Oven)
+        {
+            Debug.Log(
+                "UPGRADE PURCHASE BLOCKED | " +
+                "Oven levels are unlocked by completed Rebirths.");
+            return false;
+        }
+
         if (definition.IsMaxLevel(
                 currentLevel))
         {
@@ -323,6 +332,15 @@ public class UpgradePurchaseManager : MonoBehaviour
                 "Next level could not be found."
             );
 
+            return false;
+        }
+
+        if (!IsUnlockedByRebirth(type, nextLevel.Level))
+        {
+            Debug.Log(
+                $"UPGRADE PURCHASE BLOCKED | " +
+                $"{definition.DisplayName} L{nextLevel.Level} | " +
+                $"Requires R{GetRequiredRebirthCount(type, nextLevel.Level)}.");
             return false;
         }
 
@@ -401,6 +419,41 @@ public class UpgradePurchaseManager : MonoBehaviour
         );
 
         return true;
+    }
+
+    private bool IsUnlockedByRebirth(UpgradeType type, int targetLevel)
+    {
+        int requiredRebirthCount = GetRequiredRebirthCount(type, targetLevel);
+        return requiredRebirthCount >= 0 &&
+               progressionManager.CurrentRebirthCount >= requiredRebirthCount;
+    }
+
+    internal static int GetRequiredRebirthCount(
+        UpgradeType type,
+        int targetLevel)
+    {
+        if (type == UpgradeType.Oven)
+            return -1;
+
+        switch (targetLevel)
+        {
+            case 2:
+                return 2;
+            case 3:
+                return 5;
+            case 4:
+                return 7;
+            case 5:
+                return type == UpgradeType.BoardSpace ||
+                       type == UpgradeType.Shelf
+                    ? 9
+                    : -1;
+            case 6:
+            case 7:
+                return type == UpgradeType.BoardSpace ? 10 : -1;
+            default:
+                return -1;
+        }
     }
 
     // ==================================================

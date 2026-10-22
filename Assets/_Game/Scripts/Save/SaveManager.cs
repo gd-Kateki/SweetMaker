@@ -1424,6 +1424,111 @@ public class SaveManager : MonoBehaviour
 
     }
 
+    internal bool TryCommitRebirthSnapshot(
+        int nextRebirthCount,
+        out bool snapshotCommitted)
+    {
+        return TryCommitRebirthSnapshot(
+            nextRebirthCount,
+            SaveFilePath,
+            out snapshotCommitted);
+    }
+
+    internal bool TryCommitRebirthSnapshot(
+        int nextRebirthCount,
+        string snapshotPath,
+        out bool snapshotCommitted)
+    {
+        snapshotCommitted = false;
+        if (!CanWriteCurrentState() || saveInProgress || loadInProgress)
+            return false;
+
+        saveInProgress = true;
+        try
+        {
+            var progression = PlayerProgressionManager.Instance;
+            var economy = EconomyManager.Instance;
+            if (progression == null || economy == null ||
+                nextRebirthCount != progression.CurrentRebirthCount + 1 ||
+                !progression.IsEligibleForNextRebirth)
+            {
+                Debug.LogError("REBIRTH SAVE | Current progression is no longer eligible.");
+                return false;
+            }
+
+            MergeSessionController controller =
+                FindAnyObjectByType<MergeSessionController>();
+            if (controller == null ||
+                !controller.IsPreparedFreshSessionForCommit)
+            {
+                Debug.LogError(
+                    "REBIRTH SAVE | No verified fresh session is staged for commit.");
+                return false;
+            }
+
+            var proposed = CreateNewSaveData();
+            if (!CaptureEconomy(proposed) ||
+                !CaptureProgression(proposed) ||
+                !CaptureMergeSession(proposed))
+            {
+                Debug.LogError("REBIRTH SAVE | Current state capture failed.");
+                return false;
+            }
+
+            proposed.economy.cash = 0;
+            proposed.completedRebirthCount = nextRebirthCount;
+            proposed.highestTierCreatedThisRun = 0;
+            proposed.progression.ovenLevel =
+                PlayerProgressionManager.GetOvenLevelForRebirthCount(nextRebirthCount);
+
+            int capacity = 0;
+            if (proposed.mergeGameplay.hasSession &&
+                !TryGetSessionCustomerCapacity(
+                    MergeSessionManager.Instance.SessionData,
+                    progression.ActiveCustomerOrders,
+                    out capacity))
+            {
+                Debug.LogError("REBIRTH SAVE | Fresh session capacity provenance is missing.");
+                return false;
+            }
+
+            if (!TryPrepareDetachedSnapshot(
+                    proposed,
+                    capacity,
+                    out PlayerSaveData detached,
+                    out string failureReason))
+            {
+                Debug.LogError(
+                    "REBIRTH SAVE | Proposed V2 snapshot was rejected. " +
+                    failureReason);
+                return false;
+            }
+
+            bool saved = TryWritePreparedSnapshot(
+                detached,
+                capacity,
+                snapshotPath,
+                out snapshotCommitted);
+            if (!saved && snapshotCommitted)
+            {
+                Debug.LogError(
+                    "REBIRTH SAVE | Atomic promotion completed, but post-write verification failed.");
+                return true;
+            }
+
+            return saved;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError("REBIRTH SAVE | Snapshot commit failed.\n" + exception);
+            return snapshotCommitted;
+        }
+        finally
+        {
+            saveInProgress = false;
+        }
+    }
+
     // ==================================================
 
     // LOAD CURRENT GAME
@@ -1698,27 +1803,35 @@ public class SaveManager : MonoBehaviour
 
         }
 
+        return TryWritePreparedSnapshot(saveData, capacity, out _);
+    }
+
+    private bool TryWritePreparedSnapshot(
+        PlayerSaveData saveData,
+        int capacity,
+        out bool snapshotCommitted)
+    {
+        return TryWritePreparedSnapshot(
+            saveData,
+            capacity,
+            SaveFilePath,
+            out snapshotCommitted);
+    }
+
+    private bool TryWritePreparedSnapshot(
+        PlayerSaveData saveData,
+        int capacity,
+        string path,
+        out bool snapshotCommitted)
+    {
+        snapshotCommitted = false;
         string json = SerializeWithCapacity(saveData, capacity);
-
         if (!IsValidSerializedSnapshot(json))
-
         {
-
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
-
             return false;
-
         }
-
         byte[] expectedBytes = SaveEncoding.GetBytes(json);
-
-        string path = SaveFilePath;
-
-        // Guard even explicit/debug saves against overwriting a file written
-        // by a different game build. A failed load normally blocks saving, but
-        // this check also protects against an out-of-band file replacement.
-        // Invalid V2 files are preserved for recovery or diagnosis, never replaced
-        // automatically by a new snapshot.
         if (File.Exists(path))
         {
             byte[] onDiskBytes = File.ReadAllBytes(path);
@@ -1735,46 +1848,28 @@ public class SaveManager : MonoBehaviour
             {
                 Debug.LogError(
                     "SAVE | Refusing to overwrite an invalid V2 primary; " +
-                    "load/recovery or manual diagnosis is required."
-                );
+                    "load/recovery or manual diagnosis is required.");
                 return false;
             }
         }
 
-        // A disk file is trusted only if ALL bytes match the validated snapshot.
-
-        // Never sanitize disk content into equality; never trust a memory cache,
-
-        // file timestamp, length alone, or JsonUtility's missing-field defaults.
-
         if (DiskMatchesSnapshot(path, expectedBytes))
-
         {
-
+            snapshotCommitted = true;
             Debug.Log("SAVE | Unchanged validated disk content; write skipped.");
-
             return true;
-
         }
 
-        // Step 12.8.8.2: preserve a validated old primary before committing new bytes.
-
         WriteSnapshotAtomically(path, expectedBytes);
-
+        snapshotCommitted = true;
         if (!DiskMatchesSnapshot(path, expectedBytes))
-
         {
-
             Debug.LogError("SAVE | Written file could not be verified.");
-
             return false;
-
         }
 
         Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");
-
         return true;
-
     }
 
     // The caller owns saveInProgress. One process/main-thread writer is required.

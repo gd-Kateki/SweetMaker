@@ -456,8 +456,9 @@ public class UpgradeCardUI : MonoBehaviour
 
         if (priceText != null)
         {
-            priceText.text =
-                $"${nextData.UpgradeCost:N0}";
+            priceText.text = type == UpgradeType.Oven
+                ? "REBIRTH"
+                : $"${nextData.UpgradeCost:N0}";
         }
 
         /*
@@ -471,16 +472,20 @@ public class UpgradeCardUI : MonoBehaviour
                 "UPGRADE";
         }
 
-        /*
-         * Every non-max upgrade remains clickable.
-         *
-         * UpgradePurchaseManager validates whether
-         * the transaction can actually occur.
-         */
+        bool unlockedByRebirth = purchaseManager != null &&
+            purchaseManager.IsNextUpgradeUnlockedByRebirth(type);
+
         if (purchaseButton != null)
         {
             purchaseButton.interactable =
-                true;
+                unlockedByRebirth;
+        }
+
+        if (buttonText != null && !showingPurchaseFeedback)
+        {
+            buttonText.text = unlockedByRebirth
+                ? "UPGRADE"
+                : type == UpgradeType.Oven ? "REBIRTH" : "LOCKED";
         }
     }
 
