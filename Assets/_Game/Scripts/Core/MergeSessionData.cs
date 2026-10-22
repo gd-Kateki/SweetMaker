@@ -45,6 +45,9 @@ public class CustomerOrderState
 
     public CustomerOrderDefinition
         definition;
+    public string displayName;
+    public int cashReward;
+    public OrderRequirement[] requirements;
 
     public CustomerOrderState(
         int customerIndex,
@@ -59,6 +62,64 @@ public class CustomerOrderState
 
         this.definition =
             definition;
+    }
+
+    public CustomerOrderState(
+        int customerIndex,
+        CustomerOrder order)
+    {
+        this.customerIndex = customerIndex;
+        orderId = order != null ? order.OrderId : 0;
+        definition = order != null ? order.Definition : null;
+        displayName = order != null ? order.DisplayName : null;
+        cashReward = order != null ? order.CashReward : 0;
+
+        if (order == null || order.Requirements == null)
+            return;
+
+        requirements = new OrderRequirement[order.Requirements.Count];
+        for (int i = 0; i < requirements.Length; i++)
+        {
+            OrderRequirement source = order.Requirements[i];
+            requirements[i] = source == null
+                ? null
+                : new OrderRequirement(source.Dessert, source.Amount);
+        }
+    }
+
+    public CustomerOrderState Clone()
+    {
+        var clone = new CustomerOrderState(customerIndex, orderId, definition)
+        {
+            displayName = displayName,
+            cashReward = cashReward
+        };
+        if (requirements != null)
+        {
+            clone.requirements = new OrderRequirement[requirements.Length];
+            for (int i = 0; i < requirements.Length; i++)
+            {
+                OrderRequirement requirement = requirements[i];
+                clone.requirements[i] = requirement == null
+                    ? null
+                    : new OrderRequirement(
+                        requirement.Dessert,
+                        requirement.Amount);
+            }
+        }
+
+        return clone;
+    }
+
+    public CustomerOrder CreateOrder()
+    {
+        if (definition != null)
+            return new CustomerOrder(orderId, definition);
+        return new CustomerOrder(
+            orderId,
+            displayName,
+            cashReward,
+            requirements);
     }
 }
 

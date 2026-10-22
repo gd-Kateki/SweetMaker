@@ -662,17 +662,12 @@ public class MergeSessionController : MonoBehaviour
             CustomerOrder order =
                 orders[i];
             if (order == null ||
-                !order.IsValid ||
-                order.Definition == null)
+                !order.IsValid)
             {
                 continue;
             }
             data.customerOrders.Add(
-                new CustomerOrderState(
-                    i,
-                    order.OrderId,
-                    order.Definition
-                )
+                new CustomerOrderState(i, order)
             );
         }
         data.nextOrderId =
@@ -819,7 +814,7 @@ public class MergeSessionController : MonoBehaviour
         foreach (var row in source.shelfDesserts)
             copy.shelfDesserts.Add(new ShelfDessertState(row.slotIndex, row.dessertTier));
         foreach (var row in source.customerOrders)
-            copy.customerOrders.Add(new CustomerOrderState(row.customerIndex, row.orderId, row.definition));
+            copy.customerOrders.Add(row.Clone());
         copy.nextOrderId = source.nextOrderId;
         copy.nextDessertTier = source.nextDessertTier;
         return copy;
@@ -899,7 +894,7 @@ public class MergeSessionController : MonoBehaviour
             if ((i < expectedOrders) != (order != null))
             { reason = "Order is absent from an expected slot or present in a locked slot."; return false; }
             if (order == null) continue;
-            if (!order.IsValid || order.Definition == null || order.OrderId <= 0 ||
+            if (!order.IsValid || order.OrderId <= 0 ||
                 !orderIds.Add(order.OrderId) || orderManager.NextOrderId <= order.OrderId)
             { reason = "Order definition, identity or next order counter is invalid."; return false; }
             validOrders++;

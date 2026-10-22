@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_05
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 5
-  displayName: Fruit Tart
+  displayName: Coconut Sticky Rice
+  sprite: {fileID: 5509327674621122132, guid: b2b47b7496a6ee147a2e0b9369bc00ec, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 2781489736351135968, guid: fad156bac585117459041d3dc1a7efcc, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

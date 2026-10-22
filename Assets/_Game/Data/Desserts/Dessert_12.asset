@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 12
   displayName: Tier 12 Placeholder
-  sprite: {fileID: 0}
+  sprite: {fileID: 4672273770704921299, guid: f69ec316aaa3fde4aa895162a8f64ef1, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
   visualScale: 0.8
   canSpawnFromOven: 1

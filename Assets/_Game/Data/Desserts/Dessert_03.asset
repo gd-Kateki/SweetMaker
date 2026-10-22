@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_03
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 3
-  displayName: Cupcake
+  displayName: Dorayaki
+  sprite: {fileID: 6870548194696487090, guid: b4dc09d6de5e1164488c9d44b3a06ec7, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 5577445525568095810, guid: e63c233df7aa05341953cde1159c80ab, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 10

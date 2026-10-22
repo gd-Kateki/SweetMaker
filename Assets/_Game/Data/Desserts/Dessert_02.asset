@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_02
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 2
-  displayName: Donut
+  displayName: Custtard Pudding
+  sprite: {fileID: 6506292920167615114, guid: fbebd557b3c8a814fa96f60e158a9f6c, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 2569236167131993415, guid: efeb81c22a6551b45929ceef51e15a2c, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 30

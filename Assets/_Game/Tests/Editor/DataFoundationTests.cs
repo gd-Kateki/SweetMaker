@@ -272,6 +272,376 @@ public class DataFoundationTests
     }
 
     [Test]
+    public void ProceduralOrdersHonorShapeAndDifficultyBoundaries()
+    {
+        Array definitions = LoadDessertDefinitions();
+        int[] shapeRolls = { 0, 59, 60, 99 };
+        string[] expectedShapes = { "Single", "Single", "Mixed", "Mixed" };
+        int[] difficultyRolls = { 0, 49, 50, 84, 85, 99 };
+        string[] expectedDifficulties =
+        {
+            "Easy", "Easy", "Standard", "Standard", "Hard", "Hard"
+        };
+        int[] singleTiers = { 5, 6, 7 };
+        int[][] mixedTiers =
+        {
+            new[] { 4, 3 },
+            new[] { 5, 4 },
+            new[] { 6, 5 }
+        };
+        string[] difficultyNames = { "Easy", "Standard", "Hard" };
+        int[] expectedRewards = { 32, 67, 147 };
+
+        for (int shapeIndex = 0; shapeIndex < shapeRolls.Length; shapeIndex++)
+        {
+            for (int difficultyIndex = 0;
+                 difficultyIndex < difficultyRolls.Length;
+                 difficultyIndex++)
+            {
+                object order = GenerateProceduralOrder(
+                    definitions,
+                    1,
+                    8,
+                    shapeRolls[shapeIndex],
+                    difficultyRolls[difficultyIndex],
+                    0);
+                Assert.AreEqual(
+                    expectedShapes[shapeIndex],
+                    GetPropertyValue(order, "Shape").ToString());
+                Assert.AreEqual(
+                    expectedDifficulties[difficultyIndex],
+                    GetPropertyValue(order, "Difficulty").ToString());
+                Assert.AreEqual("P1", GetPropertyValue(order, "ReferencePoolId"));
+                Assert.AreEqual(
+                    expectedRewards[difficultyIndex / 2],
+                    GetPropertyValue(order, "BaseReward"));
+
+                List<object> requirements = ((IEnumerable)GetPropertyValue(
+                    order,
+                    "Requirements")).Cast<object>().ToList();
+                if (shapeIndex < 2)
+                {
+                    Assert.AreEqual(1, requirements.Count);
+                    AssertRequirement(
+                        requirements[0],
+                        singleTiers[difficultyIndex / 2],
+                        1);
+                }
+                else
+                {
+                    Assert.AreEqual(2, requirements.Count);
+                    int[] tiers = mixedTiers[difficultyIndex / 2];
+                    AssertRequirement(requirements[0], tiers[0], 1);
+                    AssertRequirement(requirements[1], tiers[1], 2);
+                }
+            }
+        }
+    }
+
+    [Test]
+    public void ProceduralOrdersSelectOnlyWeightedReferencePoolsAndBaseRewards()
+    {
+        Array definitions = LoadDessertDefinitions();
+        int[][] weights =
+        {
+            new[] { 100, 0, 0, 0, 0, 0 },
+            new[] { 25, 75, 0, 0, 0, 0 },
+            new[] { 5, 20, 75, 0, 0, 0 },
+            new[] { 3, 7, 15, 75, 0, 0 },
+            new[] { 2, 4, 7, 12, 75, 0 },
+            new[] { 1, 3, 4, 7, 10, 75 }
+        };
+        int[] maxUnlockedTiers = { 8, 12, 16, 20, 25, 30 };
+        int[][] expectedRewards =
+        {
+            new[] { 32, 67, 147 },
+            new[] { 80, 168, 368 },
+            new[] { 240, 504, 1104 },
+            new[] { 720, 1512, 3312 },
+            new[] { 2000, 4200, 9200 },
+            new[] { 6000, 12600, 27600 }
+        };
+        int[] difficultyRolls = { 0, 50, 85 };
+        string[] poolIds = { "P1", "P2", "P3", "P4", "P5", "P6" };
+
+        for (int ovenLevel = 1; ovenLevel <= 6; ovenLevel++)
+        {
+            int poolRoll = 0;
+            for (int poolIndex = 0; poolIndex < poolIds.Length; poolIndex++)
+            {
+                int weight = weights[ovenLevel - 1][poolIndex];
+                if (weight == 0)
+                    continue;
+
+                for (int difficultyIndex = 0;
+                     difficultyIndex < difficultyRolls.Length;
+                     difficultyIndex++)
+                {
+                    object order = GenerateProceduralOrder(
+                        definitions,
+                        ovenLevel,
+                        maxUnlockedTiers[ovenLevel - 1],
+                        0,
+                        difficultyRolls[difficultyIndex],
+                        poolRoll);
+                    Assert.AreEqual(
+                        poolIds[poolIndex],
+                        GetPropertyValue(order, "ReferencePoolId"));
+                    Assert.AreEqual(
+                        expectedRewards[poolIndex][difficultyIndex],
+                        GetPropertyValue(order, "BaseReward"),
+                        $"{poolIds[poolIndex]} difficulty index {difficultyIndex}.");
+                }
+
+                poolRoll += weight;
+            }
+
+            Assert.AreEqual(100, poolRoll,
+                $"Oven L{ovenLevel} reference pool weights must total 100.");
+        }
+    }
+
+    [Test]
+    public void ProceduralOrderGeneratorRejectsInvalidRollsAndTierLimits()
+    {
+        Array definitions = LoadDessertDefinitions();
+        Type generatorType = FindPlayerType("ProceduralCustomerOrderGenerator");
+        MethodInfo generate = generatorType.GetMethod(
+            "TryGenerateFromRolls",
+            BindingFlags.Public | BindingFlags.Static);
+
+        object[] invalidShapeRoll =
+        {
+            definitions, 1, 8, 100, 0, 0, null
+        };
+        Assert.IsFalse((bool)generate.Invoke(null, invalidShapeRoll));
+        Assert.IsNull(invalidShapeRoll[6]);
+
+        object[] invalidOven =
+        {
+            definitions, 7, 30, 0, 0, 0, null
+        };
+        Assert.IsFalse((bool)generate.Invoke(null, invalidOven));
+
+        object[] aboveOvenTierLimit =
+        {
+            definitions, 1, 6, 0, 85, 0, null
+        };
+        Assert.IsFalse((bool)generate.Invoke(null, aboveOvenTierLimit),
+            "An order cannot require a tier above the current Oven unlock.");
+
+        object[] tierThirtyBoundary =
+        {
+            definitions, 6, 30, 0, 85, 25, null
+        };
+        Assert.IsTrue((bool)generate.Invoke(null, tierThirtyBoundary));
+        object order = tierThirtyBoundary[6];
+        AssertRequirement(
+            ((IEnumerable)GetPropertyValue(order, "Requirements"))
+                .Cast<object>()
+                .Single(),
+            29,
+            1);
+    }
+
+    [Test]
+    public void LiveProceduralOrdersFulfillPayOnceAndRestoreSavedRequirements()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            IList liveOrderSlots = (IList)GetPropertyValue(
+                fixture.Orders,
+                "CustomerOrders");
+            liveOrderSlots[0] = null;
+            fixture.Orders.GetType().GetMethod(
+                    "RefreshCustomerSlots",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.Orders, null);
+
+            Array orders = GetActiveOrders(fixture.Orders);
+            Assert.AreEqual(1, orders.Length);
+            object original = orders.GetValue(0);
+            Assert.IsNull(GetPropertyValue(original, "Definition"));
+            Assert.IsTrue((bool)GetPropertyValue(original, "IsValid"));
+            AssertOrderRequirementsWithinTierCap(
+                original,
+                (int)GetPropertyValue(fixture.Progression, "MaxUnlockedDessertTier"));
+
+            MethodInfo deterministicGenerate = fixture.Orders.GetType().GetMethod(
+                "TryGenerateProceduralOrder",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            object[] firstArguments =
+            {
+                500, new System.Random(1729), null
+            };
+            object[] secondArguments =
+            {
+                500, new System.Random(1729), null
+            };
+            Assert.IsTrue((bool)deterministicGenerate.Invoke(
+                fixture.Orders,
+                firstArguments));
+            Assert.IsTrue((bool)deterministicGenerate.Invoke(
+                fixture.Orders,
+                secondArguments));
+            AssertOrdersEqual(firstArguments[2], secondArguments[2]);
+
+            object economy = FindSingleton("EconomyManager");
+            int baseReward = (int)GetPropertyValue(original, "CashReward");
+            float multiplier = (float)GetPropertyValue(
+                economy,
+                "CurrentMoneyMultiplier");
+            int expectedPaidReward = Mathf.RoundToInt(baseReward * multiplier);
+            Assert.AreEqual(
+                expectedPaidReward,
+                economy.GetType().GetMethod("CalculateOrderReward")
+                    .Invoke(economy, new[] { original }),
+                "The existing reward pipeline applies the money multiplier once.");
+
+            MethodInfo capture = fixture.Controller.GetType()
+                .GetMethod("TryCaptureSession");
+            Assert.IsTrue((bool)capture.Invoke(fixture.Controller, null));
+            object saveData = Activator.CreateInstance(
+                FindPlayerType("MergeGameplaySaveData"));
+            Assert.IsTrue((bool)fixture.SessionManager.GetType()
+                .GetMethod("CaptureToSaveData")
+                .Invoke(fixture.SessionManager, new object[] { saveData }));
+            IList savedOrders = GetPublicList(saveData, "customerOrders");
+            Assert.AreEqual(1, savedOrders.Count);
+            object saved = savedOrders[0];
+            Assert.IsTrue(((string)GetField(saved, "definitionId"))
+                .StartsWith("procedural-order-v1:", StringComparison.Ordinal));
+
+            object saveSnapshot = Activator.CreateInstance(
+                FindPlayerType("PlayerSaveData"));
+            SetField(saveSnapshot, "mergeGameplay", saveData);
+            Type saveManagerType = fixture.SaveManager.GetType();
+            string json = (string)saveManagerType.GetMethod(
+                    "SerializeWithCapacity",
+                    BindingFlags.Static | BindingFlags.NonPublic)
+                .Invoke(null, new object[] { saveSnapshot, 1 });
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                    "IsValidSerializedSnapshot",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.SaveManager, new object[] { json }));
+            object reloadedSave = JsonUtility.FromJson(
+                json,
+                FindPlayerType("PlayerSaveData"));
+            object reloadedGameplay = GetField(reloadedSave, "mergeGameplay");
+
+            object restoredSession = Activator.CreateInstance(
+                FindPlayerType("MergeSessionData"));
+            MethodInfo restoreOrders = fixture.SessionManager.GetType().GetMethod(
+                "RestoreOrdersFromSaveData",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsTrue((bool)restoreOrders.Invoke(
+                fixture.SessionManager,
+                new[] { reloadedGameplay, restoredSession }));
+            SetField(
+                restoredSession,
+                "nextOrderId",
+                GetField(reloadedGameplay, "nextOrderId"));
+            var restoreOrderManager = fixture.Orders.GetType().GetMethod(
+                "RestoreCustomerOrders",
+                BindingFlags.Instance | BindingFlags.Public,
+                null,
+                new[]
+                {
+                    typeof(IReadOnlyList<>).MakeGenericType(
+                        FindPlayerType("CustomerOrderState")),
+                    typeof(int),
+                    typeof(int)
+                },
+                null);
+            Assert.IsTrue((bool)restoreOrderManager.Invoke(
+                fixture.Orders,
+                new object[]
+                {
+                    GetField(restoredSession, "customerOrders"),
+                    GetField(restoredSession, "nextOrderId"),
+                    1
+                }));
+            object reloaded = ((Array)GetActiveOrders(fixture.Orders)).GetValue(0);
+            AssertOrdersEqual(original, reloaded);
+
+            List<object> requirements = ((IEnumerable)GetPropertyValue(
+                reloaded,
+                "Requirements")).Cast<object>().ToList();
+            int requiredDesserts = requirements.Sum(
+                row => (int)GetPropertyValue(row, "Amount"));
+            Assert.LessOrEqual(
+                requiredDesserts,
+                fixture.Cells.Count - 1,
+                "The test board must fit the generated order.");
+            int cellIndex = 1;
+            foreach (object requirement in requirements)
+            {
+                int amountRequired = (int)GetPropertyValue(requirement, "Amount");
+                object dessertDefinition = GetPropertyValue(requirement, "Dessert");
+                for (int amount = 0; amount < amountRequired; amount++)
+                {
+                    if ((UnityEngine.Object)GetPropertyValue(
+                            dessertDefinition,
+                            "Sprite") == null)
+                    {
+                        string dessertName = (string)GetPropertyValue(
+                            dessertDefinition,
+                            "DisplayName");
+                        LogAssert.Expect(
+                            LogType.Error,
+                            $"{dessertName} has no sprite assigned.");
+                    }
+
+                    object dessert = AddRuntimeComponent(fixture, "Dessert");
+                    dessert.GetType().GetMethod("Initialize").Invoke(
+                        dessert,
+                        new[] { dessertDefinition, fixture.Cells[cellIndex] });
+                    fixture.Cells[cellIndex].GetType().GetMethod("PlaceDessert")
+                        .Invoke(
+                            fixture.Cells[cellIndex],
+                            new[] { dessert, (object)true });
+                    cellIndex++;
+                }
+            }
+
+            int completedOrderId = (int)GetPropertyValue(reloaded, "OrderId");
+            for (int i = 0; i < requiredDesserts; i++)
+            {
+                LogAssert.Expect(
+                    LogType.Error,
+                    new Regex("Destroy may not be called from edit mode"));
+            }
+            economy.GetType().GetMethod(
+                    "ResolveReferences",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(economy, null);
+            economy.GetType().GetMethod(
+                    "SubscribeToOrderManager",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(economy, null);
+            int cashBeforeCompletion = (int)GetPropertyValue(economy, "CurrentCash");
+            Assert.IsTrue((bool)fixture.Orders.GetType()
+                .GetMethod("TryFulfillOrderAtIndex")
+                .Invoke(fixture.Orders, new object[] { 0 }));
+            Assert.AreEqual(
+                cashBeforeCompletion + expectedPaidReward,
+                GetPropertyValue(economy, "CurrentCash"),
+                "Order completion must pay the rounded multiplied reward exactly once.");
+            object replacement = ((Array)GetActiveOrders(fixture.Orders)).GetValue(0);
+            Assert.Greater((int)GetPropertyValue(replacement, "OrderId"), completedOrderId);
+            Assert.IsTrue((bool)GetPropertyValue(replacement, "IsValid"));
+            AssertOrderRequirementsWithinTierCap(
+                replacement,
+                (int)GetPropertyValue(fixture.Progression, "MaxUnlockedDessertTier"));
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
     public void OvenLevelSixHasT30CapButRemainsUnavailableForPurchase()
     {
         var asset = AssetDatabase.LoadMainAssetAtPath(
@@ -1516,6 +1886,7 @@ public class DataFoundationTests
                     $"{DessertFolder}/Dessert_{tier:00}.asset"),
                 tier - 1);
         SetPrivateField(spawner, "dessertDefinitions", desserts);
+        SetPrivateField(orders, "dessertSpawner", spawner);
 
         try
         {
@@ -1921,6 +2292,8 @@ public class DataFoundationTests
             SetPrivateField(spawner, "gridManager", grid);
             SetPrivateField(spawner, "dessertDefinitions", LoadDessertDefinitions());
             ((UnityEngine.Component)spawner).gameObject.SetActive(true);
+            SetPrivateField(orders, "dessertSpawner", spawner);
+            SetPrivateField(sessionManager, "dessertSpawner", spawner);
             fixture.InitialPreview = AssetDatabase.LoadMainAssetAtPath(
                 $"{DessertFolder}/Dessert_30.asset");
             SetPrivateField(spawner, "nextDessert", fixture.InitialPreview);
@@ -2063,6 +2436,105 @@ public class DataFoundationTests
             definitions.SetValue(definition, tier - 1);
         }
         return definitions;
+    }
+
+    private static object GenerateProceduralOrder(
+        Array definitions,
+        int ovenLevel,
+        int maxUnlockedTier,
+        int shapeRoll,
+        int difficultyRoll,
+        int referencePoolRoll)
+    {
+        Type generatorType = FindPlayerType("ProceduralCustomerOrderGenerator");
+        MethodInfo generate = generatorType.GetMethod(
+            "TryGenerateFromRolls",
+            BindingFlags.Public | BindingFlags.Static);
+        Assert.IsNotNull(generate, "Procedural order roll entry point is missing.");
+
+        object[] arguments =
+        {
+            definitions,
+            ovenLevel,
+            maxUnlockedTier,
+            shapeRoll,
+            difficultyRoll,
+            referencePoolRoll,
+            null
+        };
+        Assert.IsTrue(
+            (bool)generate.Invoke(null, arguments),
+            $"Could not generate an order for Oven L{ovenLevel}.");
+        Assert.IsNotNull(arguments[6]);
+        return arguments[6];
+    }
+
+    private static object GetPropertyValue(object target, string propertyName)
+    {
+        PropertyInfo property = target.GetType().GetProperty(propertyName);
+        Assert.IsNotNull(property, $"Missing property {propertyName}.");
+        return property.GetValue(target);
+    }
+
+    private static void AssertRequirement(
+        object requirement,
+        int expectedTier,
+        int expectedAmount)
+    {
+        object dessert = GetPropertyValue(requirement, "Dessert");
+        Assert.AreEqual(expectedTier, GetPropertyValue(dessert, "Tier"));
+        Assert.AreEqual(expectedAmount, GetPropertyValue(requirement, "Amount"));
+    }
+
+    private static void AssertOrdersEqual(object expected, object actual)
+    {
+        Assert.AreEqual(
+            GetPropertyValue(expected, "OrderId"),
+            GetPropertyValue(actual, "OrderId"));
+        Assert.AreEqual(
+            GetPropertyValue(expected, "DisplayName"),
+            GetPropertyValue(actual, "DisplayName"));
+        Assert.AreEqual(
+            GetPropertyValue(expected, "CashReward"),
+            GetPropertyValue(actual, "CashReward"));
+
+        List<object> expectedRequirements = ((IEnumerable)GetPropertyValue(
+                expected,
+                "Requirements"))
+            .Cast<object>().ToList();
+        List<object> actualRequirements = ((IEnumerable)GetPropertyValue(
+                actual,
+                "Requirements"))
+            .Cast<object>().ToList();
+        Assert.AreEqual(expectedRequirements.Count, actualRequirements.Count);
+        for (int i = 0; i < expectedRequirements.Count; i++)
+        {
+            Assert.AreEqual(
+                GetPropertyValue(
+                    GetPropertyValue(expectedRequirements[i], "Dessert"),
+                    "Tier"),
+                GetPropertyValue(
+                    GetPropertyValue(actualRequirements[i], "Dessert"),
+                    "Tier"));
+            Assert.AreEqual(
+                GetPropertyValue(expectedRequirements[i], "Amount"),
+                GetPropertyValue(actualRequirements[i], "Amount"));
+        }
+    }
+
+    private static void AssertOrderRequirementsWithinTierCap(
+        object order,
+        int maxUnlockedTier)
+    {
+        foreach (object requirement in (IEnumerable)GetPropertyValue(
+                     order,
+                     "Requirements"))
+        {
+            int tier = (int)GetPropertyValue(
+                GetPropertyValue(requirement, "Dessert"),
+                "Tier");
+            Assert.That(tier, Is.InRange(1, maxUnlockedTier));
+        }
     }
 
     private void SeedActiveOrders(object orders)
@@ -2367,6 +2839,8 @@ public class DataFoundationTests
             dessertSpawner,
             "dessertDefinitions",
             ConvertArray(dessertDefinitions, "DessertDefinition"));
+        SetPrivateField(orderManager, "dessertSpawner", dessertSpawner);
+        SetPrivateField(setup.SessionManager, "dessertSpawner", dessertSpawner);
         object preview = dessertDefinitions[0];
         SetPrivateField(dessertSpawner, "nextDessert", preview);
         SetPrivateField(

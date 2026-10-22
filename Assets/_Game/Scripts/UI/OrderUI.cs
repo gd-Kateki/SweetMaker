@@ -170,7 +170,7 @@ public class OrderUI : MonoBehaviour
 
         foreach (
             OrderRequirement requirement
-            in order.Definition.Requirements)
+            in order.Requirements)
         {
             if (requirement == null ||
                 requirement.Dessert == null)

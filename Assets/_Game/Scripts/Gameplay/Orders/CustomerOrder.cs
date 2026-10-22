@@ -4,6 +4,9 @@ public class CustomerOrder
 {
     private readonly int orderId;
     private readonly CustomerOrderDefinition definition;
+    private readonly string generatedDisplayName;
+    private readonly int generatedCashReward;
+    private readonly IReadOnlyList<OrderRequirement> generatedRequirements;
 
     public int OrderId =>
         orderId;
@@ -14,16 +17,22 @@ public class CustomerOrder
     public string DisplayName =>
         definition != null
             ? definition.DisplayName
-            : "Invalid Order";
+            : generatedDisplayName ?? "Invalid Order";
+
+    public IReadOnlyList<OrderRequirement> Requirements =>
+        definition != null
+            ? definition.Requirements
+            : generatedRequirements;
 
     public int CashReward =>
         definition != null
             ? definition.CashReward
-            : 0;
+            : generatedCashReward;
 
     public bool IsValid =>
-        definition != null &&
-        definition.IsValid;
+        definition != null
+            ? definition.IsValid
+            : IsGeneratedOrderValid();
 
     public CustomerOrder(
         int orderId,
@@ -34,6 +43,59 @@ public class CustomerOrder
 
         this.definition =
             definition;
+    }
+
+    public CustomerOrder(
+        int orderId,
+        GeneratedCustomerOrder generatedOrder)
+    {
+        this.orderId = orderId;
+        if (generatedOrder == null)
+            return;
+
+        generatedDisplayName =
+            $"{generatedOrder.Difficulty} {generatedOrder.Shape} Order";
+        generatedCashReward = generatedOrder.BaseReward;
+        generatedRequirements = generatedOrder.Requirements;
+    }
+
+    internal CustomerOrder(
+        int orderId,
+        string displayName,
+        int cashReward,
+        IReadOnlyList<OrderRequirement> requirements)
+    {
+        this.orderId = orderId;
+        generatedDisplayName = displayName;
+        generatedCashReward = cashReward;
+        generatedRequirements = requirements;
+    }
+
+    private bool IsGeneratedOrderValid()
+    {
+        if (string.IsNullOrWhiteSpace(generatedDisplayName) ||
+            generatedCashReward < 0 ||
+            generatedRequirements == null ||
+            generatedRequirements.Count == 0)
+        {
+            return false;
+        }
+
+        var usedDesserts = new HashSet<DessertDefinition>();
+        foreach (OrderRequirement requirement in generatedRequirements)
+        {
+            if (requirement == null ||
+                requirement.Dessert == null ||
+                requirement.Dessert.Tier < 1 ||
+                requirement.Dessert.Tier > 30 ||
+                requirement.Amount <= 0 ||
+                !usedDesserts.Add(requirement.Dessert))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // --------------------------------------------------
@@ -51,7 +113,7 @@ public class CustomerOrder
 
         foreach (
             OrderRequirement requirement
-            in definition.Requirements)
+            in Requirements)
         {
             int availableAmount =
                 CountDessertOnBoard(
@@ -94,7 +156,7 @@ public class CustomerOrder
 
         foreach (
             OrderRequirement requirement
-            in definition.Requirements)
+            in Requirements)
         {
             int remaining =
                 requirement.Amount;

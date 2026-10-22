@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 10
   displayName: Dream Cake
+  sprite: {fileID: 8180207497724209923, guid: 462b4abd489a92847bdf5c829201f2d0, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: -4420502478462931902, guid: 23877752afbaf9b4382a27066fa4a914, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

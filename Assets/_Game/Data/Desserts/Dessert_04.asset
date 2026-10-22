@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_04
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 4
-  displayName: Cinnamon Roll
+  displayName: Ice Cream Sundae
+  sprite: {fileID: 1523112602026689366, guid: ec6d56a6700c50f4886fa5f96a9b175c, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 3033006148151148483, guid: 61d12e2e64d7c3d4fbfdae47d84346c6, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

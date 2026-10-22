@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_08
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 8
-  displayName: Strawberry Cake
+  displayName: Matcha Roll Cake
+  sprite: {fileID: 6683841946033005149, guid: 176fa240931147b458d091bb9a353f1a, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 8304407498928134685, guid: 5a1a5efb3f53bbb4ea5720a1988f4c2a, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

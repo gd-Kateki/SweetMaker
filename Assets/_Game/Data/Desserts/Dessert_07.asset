@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_07
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 7
-  displayName: Chocolate Cake
+  displayName: Apple Pie
+  sprite: {fileID: -9174081112901248669, guid: 319a9d4bea4f7dc4db6379dc54d166f8, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: -2980262012348762808, guid: 112c65ccf89056b498916ed9c79a2357, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

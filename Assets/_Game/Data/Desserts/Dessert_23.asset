@@ -3,8 +3,10 @@
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fcf60f1d34eddfa4a9e7ccfa00c1fefe, type: 3}
@@ -12,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 23
   displayName: Tier 23 Placeholder
-  sprite: {fileID: 0}
+  sprite: {fileID: 4009135708203240437, guid: 395d281645563594eb1cf661ad3fc4af, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
   visualScale: 0.8
   canSpawnFromOven: 1

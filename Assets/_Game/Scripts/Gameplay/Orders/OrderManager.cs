@@ -20,6 +20,8 @@ public class OrderManager : MonoBehaviour
     [SerializeField]
     private PlayerProgressionManager
         progressionManager;
+    [SerializeField]
+    private DessertSpawner dessertSpawner;
     [Header("Order Pool")]
     [SerializeField]
     private CustomerOrderDefinition[] orderPool;
@@ -206,6 +208,11 @@ public class OrderManager : MonoBehaviour
             FindAnyObjectByType<
                 PlayerProgressionManager>();
     }
+    if (dessertSpawner == null)
+    {
+        dessertSpawner =
+            FindAnyObjectByType<DessertSpawner>();
+    }
 }
     private void InitializeCustomerSlots()
     {
@@ -303,7 +310,7 @@ public bool ValidateSavedOrders(IReadOnlyList<CustomerOrderState> savedOrders,
     foreach (var state in savedOrders)
     {
         if (state == null || state.customerIndex < 0 || state.customerIndex >= savedCapacity ||
-            !slots.Add(state.customerIndex) || state.definition == null || !state.definition.IsValid ||
+            !slots.Add(state.customerIndex) || !state.CreateOrder().IsValid ||
             state.orderId <= 0 || !ids.Add(state.orderId) || state.orderId >= savedNextOrderId)
         { reason = "Saved order has an invalid definition, slot, identity or counter."; return false; }
     }
@@ -327,7 +334,7 @@ public bool RestoreCustomerOrders(IReadOnlyList<CustomerOrderState> savedOrders,
     { Debug.LogError("ORDER RESTORE FAILED | Restoring would rewind the live order counter."); return false; }
     var restored = new CustomerOrder[MaxCustomerSlots];
     foreach (var state in savedOrders)
-        restored[state.customerIndex] = new CustomerOrder(state.orderId, state.definition);
+        restored[state.customerIndex] = state.CreateOrder();
     InitializeCustomerSlots();
     recentOrderDefinitions.Clear();
     nextOrderId = savedNextOrderId;
@@ -364,20 +371,21 @@ internal bool TryPrepareFreshSessionOrders(
 {
     ResolveReferences();
     preparedOrders = null;
+    pendingFreshSessionOrders = null;
+    pendingFreshSessionNextOrderId = 0;
     preparedNextOrderId = nextOrderId;
     int capacity = ActiveCustomerCount;
     if (progressionManager == null || capacity < 1 ||
         nextOrderId <= 0 || (long)nextOrderId + capacity > int.MaxValue)
         return false;
 
-    var selected = new List<CustomerOrderDefinition>(capacity);
-    var recent = new List<CustomerOrderDefinition>(2);
     preparedOrders = new CustomerOrderState[capacity];
     for (int customerIndex = 0; customerIndex < capacity; customerIndex++)
     {
-        CustomerOrderDefinition definition =
-            GetRandomValidOrder(selected, recent);
-        if (definition == null)
+        if (!TryGenerateProceduralOrder(
+                nextOrderId + customerIndex,
+                CreateOrderRandom(),
+                out CustomerOrder generatedOrder))
         {
             preparedOrders = null;
             return false;
@@ -385,13 +393,7 @@ internal bool TryPrepareFreshSessionOrders(
 
         preparedOrders[customerIndex] = new CustomerOrderState(
             customerIndex,
-            nextOrderId + customerIndex,
-            definition);
-        selected.Add(definition);
-        recent.Remove(definition);
-        recent.Add(definition);
-        if (recent.Count > 2)
-            recent.RemoveAt(0);
+            generatedOrder);
     }
 
     preparedNextOrderId = nextOrderId + capacity;
@@ -427,10 +429,10 @@ internal bool ApplyPreparedFreshSessionOrders(
     {
         if (state == null || state.customerIndex < 0 ||
             state.customerIndex >= preparedOrders.Length ||
-            state.definition == null || !state.definition.IsValid)
+            !state.CreateOrder().IsValid)
             return false;
         replacement[state.customerIndex] =
-            new CustomerOrder(state.orderId, state.definition);
+            state.CreateOrder();
     }
 
     InitializeCustomerSlots();
@@ -496,31 +498,27 @@ internal void PublishPreparedFreshSessionOrders()
             Debug.LogError("ORDER GENERATION FAILED | Order ID sequence exhausted.");
             return false;
         }
-        CustomerOrderDefinition definition =
-            GetRandomValidOrder();
-        if (definition == null)
+        if (!TryGenerateProceduralOrder(
+                nextOrderId,
+                CreateOrderRandom(),
+                out CustomerOrder generatedOrder))
         {
-            Debug.LogWarning(
-                $"OrderManager: Could not " +
-                $"generate an order for " +
-                $"Customer {customerIndex + 1}. " +
-                "No valid unlocked order exists."
+            Debug.LogError(
+                $"ORDER GENERATION FAILED | Customer {customerIndex + 1} | " +
+                "Procedural order generation found no valid order within the " +
+                "current Oven tier cap."
             );
             return false;
         }
         int orderId =
             nextOrderId;
         nextOrderId++;
-        CustomerOrder newOrder =
-            new CustomerOrder(
-                orderId,
-                definition
-            );
+        CustomerOrder newOrder = generatedOrder;
         customerOrders[
             customerIndex
         ] = newOrder;
         TrackRecentDefinition(
-            definition
+            newOrder.Definition
         );
         Debug.Log(
             $"ORDER GENERATED | " +
@@ -536,6 +534,41 @@ internal void PublishPreparedFreshSessionOrders()
             newOrder
         );
         return true;
+    }
+
+    internal bool TryGenerateProceduralOrder(
+        int orderId,
+        System.Random random,
+        out CustomerOrder order)
+    {
+        order = null;
+        ResolveReferences();
+        if (orderId <= 0 ||
+            dessertSpawner == null ||
+            progressionManager == null ||
+            dessertSpawner.DessertDefinitions == null)
+        {
+            return false;
+        }
+
+        if (!ProceduralCustomerOrderGenerator.TryGenerate(
+                dessertSpawner.DessertDefinitions,
+                progressionManager.OvenLevel,
+                progressionManager.MaxUnlockedDessertTier,
+                random,
+                out GeneratedCustomerOrder generated))
+        {
+            return false;
+        }
+
+        order = new CustomerOrder(orderId, generated);
+        return order.IsValid;
+    }
+
+    private static System.Random CreateOrderRandom()
+    {
+        return new System.Random(
+            UnityEngine.Random.Range(0, int.MaxValue));
     }
     // --------------------------------------------------
     // MANUAL GENERATION

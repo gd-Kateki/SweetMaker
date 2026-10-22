@@ -360,13 +360,13 @@ public class OrderDetailsUI : MonoBehaviour
         }
 
         if (order == null ||
-            order.Definition == null)
+            order.Requirements == null)
         {
             return;
         }
 
         var requirements =
-            order.Definition.Requirements;
+            order.Requirements;
 
         int visibleCount =
             Mathf.Min(

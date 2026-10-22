@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 11
   displayName: Golden Dream Cake
+  sprite: {fileID: 3605881939859906434, guid: 14303dbc1a163054b84f6516c0da3951, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 2005882469791025558, guid: 4431062576617db419f8dd37ef70282b, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 1

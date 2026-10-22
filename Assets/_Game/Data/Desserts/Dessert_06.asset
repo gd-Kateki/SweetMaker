@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Dessert_06
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 6
-  displayName: Cheesecake
-  sprite: {fileID: 3010103503655691094, guid: 5082d5cd6dd043a4a9fbf181857563f0, type: 3}
+  displayName: Japanese Cheesecake
+  sprite: {fileID: 1482115690467196943, guid: 80ce0265500e55648b633bd3b0031954, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: 1
   canSpawnFromOven: 1

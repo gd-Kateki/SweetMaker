@@ -16,4 +16,12 @@ public class OrderRequirement
 
     public int Amount =>
         amount;
+
+    public OrderRequirement(
+        DessertDefinition dessert,
+        int amount)
+    {
+        this.dessert = dessert;
+        this.amount = amount;
+    }
 }

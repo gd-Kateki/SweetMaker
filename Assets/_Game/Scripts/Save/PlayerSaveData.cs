@@ -188,7 +188,8 @@ public class CustomerOrderSaveData
     public int orderId;
 
     /*
-     * Stable identifier for the order definition.
+     * Stable order reference: an asset definition ID or
+     * a versioned procedural snapshot encoded in this field.
      *
      * IMPORTANT:
      *

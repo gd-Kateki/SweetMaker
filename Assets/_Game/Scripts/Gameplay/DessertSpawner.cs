@@ -73,6 +73,36 @@ public class DessertSpawner : MonoBehaviour
     public string SelectedSpawnPoolId =>
         selectedSpawnPoolId;
 
+    public IReadOnlyList<DessertDefinition> DessertDefinitions =>
+        dessertDefinitions;
+
+    public int CurrentOvenLevel
+    {
+        get
+        {
+            ResolveProgressionManager();
+            return progressionManager != null
+                ? progressionManager.OvenLevel
+                : 1;
+        }
+    }
+
+    public int MaxUnlockedDessertTier
+    {
+        get
+        {
+            ResolveProgressionManager();
+            return progressionManager != null
+                ? progressionManager.MaxUnlockedDessertTier
+                : 0;
+        }
+    }
+
+    public DessertDefinition GetDessertDefinitionByTier(int tier)
+    {
+        return GetDefinitionByTier(tier);
+    }
+
     public IReadOnlyList<string> UnlockedSpawnPoolIds
     {
         get

@@ -15,6 +15,8 @@ public class MergeSessionManager : MonoBehaviour
     [Header("Permanent Save References")]
     [SerializeField]
     private CustomerOrderDatabase customerOrderDatabase;
+    [SerializeField]
+    private DessertSpawner dessertSpawner;
 
     // ==================================================
     // RUNTIME SESSION
@@ -24,6 +26,13 @@ public class MergeSessionManager : MonoBehaviour
 
     public MergeSessionData SessionData =>
         sessionData;
+
+    private DessertSpawner ResolveDessertSpawner()
+    {
+        if (dessertSpawner == null)
+            dessertSpawner = FindAnyObjectByType<DessertSpawner>();
+        return dessertSpawner;
+    }
 
     public bool HasSession =>
         sessionData != null;
@@ -181,9 +190,8 @@ public class MergeSessionManager : MonoBehaviour
             saveData
         );
 
-        CaptureOrdersToSaveData(
-            saveData
-        );
+        if (!CaptureOrdersToSaveData(saveData))
+            return false;
 
         saveData.nextOrderId =
             Mathf.Max(
@@ -297,13 +305,13 @@ public class MergeSessionManager : MonoBehaviour
     // PERMANENT SAVE - ORDERS
     // ==================================================
 
-    private void CaptureOrdersToSaveData(
+    private bool CaptureOrdersToSaveData(
         MergeGameplaySaveData saveData)
     {
         if (sessionData.customerOrders ==
             null)
         {
-            return;
+            return true;
         }
 
         foreach (
@@ -325,44 +333,58 @@ public class MergeSessionManager : MonoBehaviour
                 continue;
             }
 
-            if (state.definition == null)
+            if (state.definition != null)
             {
-                Debug.LogWarning(
-                    "MERGE SAVE ORDER SKIPPED | " +
-                    $"Customer " +
-                    $"{state.customerIndex + 1} | " +
-                    $"Order #{state.orderId} | " +
-                    "Missing definition."
-                );
+                string definitionId = state.definition.DefinitionId;
+                if (string.IsNullOrWhiteSpace(definitionId))
+                {
+                    Debug.LogError(
+                        $"MERGE SAVE ORDER FAILED | Order #{state.orderId} " +
+                        "definition has no stable ID.");
+                    return false;
+                }
 
+                saveData.customerOrders.Add(
+                    new CustomerOrderSaveData(
+                        state.customerIndex,
+                        state.orderId,
+                        definitionId));
                 continue;
             }
 
-            string definitionId =
-                state.definition.DefinitionId;
-
-            if (string.IsNullOrWhiteSpace(
-                    definitionId))
+            if (!TryCreateProceduralSaveData(state, out CustomerOrderSaveData savedOrder))
             {
-                Debug.LogWarning(
-                    "MERGE SAVE ORDER SKIPPED | " +
-                    $"Customer " +
-                    $"{state.customerIndex + 1} | " +
-                    $"Order #{state.orderId} | " +
-                    "Definition has no stable ID."
-                );
-
-                continue;
+                Debug.LogError(
+                    $"MERGE SAVE ORDER FAILED | Customer {state.customerIndex + 1} | " +
+                    $"Order #{state.orderId} has invalid procedural data.");
+                return false;
             }
 
-            saveData.customerOrders.Add(
-                new CustomerOrderSaveData(
-                    state.customerIndex,
-                    state.orderId,
-                    definitionId
-                )
-            );
+            saveData.customerOrders.Add(savedOrder);
         }
+        return true;
+    }
+
+    private static bool TryCreateProceduralSaveData(
+        CustomerOrderState state,
+        out CustomerOrderSaveData savedOrder)
+    {
+        savedOrder = null;
+        if (state == null ||
+            !ProceduralCustomerOrderSaveCodec.TryEncode(
+                state.displayName,
+                state.cashReward,
+                state.requirements,
+                out string encodedDefinitionId))
+        {
+            return false;
+        }
+
+        savedOrder = new CustomerOrderSaveData(
+            state.customerIndex,
+            state.orderId,
+            encodedDefinitionId);
+        return true;
     }
 
     // ==================================================
@@ -396,20 +418,6 @@ public class MergeSessionManager : MonoBehaviour
             );
 
             return true;
-        }
-
-        // ----------------------------------------------
-        // DATABASE
-        // ----------------------------------------------
-
-        if (customerOrderDatabase == null)
-        {
-            Debug.LogError(
-                "MERGE SAVE RESTORE FAILED | " +
-                "CustomerOrderDatabase is not assigned."
-            );
-
-            return false;
         }
 
         // ----------------------------------------------
@@ -580,16 +588,87 @@ public class MergeSessionManager : MonoBehaviour
                 return false;
             }
 
-            if (state.customerIndex < 0 ||
-                state.orderId <= 0 ||
-                string.IsNullOrWhiteSpace(
-                    state.definitionId))
+            if (state.customerIndex < 0 || state.orderId <= 0)
             {
                 Debug.LogError(
                     "MERGE SAVE RESTORE FAILED | " +
                     "Invalid saved order data."
                 );
 
+                return false;
+            }
+
+            if (ProceduralCustomerOrderSaveCodec.IsProceduralDefinitionId(
+                    state.definitionId))
+            {
+                if (!ProceduralCustomerOrderSaveCodec.TryDecode(
+                        state.definitionId,
+                        out ProceduralCustomerOrderSaveData payload))
+                {
+                    Debug.LogError(
+                        $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
+                        "has invalid procedural data.");
+                    return false;
+                }
+
+                DessertSpawner spawner = ResolveDessertSpawner();
+                var requirements = new OrderRequirement[payload.requirements.Count];
+                for (int i = 0; i < requirements.Length; i++)
+                {
+                    ProceduralCustomerOrderRequirementSaveData savedRequirement =
+                        payload.requirements[i];
+                    if (savedRequirement == null ||
+                        savedRequirement.dessertTier < 1 ||
+                        savedRequirement.dessertTier > 30 ||
+                        savedRequirement.amount <= 0 ||
+                        spawner == null)
+                    {
+                        Debug.LogError(
+                            $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
+                            "has an invalid requirement.");
+                        return false;
+                    }
+
+                    DessertDefinition dessert =
+                        spawner.GetDessertDefinitionByTier(savedRequirement.dessertTier);
+                    if (dessert == null)
+                    {
+                        Debug.LogError(
+                            $"MERGE SAVE RESTORE FAILED | Order #{state.orderId} " +
+                            $"references missing dessert T{savedRequirement.dessertTier}.");
+                        return false;
+                    }
+
+                    requirements[i] = new OrderRequirement(
+                        dessert,
+                        savedRequirement.amount);
+                }
+
+                CustomerOrder proceduralOrder = new CustomerOrder(
+                    state.orderId,
+                    payload.displayName,
+                    payload.cashReward,
+                    requirements);
+                if (!proceduralOrder.IsValid)
+                    return false;
+                restoredData.customerOrders.Add(
+                    new CustomerOrderState(state.customerIndex, proceduralOrder));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(state.definitionId))
+            {
+                Debug.LogError(
+                    "MERGE SAVE RESTORE FAILED | Saved order has neither a " +
+                    "procedural snapshot nor a definition ID.");
+                return false;
+            }
+
+            if (customerOrderDatabase == null)
+            {
+                Debug.LogError(
+                    "MERGE SAVE RESTORE FAILED | " +
+                    "CustomerOrderDatabase is not assigned for a definition-backed order.");
                 return false;
             }
 
@@ -708,7 +787,7 @@ public class MergeSessionManager : MonoBehaviour
             string definitionName =
                 state.definition != null
                     ? state.definition.DisplayName
-                    : "Missing Definition";
+                    : state.displayName ?? "Missing Definition";
 
             Debug.Log(
                 $"SESSION ORDER | " +

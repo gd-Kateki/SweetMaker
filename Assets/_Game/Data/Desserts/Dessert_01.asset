@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_01
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 1
-  displayName: Macaron
+  displayName: Dango
+  sprite: {fileID: 1500149846385249025, guid: fcc72adfaebd4c8419d3381e494dcc99, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: -8319757146562779169, guid: 9c5029aa247d95c41b2765d3e843dcbe, type: 3}
+  visualScale: 0.8
   canSpawnFromOven: 1
   spawnWeight: 60
