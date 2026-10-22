@@ -23,6 +23,18 @@ public class ReplacementApplyFailureTrigger : MonoBehaviour
 
 public class DataFoundationTests
 {
+    private sealed class RecycleFixture
+    {
+        public readonly List<GameObject> Objects = new List<GameObject>();
+        public object Dessert;
+        public object Cell;
+        public object Slot;
+        public object DragHandler;
+        public object Target;
+        public object Grid;
+        public object Shelf;
+    }
+
     private const string DessertFolder =
         "Assets/_Game/Data/Desserts";
 
@@ -164,6 +176,7 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("Step5C")]
     public void SpawnPoolWeightsAndUnlockLevelsMatchFrozenCandidate()
     {
         Type spawnerType = FindPlayerType("DessertSpawner");
@@ -172,6 +185,9 @@ public class DataFoundationTests
             BindingFlags.Public | BindingFlags.Static);
         MethodInfo isUnlocked = spawnerType.GetMethod(
             "IsSpawnPoolUnlocked",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo tierForRoll = spawnerType.GetMethod(
+            "GetSpawnPoolTierForRoll",
             BindingFlags.Public | BindingFlags.Static);
         string[] poolIds = { "P1", "P2", "P3", "P4", "P5", "P6" };
         int[] unlockLevels = { 1, 2, 3, 4, 5, 6 };
@@ -232,9 +248,16 @@ public class DataFoundationTests
                     $"T{tier} must never spawn directly.");
             }
         }
+
+        Assert.AreEqual(1, tierForRoll.Invoke(null, new object[] { "P1", 0 }));
+        Assert.AreEqual(1, tierForRoll.Invoke(null, new object[] { "P1", 59 }));
+        Assert.AreEqual(2, tierForRoll.Invoke(null, new object[] { "P1", 60 }));
+        Assert.AreEqual(3, tierForRoll.Invoke(null, new object[] { "P1", 90 }));
+        Assert.AreEqual(0, tierForRoll.Invoke(null, new object[] { "P1", 100 }));
     }
 
     [Test]
+    [Category("Step5C")]
     public void OvenReferencePoolMixturesMatchFrozenCandidate()
     {
         Type spawnerType = FindPlayerType("DessertSpawner");
@@ -445,7 +468,347 @@ public class DataFoundationTests
     }
 
     [Test]
-    public void LiveProceduralOrdersFulfillPayOnceAndRestoreSavedRequirements()
+    [Category("Step5C")]
+    public void SpawnPoolChoicesKeepGeneratedOrdersReachableAtEveryOvenLevel()
+    {
+        Array definitions = LoadDessertDefinitions();
+        Type spawnerType = FindPlayerType("DessertSpawner");
+        MethodInfo unlockedPools = spawnerType.GetMethod(
+            "GetUnlockedSpawnPoolIds",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo getPoolFirstTier = spawnerType.GetMethod(
+            "GetSpawnPoolFirstTier",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo getPoolHighestTier = spawnerType.GetMethod(
+            "GetSpawnPoolHighestTier",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo generate = FindPlayerType("ProceduralCustomerOrderGenerator")
+            .GetMethod("TryGenerateFromRolls", BindingFlags.Public | BindingFlags.Static);
+        int[] caps = { 8, 12, 16, 20, 25, 30 };
+
+        for (int ovenLevel = 1; ovenLevel <= 6; ovenLevel++)
+        {
+            bool[] reachable = new bool[caps[ovenLevel - 1] + 1];
+            foreach (string poolId in (IEnumerable<string>)unlockedPools.Invoke(
+                         null,
+                         new object[] { ovenLevel }))
+            {
+                int firstTier = (int)getPoolFirstTier.Invoke(
+                    null,
+                    new object[] { poolId });
+                int highestTier = (int)getPoolHighestTier.Invoke(
+                    null,
+                    new object[] { poolId });
+                for (int tier = firstTier;
+                     tier <= highestTier && tier < reachable.Length;
+                     tier++)
+                    reachable[tier] = true;
+            }
+
+            for (int tier = 1; tier < caps[ovenLevel - 1]; tier++)
+                if (reachable[tier])
+                    reachable[tier + 1] = true;
+
+            for (int shapeRoll = 0; shapeRoll <= 60; shapeRoll += 60)
+            for (int difficultyRoll = 0; difficultyRoll <= 85; difficultyRoll +=
+                 difficultyRoll == 0 ? 50 : 35)
+            for (int poolRoll = 0; poolRoll < 100; poolRoll++)
+            {
+                object[] args =
+                {
+                    definitions,
+                    ovenLevel,
+                    caps[ovenLevel - 1],
+                    shapeRoll,
+                    difficultyRoll,
+                    poolRoll,
+                    null
+                };
+                Assert.IsTrue((bool)generate.Invoke(null, args),
+                    $"Could not generate an order at Oven L{ovenLevel}.");
+                foreach (object requirement in ((IEnumerable)GetPropertyValue(
+                             args[6],
+                             "Requirements")).Cast<object>())
+                {
+                    int tier = (int)GetPropertyValue(
+                        GetPropertyValue(requirement, "Dessert"),
+                        "Tier");
+                    Assert.IsTrue(tier < reachable.Length && reachable[tier],
+                        $"Oven L{ovenLevel} cannot reach required T{tier}.");
+                }
+            }
+        }
+    }
+
+    [Test]
+    [Category("Step5C.1")]
+    public void BonusDessertChanceAndBoardCapacityMatchApprovedRules()
+    {
+        Type spawnerType = FindPlayerType("DessertSpawner");
+        MethodInfo chance = spawnerType.GetMethod(
+            "GetBonusChancePerTenThousand",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo shouldSpawn = spawnerType.GetMethod(
+            "ShouldSpawnBonus",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo canFit = spawnerType.GetMethod(
+            "CanFitBonusDessert",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo shouldAttempt = spawnerType.GetMethod(
+            "ShouldAttemptBonus",
+            BindingFlags.Public | BindingFlags.Static);
+        int[] expectedThresholds = { 0, 50, 80, 100, 150, 200 };
+
+        for (int ovenLevel = 1; ovenLevel <= 6; ovenLevel++)
+        {
+            int threshold = (int)chance.Invoke(null, new object[] { ovenLevel });
+            Assert.AreEqual(expectedThresholds[ovenLevel - 1], threshold);
+            Assert.IsFalse((bool)shouldSpawn.Invoke(
+                null,
+                new object[] { ovenLevel, threshold }));
+            if (threshold > 0)
+                Assert.IsTrue((bool)shouldSpawn.Invoke(
+                    null,
+                    new object[] { ovenLevel, threshold - 1 }));
+        }
+
+        Assert.IsFalse((bool)shouldSpawn.Invoke(null, new object[] { 7, 0 }));
+        Assert.IsFalse((bool)shouldSpawn.Invoke(null, new object[] { 6, 10000 }));
+        Assert.IsFalse((bool)canFit.Invoke(null, new object[] { 1 }));
+        Assert.IsTrue((bool)canFit.Invoke(null, new object[] { 2 }));
+        Assert.IsFalse((bool)shouldAttempt.Invoke(
+            null,
+            new object[] { 6, 0, 1 }));
+        Assert.IsTrue((bool)shouldAttempt.Invoke(
+            null,
+            new object[] { 6, 0, 2 }));
+    }
+
+    [Test]
+    [Category("Step5C.1")]
+    public void BonusDessertsUseHighestUnlockedHigherPoolWeightsAndRespectCaps()
+    {
+        Type spawnerType = FindPlayerType("DessertSpawner");
+        MethodInfo selectBonus = spawnerType.GetMethod(
+            "TryGetBonusDessertDefinition",
+            BindingFlags.Public | BindingFlags.Static);
+        Array definitions = LoadDessertDefinitions();
+
+        AssertSelectedBonus(selectBonus, definitions, "P1", 2, 12, 0, 4);
+        AssertSelectedBonus(selectBonus, definitions, "P1", 4, 20, 0, 12);
+        AssertSelectedBonus(selectBonus, definitions, "P1", 6, 30, 0, 21);
+        AssertSelectedBonus(selectBonus, definitions, "P1", 6, 24, 91, 24);
+
+        object[] noHigherPool =
+        {
+            definitions, "P6", 6, 30, 0, null
+        };
+        Assert.IsFalse((bool)selectBonus.Invoke(null, noHigherPool));
+        Assert.IsNull(noHigherPool[5]);
+
+        object[] poolNotUnlocked =
+        {
+            definitions, "P2", 2, 12, 0, null
+        };
+        Assert.IsFalse((bool)selectBonus.Invoke(null, poolNotUnlocked),
+            "The selected pool itself and lower pools cannot supply a bonus.");
+
+        object[] mergeOnlyCap =
+        {
+            definitions, "P1", 6, 30, 100, null
+        };
+        Assert.IsFalse((bool)selectBonus.Invoke(null, mergeOnlyCap),
+            "T26-T30 must not be added as bonus candidates.");
+    }
+
+    private static void AssertSelectedBonus(
+        MethodInfo selectBonus,
+        Array definitions,
+        string selectedPool,
+        int ovenLevel,
+        int maxTier,
+        int roll,
+        int expectedTier)
+    {
+        object[] args =
+        {
+            definitions,
+            selectedPool,
+            ovenLevel,
+            maxTier,
+            roll,
+            null
+        };
+        Assert.IsTrue((bool)selectBonus.Invoke(null, args));
+        Assert.AreEqual(expectedTier, GetPropertyValue(args[5], "Tier"));
+        Assert.Greater(expectedTier, (int)spawnerPoolHighest(selectedPool));
+
+        for (int currentRoll = 0; currentRoll < 100; currentRoll++)
+        {
+            args[4] = currentRoll;
+            if (!(bool)selectBonus.Invoke(null, args))
+                continue;
+            int tier = (int)GetPropertyValue(args[5], "Tier");
+            Assert.Greater(tier, (int)spawnerPoolHighest(selectedPool));
+            Assert.LessOrEqual(tier, maxTier);
+            Assert.LessOrEqual(tier, 25,
+                "T26-T30 remain merge-only.");
+        }
+    }
+
+    private static int spawnerPoolHighest(string poolId)
+    {
+        return (int)FindPlayerType("DessertSpawner")
+            .GetMethod("GetSpawnPoolHighestTier",
+                BindingFlags.Public | BindingFlags.Static)
+            .Invoke(null, new object[] { poolId });
+    }
+
+    [Test]
+    public void ProceduralOrderFingerprintMatchesCompactAndExpandedSnapshotsButRejectsChanges()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        UnityEngine.Object compactDefinition = null;
+        try
+        {
+            IList liveOrderSlots = (IList)GetPropertyValue(
+                fixture.Orders,
+                "CustomerOrders");
+            liveOrderSlots[0] = null;
+            fixture.Orders.GetType().GetMethod(
+                    "RefreshCustomerSlots",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.Orders, null);
+            object order = ((Array)GetActiveOrders(fixture.Orders)).GetValue(0);
+
+            object[] encodeArguments =
+            {
+                GetPropertyValue(order, "DisplayName"),
+                GetPropertyValue(order, "CashReward"),
+                GetPropertyValue(order, "Requirements"),
+                null
+            };
+            Assert.IsTrue((bool)FindPlayerType("ProceduralCustomerOrderSaveCodec")
+                .GetMethod("TryEncode")
+                .Invoke(null, encodeArguments));
+
+            Type definitionType = FindPlayerType("CustomerOrderDefinition");
+            compactDefinition = ScriptableObject.CreateInstance(definitionType);
+            var serializedDefinition = new SerializedObject(compactDefinition);
+            serializedDefinition.FindProperty("definitionId").stringValue =
+                (string)encodeArguments[3];
+            serializedDefinition.ApplyModifiedPropertiesWithoutUndo();
+
+            Type stateType = FindPlayerType("CustomerOrderState");
+            Type orderType = FindPlayerType("CustomerOrder");
+            ConstructorInfo compactConstructor = stateType.GetConstructor(
+                new[] { typeof(int), typeof(int), definitionType });
+            ConstructorInfo expandedConstructor = stateType.GetConstructor(
+                new[] { typeof(int), orderType });
+            object compactState = compactConstructor.Invoke(
+                new object[] { 0, GetPropertyValue(order, "OrderId"), compactDefinition });
+            object expandedState = expandedConstructor.Invoke(new[] { (object)0, order });
+
+            Type sessionType = FindPlayerType("MergeSessionData");
+            object compactSession = Activator.CreateInstance(sessionType);
+            object expandedSession = Activator.CreateInstance(sessionType);
+            Type stateListType = typeof(List<>).MakeGenericType(stateType);
+            IList compactOrders = (IList)Activator.CreateInstance(stateListType);
+            IList expandedOrders = (IList)Activator.CreateInstance(stateListType);
+            compactOrders.Add(compactState);
+            expandedOrders.Add(expandedState);
+            SetField(compactSession, "customerOrders", compactOrders);
+            SetField(expandedSession, "customerOrders", expandedOrders);
+
+            MethodInfo fingerprint = FindPlayerType("RestorationVerification")
+                .GetMethod("Fingerprint", new[] { sessionType });
+            string compactFingerprint = (string)fingerprint.Invoke(null, new[] { compactSession });
+            MethodInfo matchesFingerprint = FindPlayerType("RestorationVerification")
+                .GetMethod("MatchesFingerprint", new[] { typeof(string), sessionType });
+            Assert.IsTrue((bool)matchesFingerprint.Invoke(
+                null,
+                new[] { compactFingerprint, expandedSession }),
+                "The encoded snapshot and expanded runtime order represent the same order.");
+
+            object changedReward = expandedConstructor.Invoke(new[] { (object)0, order });
+            SetField(changedReward, "cashReward",
+                (int)GetPropertyValue(order, "CashReward") + 1);
+            IList changedRewardOrders = (IList)Activator.CreateInstance(stateListType);
+            changedRewardOrders.Add(changedReward);
+            object changedRewardSession = Activator.CreateInstance(sessionType);
+            SetField(changedRewardSession, "customerOrders", changedRewardOrders);
+            Assert.IsFalse((bool)matchesFingerprint.Invoke(
+                null,
+                new[] { compactFingerprint, changedRewardSession }),
+                "A changed procedural reward must fail verification.");
+
+            object changedRequirement = expandedConstructor.Invoke(new[] { (object)0, order });
+            Array requirements = (Array)GetField(changedRequirement, "requirements");
+            object firstRequirement = requirements.GetValue(0);
+            SetPrivateField(firstRequirement, "amount",
+                (int)GetPropertyValue(firstRequirement, "Amount") + 1);
+            IList changedRequirementOrders = (IList)Activator.CreateInstance(stateListType);
+            changedRequirementOrders.Add(changedRequirement);
+            object changedRequirementSession = Activator.CreateInstance(sessionType);
+            SetField(changedRequirementSession, "customerOrders", changedRequirementOrders);
+            Assert.IsFalse((bool)matchesFingerprint.Invoke(
+                null,
+                new[] { compactFingerprint, changedRequirementSession }),
+                "Changed dessert quantities must fail verification.");
+
+            object legacyDefinition = AssetDatabase.LoadAssetAtPath(
+                "Assets/_Game/Data/Orders/Order_03.asset",
+                definitionType);
+            Assert.IsNotNull(legacyDefinition);
+            ConstructorInfo definitionOrderConstructor = orderType.GetConstructor(
+                new[] { typeof(int), definitionType });
+            object legacyRuntimeOrder = definitionOrderConstructor.Invoke(
+                new[] { (object)12, legacyDefinition });
+            object legacyExpandedState = expandedConstructor.Invoke(
+                new[] { (object)0, legacyRuntimeOrder });
+            object legacyCompactState = compactConstructor.Invoke(
+                new[] { (object)0, 12, legacyDefinition });
+            IList legacyExpectedOrders = (IList)Activator.CreateInstance(stateListType);
+            IList legacyActualOrders = (IList)Activator.CreateInstance(stateListType);
+            legacyExpectedOrders.Add(legacyCompactState);
+            legacyActualOrders.Add(legacyExpandedState);
+            object legacyExpectedSession = Activator.CreateInstance(sessionType);
+            object legacyActualSession = Activator.CreateInstance(sessionType);
+            SetField(legacyExpectedSession, "customerOrders", legacyExpectedOrders);
+            SetField(legacyActualSession, "customerOrders", legacyActualOrders);
+            string legacyTarget = (string)fingerprint.Invoke(
+                null,
+                new[] { legacyExpectedSession });
+            Assert.IsTrue((bool)matchesFingerprint.Invoke(
+                null,
+                new[] { legacyTarget, legacyActualSession }),
+                "Definition-backed snapshots compare their authoritative order details.");
+
+            object alteredLegacyOrder = definitionOrderConstructor.Invoke(
+                new[] { (object)12, legacyDefinition });
+            object alteredLegacyState = expandedConstructor.Invoke(
+                new[] { (object)0, alteredLegacyOrder });
+            SetField(alteredLegacyState, "cashReward",
+                (int)GetPropertyValue(legacyDefinition, "CashReward") + 1);
+            IList alteredLegacyOrders = (IList)Activator.CreateInstance(stateListType);
+            alteredLegacyOrders.Add(alteredLegacyState);
+            object alteredLegacySession = Activator.CreateInstance(sessionType);
+            SetField(alteredLegacySession, "customerOrders", alteredLegacyOrders);
+            Assert.IsFalse((bool)matchesFingerprint.Invoke(
+                null,
+                new[] { legacyTarget, alteredLegacySession }),
+                "An expanded order that disagrees with its definition must fail verification.");
+        }
+        finally
+        {
+            if (compactDefinition != null)
+                UnityEngine.Object.DestroyImmediate(compactDefinition);
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    public void ProceduralOrderV2RoundTripPreservesSessionFingerprintAndRequirements()
     {
         ReplacementFixture fixture = CreateReplacementFixture();
         try
@@ -530,8 +893,41 @@ public class DataFoundationTests
                 FindPlayerType("PlayerSaveData"));
             object reloadedGameplay = GetField(reloadedSave, "mergeGameplay");
 
+            Type sessionType = FindPlayerType("MergeSessionData");
+            MethodInfo fingerprint = FindPlayerType("RestorationVerification")
+                .GetMethod("Fingerprint", new[] { sessionType });
+            object expectedSession = GetPropertyValue(
+                fixture.SessionManager,
+                "SessionData");
+            string expectedFingerprint = (string)fingerprint.Invoke(
+                null,
+                new[] { expectedSession });
+            Assert.IsTrue((bool)fixture.SessionManager.GetType()
+                .GetMethod("RestoreFromSaveData")
+                .Invoke(fixture.SessionManager, new[] { reloadedGameplay }));
+            object v2RestoredSession = GetPropertyValue(
+                fixture.SessionManager,
+                "SessionData");
+            string restoredFingerprint = (string)fingerprint.Invoke(
+                null,
+                new[] { v2RestoredSession });
+            Assert.AreEqual(
+                expectedFingerprint,
+                restoredFingerprint,
+                (string)FindPlayerType("RestorationVerification")
+                    .GetMethod(
+                        "DescribeDifference",
+                        new[] { sessionType, sessionType })
+                    .Invoke(
+                        null,
+                        new[]
+                        {
+                            expectedSession,
+                            v2RestoredSession
+                        }));
+
             object restoredSession = Activator.CreateInstance(
-                FindPlayerType("MergeSessionData"));
+                sessionType);
             MethodInfo restoreOrders = fixture.SessionManager.GetType().GetMethod(
                 "RestoreOrdersFromSaveData",
                 BindingFlags.Instance | BindingFlags.NonPublic);
@@ -689,7 +1085,8 @@ public class DataFoundationTests
             "Assets/_Game/Data/Upgrades/Upgrade_BoardSpace.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Shelf.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Customer.asset",
-            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset"
+            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_Luck.asset"
         };
 
         foreach (string path in paths)
@@ -787,11 +1184,16 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("Step5C")]
     public void RebirthRestoreSynchronizesFreeOvenLevelAndSpawnPool()
     {
         var setup = CreateProgressionPurchaseTestSetup();
         var spawnerObject = new GameObject("Rebirth Oven spawn pool test");
         spawnerObject.SetActive(false);
+        var saveManagerObject = new GameObject("Spawn pool restore save test");
+        saveManagerObject.SetActive(false);
+        object saveManager = saveManagerObject.AddComponent(
+            FindPlayerType("SaveManager"));
         object spawner = spawnerObject.AddComponent(
             FindPlayerType("DessertSpawner"));
         SetPrivateField(spawner, "progressionManager", setup.Progression);
@@ -834,9 +1236,10 @@ public class DataFoundationTests
                     setup.Progression.GetType()
                         .GetProperty("OvenLevel").GetValue(setup.Progression));
                 Assert.AreEqual(
-                    "P" + ovenLevels[rebirthCount],
+                    "P1",
                     spawner.GetType()
-                        .GetProperty("SelectedSpawnPoolId").GetValue(spawner));
+                        .GetProperty("SelectedSpawnPoolId").GetValue(spawner),
+                    "Oven unlocks must preserve the player's valid pool selection.");
                 Assert.AreEqual(
                     3,
                     setup.Progression.GetType()
@@ -853,9 +1256,96 @@ public class DataFoundationTests
                         .GetProperty("CurrentCash").GetValue(setup.Economy),
                     "Free Oven unlocks must not charge cash.");
             }
+
+            Assert.IsTrue((bool)            setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 3, 0, false }));
+            SetPrivateField(saveManager, "loadedSelectedSpawnPoolId", "P1");
+            Assert.IsTrue((bool)saveManager.GetType()
+                .GetMethod("RestoreSelectedSpawnPool")
+                .Invoke(saveManager, new[] { spawner }));
+            Assert.AreEqual(
+                "P1",
+                spawner.GetType().GetProperty("SelectedSpawnPoolId")
+                    .GetValue(spawner),
+                "A loaded valid P1 choice should survive Rebirth and restore.");
+            int previewTier = (int)GetPropertyValue(
+                spawner.GetType().GetProperty("NextDessert").GetValue(spawner),
+                "Tier");
+            Assert.That(previewTier, Is.InRange(1, 3),
+                "P1 must produce an eligible low-tier preview.");
+            MethodInfo tierForRoll = spawner.GetType().GetMethod(
+                "GetSpawnPoolTierForRoll",
+                BindingFlags.Public | BindingFlags.Static);
+            MethodInfo getDefinition = spawner.GetType().GetMethod(
+                "GetDessertDefinitionByTier",
+                BindingFlags.Public | BindingFlags.Instance);
+            foreach (int roll in new[] { 0, 60, 90 })
+            {
+                int tier = (int)tierForRoll.Invoke(
+                    null,
+                    new object[] { "P1", roll });
+                object definition = getDefinition.Invoke(
+                    spawner,
+                    new object[] { tier });
+                Assert.IsNotNull(definition,
+                    $"P1 must resolve a dessert definition for T{tier}.");
+                Assert.AreEqual(tier, GetPropertyValue(definition, "Tier"));
+            }
+            int cashBeforeSelection = (int)setup.Economy.GetType()
+                .GetProperty("CurrentCash").GetValue(setup.Economy);
+            Assert.IsTrue((bool)spawner.GetType()
+                .GetMethod("TrySelectSpawnPool")
+                .Invoke(spawner, new object[] { "P2" }),
+                "R2 should allow switching to P2.");
+            Assert.AreEqual(
+                "P2",
+                spawner.GetType().GetProperty("SelectedSpawnPoolId")
+                    .GetValue(spawner));
+            Assert.IsTrue((bool)spawner.GetType()
+                .GetMethod("TrySelectSpawnPool")
+                .Invoke(spawner, new object[] { "P1" }),
+                "R3 and later should retain access to P1.");
+            Assert.IsFalse((bool)spawner.GetType()
+                .GetMethod("TrySelectSpawnPool")
+                .Invoke(spawner, new object[] { "P3" }),
+                "Locked pools must not be selectable.");
+            Assert.AreEqual(
+                cashBeforeSelection,
+                setup.Economy.GetType().GetProperty("CurrentCash")
+                    .GetValue(setup.Economy),
+                "Changing spawn pools must not charge cash.");
+            Assert.AreEqual(
+                "P1",
+                spawner.GetType().GetProperty("SelectedSpawnPoolId")
+                    .GetValue(spawner));
+
+            var saveManagerType = FindPlayerType("SaveManager");
+            MethodInfo serializeWithPool = saveManagerType.GetMethod(
+                "SerializeWithSpawnPool",
+                BindingFlags.Static | BindingFlags.NonPublic,
+                null,
+                new[] { FindPlayerType("PlayerSaveData"), typeof(int), typeof(string) },
+                null);
+            var saveData = Activator.CreateInstance(
+                FindPlayerType("PlayerSaveData"));
+            string pooledJson = (string)serializeWithPool.Invoke(
+                null,
+                new[] { saveData, (object)0, "P1" });
+            string legacyJson = (string)saveManagerType.GetMethod(
+                    "SerializeWithCapacity",
+                    BindingFlags.Static | BindingFlags.NonPublic,
+                    null,
+                    new[] { FindPlayerType("PlayerSaveData"), typeof(int) },
+                    null)
+                .Invoke(null, new[] { saveData, (object)0 });
+            Assert.IsTrue(pooledJson.Contains("\"selectedSpawnPoolId\":\"P1\""));
+            Assert.IsFalse(legacyJson.Contains("selectedSpawnPoolId"),
+                "Older V2 root shape remains unchanged when pool metadata is absent.");
         }
         finally
         {
+            UnityEngine.Object.DestroyImmediate(saveManagerObject);
             UnityEngine.Object.DestroyImmediate(spawnerObject);
             DestroyProgressionPurchaseTestSetup(setup);
         }
@@ -1010,6 +1500,349 @@ public class DataFoundationTests
         }
         finally
         {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    [Category("Step5C.2")]
+    public void LuckPurchasesUseApprovedCostsMultipliersAndStopAtMaximum()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        var managerObject = new GameObject("Luck upgrade purchase test");
+        managerObject.SetActive(false);
+        object purchaseManager = managerObject.AddComponent(
+            FindPlayerType("UpgradePurchaseManager"));
+        SetPrivateField(purchaseManager, "progressionManager", setup.Progression);
+        SetPrivateField(purchaseManager, "economyManager", setup.Economy);
+        managerObject.SetActive(true);
+
+        try
+        {
+            Type upgradeType = FindPlayerType("UpgradeType");
+            object luckType = Enum.Parse(upgradeType, "Luck");
+            object definition =
+                setup.Progression.GetType().GetMethod("GetDefinition")
+                    .Invoke(setup.Progression, new[] { luckType });
+            int[] costs = { 600, 3500, 20000 };
+            float[] multipliers = { 1.25f, 1.5f, 2f };
+
+            Assert.AreEqual(1f, (float)setup.Progression.GetType()
+                .GetProperty("LuckMultiplier").GetValue(setup.Progression));
+            for (int i = 0; i < costs.Length; i++)
+            {
+                object next = definition.GetType().GetMethod("GetLevel")
+                    .Invoke(definition, new object[] { i + 2 });
+                Assert.AreEqual(costs[i], next.GetType().GetProperty("UpgradeCost")
+                    .GetValue(next));
+                Assert.AreEqual(multipliers[i], next.GetType()
+                    .GetProperty("FloatValue").GetValue(next));
+                int cashBefore = (int)setup.Economy.GetType()
+                    .GetProperty("CurrentCash").GetValue(setup.Economy);
+
+                Assert.IsTrue((bool)purchaseManager.GetType()
+                    .GetMethod("TryPurchaseUpgrade")
+                    .Invoke(purchaseManager, new[] { luckType }));
+                Assert.AreEqual(cashBefore - costs[i],
+                    setup.Economy.GetType().GetProperty("CurrentCash")
+                        .GetValue(setup.Economy));
+                Assert.AreEqual(i + 2, setup.Progression.GetType()
+                    .GetProperty("LuckLevel").GetValue(setup.Progression));
+                Assert.AreEqual(multipliers[i], (float)setup.Progression.GetType()
+                    .GetProperty("LuckMultiplier").GetValue(setup.Progression));
+            }
+
+            int cashAtMax = (int)setup.Economy.GetType()
+                .GetProperty("CurrentCash").GetValue(setup.Economy);
+            Assert.IsTrue((bool)purchaseManager.GetType()
+                .GetMethod("IsMaxLevel")
+                .Invoke(purchaseManager, new[] { luckType }));
+            Assert.IsFalse((bool)purchaseManager.GetType()
+                .GetMethod("CanPurchaseUpgrade")
+                .Invoke(purchaseManager, new[] { luckType }));
+            Assert.IsFalse((bool)purchaseManager.GetType()
+                .GetMethod("TryPurchaseUpgrade")
+                .Invoke(purchaseManager, new[] { luckType }));
+            Assert.AreEqual(cashAtMax, setup.Economy.GetType()
+                .GetProperty("CurrentCash").GetValue(setup.Economy));
+
+            Assert.IsTrue((bool)setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 1, 0, false }));
+            Assert.AreEqual(4, setup.Progression.GetType()
+                .GetProperty("LuckLevel").GetValue(setup.Progression),
+                "Luck is permanent across Rebirth.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    [Category("Step5C.2")]
+    public void LuckScalesBonusChanceWithoutChangingPoolTierSelection()
+    {
+        Type spawnerType = FindPlayerType("DessertSpawner");
+        MethodInfo effectiveChance = spawnerType.GetMethod(
+            "GetEffectiveBonusChancePerHundredThousand",
+            BindingFlags.Public | BindingFlags.Static);
+        MethodInfo shouldSpawn = spawnerType.GetMethod(
+            "ShouldSpawnBonus",
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            new[] { typeof(int), typeof(float), typeof(int) },
+            null);
+        MethodInfo selectBonus = spawnerType.GetMethod(
+            "TryGetBonusDessertDefinition",
+            BindingFlags.Public | BindingFlags.Static);
+
+        Assert.AreEqual(500,
+            effectiveChance.Invoke(null, new object[] { 2, 1f }));
+        Assert.AreEqual(625,
+            effectiveChance.Invoke(null, new object[] { 2, 1.25f }));
+        Assert.AreEqual(1200,
+            effectiveChance.Invoke(null, new object[] { 3, 1.5f }));
+        Assert.AreEqual(4000,
+            effectiveChance.Invoke(null, new object[] { 6, 2f }));
+        Assert.IsTrue((bool)shouldSpawn.Invoke(
+            null,
+            new object[] { 2, 1.25f, 624 }));
+        Assert.IsFalse((bool)shouldSpawn.Invoke(
+            null,
+            new object[] { 2, 1.25f, 625 }));
+
+        Array definitions = LoadDessertDefinitions();
+        object[] first = { definitions, "P1", 6, 30, 27, null };
+        object[] second = { definitions, "P1", 6, 30, 27, null };
+        Assert.IsTrue((bool)selectBonus.Invoke(null, first));
+        Assert.IsTrue((bool)selectBonus.Invoke(null, second));
+        Assert.AreEqual(
+            GetPropertyValue(first[5], "Tier"),
+            GetPropertyValue(second[5], "Tier"),
+            "Luck must not alter deterministic bonus tier selection.");
+    }
+
+    [Test]
+    [Category("Step5D")]
+    public void BoardDessertCanBeRecycledOnceWithoutRewardsOrMilestoneRegression()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+        int movementEvents = 0;
+        Action countMovement = () => movementEvents++;
+        EventInfo movementEvent = FindPlayerType("GameplayEvents")
+            .GetEvent("DessertMoved", BindingFlags.Static | BindingFlags.Public);
+        movementEvent.AddEventHandler(null, countMovement);
+        Type rebirthStateType = FindPlayerType("RebirthProgressionState");
+        object rebirthState = Activator.CreateInstance(rebirthStateType);
+        rebirthStateType.GetMethod("RegisterCreatedTier")
+            .Invoke(rebirthState, new object[] { 12 });
+
+        try
+        {
+            Assert.AreEqual("Board",
+                GetPropertyValue(fixture.Dessert, "LocationType").ToString());
+            Assert.AreSame(fixture.Cell,
+                GetPropertyValue(fixture.Dessert, "CurrentCell"));
+            Assert.AreSame(fixture.Cell,
+                fixture.DragHandler.GetType()
+                    .GetField("originCell",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    .GetValue(fixture.DragHandler));
+            MethodInfo recycle = fixture.DragHandler.GetType().GetMethod(
+                "TryRecycleDraggedDessert",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsTrue((bool)recycle.Invoke(fixture.DragHandler, null));
+            Assert.IsNull(GetPropertyValue(fixture.Cell, "CurrentDessert"));
+            Assert.IsNull(GetPropertyValue(fixture.Dessert, "CurrentCell"));
+            Assert.IsFalse((bool)recycle.Invoke(fixture.DragHandler, null),
+                "A repeated removal must be rejected.");
+            Assert.AreEqual(0, movementEvents,
+                "Recycling is not a rewarded move.");
+            Assert.AreEqual(12, GetPropertyValue(
+                    rebirthState, "HighestTierCreatedThisRun"),
+                "Recycling cannot undo a created-tier milestone.");
+        }
+        finally
+        {
+            movementEvent.RemoveEventHandler(null, countMovement);
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step5D")]
+    public void ShelfDessertCanBeRecycledOnce()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(true);
+
+        try
+        {
+            Assert.AreEqual("Shelf",
+                GetPropertyValue(fixture.Dessert, "LocationType").ToString());
+            Assert.AreSame(fixture.Slot,
+                GetPropertyValue(fixture.Dessert, "CurrentShelfSlot"));
+            Assert.AreSame(fixture.Slot,
+                fixture.DragHandler.GetType()
+                    .GetField("originShelfSlot",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    .GetValue(fixture.DragHandler));
+            MethodInfo recycle = fixture.DragHandler.GetType().GetMethod(
+                "TryRecycleDraggedDessert",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsTrue((bool)recycle.Invoke(fixture.DragHandler, null));
+            Assert.IsNull(GetPropertyValue(fixture.Slot, "CurrentDessert"));
+            Assert.IsNull(GetPropertyValue(fixture.Dessert, "CurrentShelfSlot"));
+            Assert.IsFalse((bool)recycle.Invoke(fixture.DragHandler, null));
+        }
+        finally
+        {
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step5D")]
+    public void DroppingOutsideRecycleBinPreservesBoardDessert()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+
+        try
+        {
+            SetPrivateField(fixture.DragHandler, "isDragging", true);
+            Vector2 outsideBin = GetRecycleBinScreenPoint(fixture) +
+                                 new Vector2(1000, 1000);
+            fixture.DragHandler.GetType().GetMethod("OnPointerUp").Invoke(
+                fixture.DragHandler,
+                new object[]
+                {
+                    new UnityEngine.EventSystems.PointerEventData(null)
+                    {
+                        position = outsideBin
+                    }
+                });
+
+            Assert.AreSame(fixture.Dessert,
+                GetPropertyValue(fixture.Cell, "CurrentDessert"));
+            Assert.AreSame(fixture.Cell,
+                GetPropertyValue(fixture.Dessert, "CurrentCell"));
+        }
+        finally
+        {
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step5D")]
+    public void DroppingBoardDessertOnRecycleBinRemovesIt()
+    {
+        RecycleFixture fixture = CreateRecycleFixture(false);
+
+        try
+        {
+            SetPrivateField(fixture.DragHandler, "isDragging", true);
+            Assert.IsTrue((bool)fixture.Target.GetType()
+                .GetMethod("ContainsScreenPoint")
+                .Invoke(fixture.Target, new object[]
+                {
+                    GetRecycleBinScreenPoint(fixture)
+                }), "The pointer should be inside the recycle bin.");
+            fixture.DragHandler.GetType().GetMethod("OnPointerUp").Invoke(
+                fixture.DragHandler,
+                new object[]
+                {
+                    new UnityEngine.EventSystems.PointerEventData(null)
+                    {
+                        position = GetRecycleBinScreenPoint(fixture)
+                    }
+                });
+
+            Assert.IsNull(GetPropertyValue(fixture.Cell, "CurrentDessert"));
+            Assert.IsTrue((UnityEngine.Object)fixture.Dessert == null);
+        }
+        finally
+        {
+            DestroyRecycleFixture(fixture);
+        }
+    }
+
+    [Test]
+    [Category("Step5C.2")]
+    public void LuckLevelPersistsInOptionalV2MetadataAndLegacySavesDefaultToOne()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        GameObject managerObject = new GameObject("Luck V2 persistence test");
+        managerObject.SetActive(false);
+        object saveManager = managerObject.AddComponent(FindPlayerType("SaveManager"));
+        Type progressionType = setup.Progression.GetType();
+        Type saveManagerType = saveManager.GetType();
+        SetPrivateStaticProperty(progressionType, "Instance", setup.Progression);
+        SetPrivateStaticProperty(saveManagerType, "Instance", saveManager);
+
+        try
+        {
+            object save = Activator.CreateInstance(FindPlayerType("PlayerSaveData"));
+            MethodInfo serializeWithLuck = saveManagerType.GetMethod(
+                "SerializeWithLuck",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            string json = (string)serializeWithLuck.Invoke(
+                null,
+                new[] { save, (object)0, null, 3 });
+            StringAssert.Contains("\"luckLevel\":3", json);
+
+            MethodInfo validate = saveManagerType.GetMethod(
+                "IsValidSerializedSnapshot",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsTrue((bool)validate.Invoke(saveManager, new object[] { json }));
+            object[] parseArgs =
+            {
+                System.Text.Encoding.UTF8.GetBytes(json),
+                "Luck V2 persistence test",
+                null
+            };
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                "TryParseValidatedBytes",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, parseArgs));
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                "RestoreProgression",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, new[] { parseArgs[2] }));
+            Assert.AreEqual(3, progressionType.GetProperty("LuckLevel")
+                .GetValue(setup.Progression));
+
+            string legacyJson = (string)saveManagerType.GetMethod(
+                "SerializeWithCapacity",
+                BindingFlags.Static | BindingFlags.NonPublic)
+                .Invoke(null, new[] { save, (object)0 });
+            Assert.IsTrue((bool)validate.Invoke(
+                saveManager,
+                new object[] { legacyJson }));
+            object[] legacyArgs =
+            {
+                System.Text.Encoding.UTF8.GetBytes(legacyJson),
+                "Legacy V2 persistence test",
+                null
+            };
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                "TryParseValidatedBytes",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, legacyArgs));
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                "RestoreProgression",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, new[] { legacyArgs[2] }));
+            Assert.AreEqual(1, progressionType.GetProperty("LuckLevel")
+                .GetValue(setup.Progression),
+                "Legacy V2 saves without Luck metadata retain starting Luck.");
+        }
+        finally
+        {
+            SetPrivateStaticProperty(progressionType, "Instance", null);
+            SetPrivateStaticProperty(saveManagerType, "Instance", null);
             UnityEngine.Object.DestroyImmediate(managerObject);
             DestroyProgressionPurchaseTestSetup(setup);
         }
@@ -1393,6 +2226,7 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("Step5C")]
     public void DetachedV2SnapshotIsStrictlyValidatedAndDeepCloned()
     {
         Type saveType = FindPlayerType("PlayerSaveData");
@@ -1424,6 +2258,38 @@ public class DataFoundationTests
                     GetField(detached, "mergeGameplay"));
                 Assert.AreEqual(originalJson, JsonUtility.ToJson(proposed),
                     "Preparation must not mutate the caller's proposal.");
+
+                MethodInfo serializeWithPool = manager.GetType().GetMethod(
+                    "SerializeWithSpawnPool",
+                    BindingFlags.Static | BindingFlags.NonPublic,
+                    null,
+                    new[] { saveType, typeof(int), typeof(string) },
+                    null);
+                string pooledJson = (string)serializeWithPool.Invoke(
+                    null,
+                    new[] { detached, (object)0, "P1" });
+                MethodInfo validate = manager.GetType().GetMethod(
+                    "IsValidSerializedSnapshot",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.IsTrue((bool)validate.Invoke(manager, new object[] { pooledJson }),
+                    "Selected-pool metadata must remain canonical V2 data.");
+                object[] parseArgs =
+                {
+                    System.Text.Encoding.UTF8.GetBytes(pooledJson),
+                    "test",
+                    null
+                };
+                Assert.IsTrue((bool)manager.GetType().GetMethod(
+                    "TryParseValidatedBytes",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Invoke(manager, parseArgs));
+                Assert.AreEqual(
+                    "P1",
+                    manager.GetType().GetField(
+                            "loadedSelectedSpawnPoolId",
+                            BindingFlags.Instance | BindingFlags.NonPublic)
+                        .GetValue(manager),
+                    "Validated V2 loading must restore the optional pool metadata.");
 
                 SetField(GetField(detached, "economy"), "cash", 500);
                 Assert.AreEqual(0, GetField(GetField(proposed, "economy"), "cash"),
@@ -1847,12 +2713,13 @@ public class DataFoundationTests
             "Assets/_Game/Data/Upgrades/Upgrade_BoardSpace.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Shelf.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Customer.asset",
-            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset"
+            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_Luck.asset"
         };
         string[] upgradeFields =
         {
             "ovenUpgrade", "boardSpaceUpgrade", "shelfUpgrade",
-            "customerUpgrade", "moneyMultiplierUpgrade"
+            "customerUpgrade", "moneyMultiplierUpgrade", "luckUpgrade"
         };
         for (int i = 0; i < upgradePaths.Length; i++)
             SetPrivateField(
@@ -2395,12 +3262,13 @@ public class DataFoundationTests
             "Assets/_Game/Data/Upgrades/Upgrade_BoardSpace.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Shelf.asset",
             "Assets/_Game/Data/Upgrades/Upgrade_Customer.asset",
-            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset"
+            "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset",
+            "Assets/_Game/Data/Upgrades/Upgrade_Luck.asset"
         };
         string[] fields =
         {
             "ovenUpgrade", "boardSpaceUpgrade", "shelfUpgrade",
-            "customerUpgrade", "moneyMultiplierUpgrade"
+            "customerUpgrade", "moneyMultiplierUpgrade", "luckUpgrade"
         };
         for (int i = 0; i < paths.Length; i++)
         {
@@ -2661,6 +3529,101 @@ public class DataFoundationTests
                 BindingFlags.Public |
                 BindingFlags.NonPublic)
             .SetValue(target, value);
+    }
+
+    private static RecycleFixture CreateRecycleFixture(bool shelfOrigin)
+    {
+        var fixture = new RecycleFixture();
+
+        GameObject canvasObject = new GameObject(
+            "Recycle test canvas",
+            typeof(RectTransform),
+            typeof(Canvas));
+        fixture.Objects.Add(canvasObject);
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        ((RectTransform)canvas.transform).sizeDelta =
+            new Vector2(1080, 1920);
+
+        GameObject targetObject = new GameObject(
+            "Recycle test target",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(UnityEngine.UI.Image));
+        fixture.Objects.Add(targetObject);
+        RectTransform targetRect = targetObject.GetComponent<RectTransform>();
+        targetRect.SetParent(canvas.transform, false);
+        targetRect.anchorMin = new Vector2(0.5f, 0.5f);
+        targetRect.anchorMax = new Vector2(0.5f, 0.5f);
+        targetRect.sizeDelta = new Vector2(170, 78);
+        fixture.Target = targetObject.AddComponent(
+            FindPlayerType("RecycleDropTarget"));
+        InvokeLifecycle(fixture.Target, "Awake");
+
+        GameObject gridObject = new GameObject("Recycle test grid");
+        gridObject.SetActive(false);
+        fixture.Objects.Add(gridObject);
+        fixture.Grid = gridObject.AddComponent(FindPlayerType("GridManager"));
+
+        GameObject shelfManagerObject = new GameObject(
+            "Recycle test shelf manager");
+        shelfManagerObject.SetActive(false);
+        fixture.Objects.Add(shelfManagerObject);
+        fixture.Shelf = shelfManagerObject.AddComponent(
+            FindPlayerType("ShelfManager"));
+
+        GameObject dessertObject = new GameObject("Recycle test dessert");
+        fixture.Objects.Add(dessertObject);
+        fixture.Dessert = dessertObject.AddComponent(
+            FindPlayerType("Dessert"));
+
+        if (shelfOrigin)
+        {
+            GameObject slotObject = new GameObject("Recycle test shelf slot");
+            fixture.Objects.Add(slotObject);
+            fixture.Slot = slotObject.AddComponent(
+                FindPlayerType("ShelfSlot"));
+            fixture.Slot.GetType().GetMethod("SetUnlocked")
+                .Invoke(fixture.Slot, new object[] { true });
+            Assert.IsTrue((bool)fixture.Slot.GetType()
+                .GetMethod("TryStoreDessert")
+                .Invoke(fixture.Slot, new[] { fixture.Dessert, (object)false }));
+        }
+        else
+        {
+            GameObject cellObject = new GameObject("Recycle test board cell");
+            fixture.Objects.Add(cellObject);
+            fixture.Cell = cellObject.AddComponent(FindPlayerType("GridCell"));
+            fixture.Cell.GetType().GetMethod("SetUnlocked")
+                .Invoke(fixture.Cell, new object[] { true });
+            fixture.Cell.GetType().GetMethod("PlaceDessert")
+                .Invoke(fixture.Cell, new[] { fixture.Dessert, (object)false });
+        }
+
+        fixture.DragHandler = dessertObject.AddComponent(
+            FindPlayerType("DessertDragHandler"));
+        InvokeLifecycle(fixture.DragHandler, "Awake");
+        SetPrivateField(fixture.DragHandler, "gridManager", fixture.Grid);
+        SetPrivateField(fixture.DragHandler, "shelfManager", fixture.Shelf);
+        SetPrivateField(fixture.DragHandler, "recycleDropTarget", fixture.Target);
+        SetPrivateField(fixture.DragHandler, "mainCamera", null);
+        SetPrivateField(fixture.DragHandler, "originCell", fixture.Cell);
+        SetPrivateField(fixture.DragHandler, "originShelfSlot", fixture.Slot);
+        return fixture;
+    }
+
+    private static Vector2 GetRecycleBinScreenPoint(RecycleFixture fixture)
+    {
+        return new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+    }
+
+    private static void DestroyRecycleFixture(RecycleFixture fixture)
+    {
+        for (int i = fixture.Objects.Count - 1; i >= 0; i--)
+        {
+            if (fixture.Objects[i] != null)
+                UnityEngine.Object.DestroyImmediate(fixture.Objects[i]);
+        }
     }
 
     private static void SetPrivateStaticProperty(
@@ -2998,16 +3961,16 @@ public class DataFoundationTests
             setup.ProgressionObject.AddComponent(progressionType);
         string[] upgradeTypes =
         {
-            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier"
+            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier", "Luck"
         };
         string[] assetNames =
         {
-            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier"
+            "Oven", "BoardSpace", "Shelf", "Customer", "MoneyMultiplier", "Luck"
         };
         string[] fieldNames =
         {
             "ovenUpgrade", "boardSpaceUpgrade", "shelfUpgrade",
-            "customerUpgrade", "moneyMultiplierUpgrade"
+            "customerUpgrade", "moneyMultiplierUpgrade", "luckUpgrade"
         };
         for (int i = 0; i < upgradeTypes.Length; i++)
         {

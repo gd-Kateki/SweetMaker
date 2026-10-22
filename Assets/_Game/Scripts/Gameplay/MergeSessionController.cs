@@ -222,7 +222,9 @@ public class MergeSessionController : MonoBehaviour
         MergeSessionManager.Instance
             .SaveSession(data);
         SaveManager.Instance?.RecordSessionCustomerCapacity(
-            MergeSessionManager.Instance.SessionData, orderManager.ActiveCustomerCount);
+            MergeSessionManager.Instance.SessionData,
+            orderManager.ActiveCustomerCount,
+            dessertSpawner.SelectedSpawnPoolId);
         Debug.Log(
             "MERGE SESSION CAPTURE COMPLETE | " +
             $"Board: {data.boardDesserts.Count} | " +
@@ -333,7 +335,8 @@ public class MergeSessionController : MonoBehaviour
             MergeSessionManager.Instance.SaveSession(freshSession);
             saveManager.RecordSessionCustomerCapacity(
                 MergeSessionManager.Instance.SessionData,
-                orderManager.ActiveCustomerCount);
+                orderManager.ActiveCustomerCount,
+                dessertSpawner.SelectedSpawnPoolId);
             replacementSessionPreparedForCommit = true;
 
             IsRestorationVerified = true;
@@ -745,6 +748,8 @@ public class MergeSessionController : MonoBehaviour
                 RestoreShelf(data);
                 if (!orderManager.RestoreCustomerOrders(data.customerOrders, data.nextOrderId, savedCapacity))
                     return FailRestoration("Exact order restoration failed.");
+                if (!SaveManager.Instance.RestoreSelectedSpawnPool(dessertSpawner))
+                    return FailRestoration("The selected Oven spawn pool could not be restored.");
                 RestoreNextDessert(data);
                 gridManager.NotifyBoardChanged();
                 shelfManager.NotifyShelfChanged();
@@ -754,9 +759,11 @@ public class MergeSessionController : MonoBehaviour
                 CaptureShelf(actual);
                 CaptureOrders(actual);
                 CaptureNextDessert(actual);
-                if (!string.Equals(target, RestorationVerification.Fingerprint(actual),
-                        StringComparison.Ordinal))
-                    return FailRestoration("Live board, shelf, orders, order counter or next dessert differs from the saved session.");
+                if (!RestorationVerification.MatchesFingerprint(target, actual))
+                    return FailRestoration(
+                        "Live board, shelf, orders, order counter or next dessert differs " +
+                        "from the saved session. " +
+                        RestorationVerification.DescribeDifference(data, actual));
                 // Expansion happens only after the entire saved snapshot matched exactly.
                 if (!orderManager.ExpandRestoredCustomerCapacity(savedCapacity))
                     return FailRestoration("New customer slots could not be generated.");
@@ -794,7 +801,9 @@ public class MergeSessionController : MonoBehaviour
             {
                 MergeSessionManager.Instance.SaveSession(verifiedSnapshot);
                 SaveManager.Instance.RecordSessionCustomerCapacity(
-                    MergeSessionManager.Instance.SessionData, orderManager.ActiveCustomerCount);
+                    MergeSessionManager.Instance.SessionData,
+                    orderManager.ActiveCustomerCount,
+                    dessertSpawner.SelectedSpawnPoolId);
             }
             hasRestoredAutomatically = true;
             Debug.Log("MERGE SESSION VERIFIED | Board, shelf, orders and next dessert are ready.");

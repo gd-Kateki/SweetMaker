@@ -30,6 +30,9 @@ public class PlayerProgressionManager : MonoBehaviour
     [SerializeField]
     private UpgradeDefinition moneyMultiplierUpgrade;
 
+    [SerializeField]
+    private UpgradeDefinition luckUpgrade;
+
     // ==================================================
     // RUNTIME LEVELS
     // ==================================================
@@ -50,6 +53,9 @@ public class PlayerProgressionManager : MonoBehaviour
 
     [SerializeField]
     private int moneyMultiplierLevel = 1;
+
+    [SerializeField]
+    private int luckLevel = 1;
 
     [Header("Rebirth Progression")]
     [SerializeField]
@@ -86,6 +92,9 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public int MoneyMultiplierLevel =>
         moneyMultiplierLevel;
+
+    public int LuckLevel =>
+        luckLevel;
 
     public int CurrentRebirthCount =>
         RebirthProgression.CurrentRebirthCount;
@@ -147,6 +156,9 @@ public class PlayerProgressionManager : MonoBehaviour
             moneyMultiplierUpgrade,
             moneyMultiplierLevel
         );
+
+    public float LuckMultiplier =>
+        GetFloatValue(luckUpgrade, luckLevel);
 
     // ==================================================
     // UNITY
@@ -365,6 +377,9 @@ public class PlayerProgressionManager : MonoBehaviour
             case UpgradeType.MoneyMultiplier:
                 return moneyMultiplierLevel;
 
+            case UpgradeType.Luck:
+                return luckLevel;
+
             default:
                 return 1;
         }
@@ -427,6 +442,9 @@ public class PlayerProgressionManager : MonoBehaviour
 
             case UpgradeType.MoneyMultiplier:
                 return moneyMultiplierUpgrade;
+
+            case UpgradeType.Luck:
+                return luckUpgrade;
 
             default:
                 return null;
@@ -635,6 +653,10 @@ public class PlayerProgressionManager : MonoBehaviour
                 moneyMultiplierLevel =
                     newLevel;
                 break;
+
+            case UpgradeType.Luck:
+                luckLevel = newLevel;
+                break;
         }
 
         UpgradeLevelChanged?.Invoke(
@@ -694,7 +716,8 @@ public class PlayerProgressionManager : MonoBehaviour
     public bool ValidateRestorationDefinitions(out string reason)
     {
         foreach (UpgradeType type in new[] { UpgradeType.Oven, UpgradeType.BoardSpace,
-            UpgradeType.Shelf, UpgradeType.Customer, UpgradeType.MoneyMultiplier })
+            UpgradeType.Shelf, UpgradeType.Customer, UpgradeType.MoneyMultiplier,
+            UpgradeType.Luck })
         {
             var definition = GetDefinition(type);
             if (definition == null || !definition.IsValid || definition.UpgradeType != type ||
@@ -703,7 +726,9 @@ public class PlayerProgressionManager : MonoBehaviour
         }
         if (MaxUnlockedDessertTier <= 0 || ActiveBoardCells <= 0 || ShelfCapacity < 0 ||
             ActiveCustomerOrders <= 0 || float.IsNaN(MoneyMultiplier) ||
-            float.IsInfinity(MoneyMultiplier) || MoneyMultiplier <= 0)
+            float.IsInfinity(MoneyMultiplier) || MoneyMultiplier <= 0 ||
+            float.IsNaN(LuckMultiplier) || float.IsInfinity(LuckMultiplier) ||
+            LuckMultiplier <= 0)
         { reason = "Progression gameplay values are invalid."; return false; }
         reason = null;
         return true;
@@ -740,6 +765,8 @@ public class PlayerProgressionManager : MonoBehaviour
                 moneyMultiplierLevel,
                 moneyMultiplierUpgrade
             );
+
+        luckLevel = ClampLevel(luckLevel, luckUpgrade);
     }
 
     private int ClampLevel(
@@ -785,6 +812,8 @@ public class PlayerProgressionManager : MonoBehaviour
             moneyMultiplierUpgrade,
             UpgradeType.MoneyMultiplier
         );
+
+        ValidateDefinition(luckUpgrade, UpgradeType.Luck);
     }
 
     private void ValidateDefinition(
@@ -896,6 +925,23 @@ public void RestoreProgression(
     int restoredCustomerLevel,
     int restoredMoneyMultiplierLevel)
 {
+    RestoreProgression(
+        restoredOvenLevel,
+        restoredBoardSpaceLevel,
+        restoredShelfLevel,
+        restoredCustomerLevel,
+        restoredMoneyMultiplierLevel,
+        luckLevel);
+}
+
+public void RestoreProgression(
+    int restoredOvenLevel,
+    int restoredBoardSpaceLevel,
+    int restoredShelfLevel,
+    int restoredCustomerLevel,
+    int restoredMoneyMultiplierLevel,
+    int restoredLuckLevel)
+{
     /*
      * Save data is external state.
      *
@@ -934,6 +980,8 @@ public void RestoreProgression(
             moneyMultiplierUpgrade
         );
 
+    luckLevel = ClampLevel(restoredLuckLevel, luckUpgrade);
+
     /*
      * Notify every progression consumer.
      *
@@ -968,6 +1016,8 @@ public void RestoreProgression(
         UpgradeType.MoneyMultiplier,
         moneyMultiplierLevel
     );
+
+    UpgradeLevelChanged?.Invoke(UpgradeType.Luck, luckLevel);
 
     Debug.Log(
         "PROGRESSION RESTORED | " +

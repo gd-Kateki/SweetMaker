@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 
 public class DessertSpawner : MonoBehaviour
@@ -21,6 +22,11 @@ public class DessertSpawner : MonoBehaviour
     private static readonly int[] SpawnPoolHighestTiers =
     {
         3, 7, 11, 15, 20, 25
+    };
+
+    private static readonly int[] BonusChancePerTenThousand =
+    {
+        0, 50, 80, 100, 150, 200
     };
 
     private static readonly int[][] SpawnPoolTierWeights =
@@ -66,6 +72,8 @@ public class DessertSpawner : MonoBehaviour
     private DessertDefinition nextDessert;
 
     private string selectedSpawnPoolId = "P1";
+
+    public event Action<string, int, int> SpawnPoolChanged;
 
     public DessertDefinition NextDessert =>
         nextDessert;
@@ -168,13 +176,16 @@ public class DessertSpawner : MonoBehaviour
                 HandleUpgradeLevelChanged;
             progressionManager.UpgradeLevelChanged +=
                 HandleUpgradeLevelChanged;
-            selectedSpawnPoolId =
-                GetPoolIdForOvenLevel(
-                    progressionManager.OvenLevel
-                );
+            if (!IsSpawnPoolUnlocked(
+                    selectedSpawnPoolId,
+                    progressionManager.OvenLevel))
+            {
+                selectedSpawnPoolId = "P1";
+            }
         }
 
         PrepareNextDessert();
+        PublishSpawnPoolChanged();
     }
 
     private void OnDestroy()
@@ -193,8 +204,9 @@ public class DessertSpawner : MonoBehaviour
         if (type != UpgradeType.Oven)
             return;
 
-        selectedSpawnPoolId =
-            GetPoolIdForOvenLevel(newLevel);
+        if (!IsSpawnPoolUnlocked(selectedSpawnPoolId, newLevel))
+            selectedSpawnPoolId = "P1";
+        PublishSpawnPoolChanged();
     }
 
     public bool TrySelectSpawnPool(string poolId)
@@ -221,8 +233,228 @@ public class DessertSpawner : MonoBehaviour
             return false;
         }
 
+        if (selectedSpawnPoolId == poolId)
+            return true;
+
         selectedSpawnPoolId = poolId;
+        PrepareNextDessert();
+        PublishSpawnPoolChanged();
         return true;
+    }
+
+    public bool TryRestoreSpawnPool(string poolId)
+    {
+        ResolveProgressionManager();
+        int ovenLevel = progressionManager != null
+            ? progressionManager.OvenLevel
+            : 1;
+        string restoredPool = IsSpawnPoolUnlocked(poolId, ovenLevel)
+            ? poolId
+            : "P1";
+        bool wasValid = restoredPool == poolId;
+        selectedSpawnPoolId = restoredPool;
+        PublishSpawnPoolChanged();
+        if (!wasValid)
+        {
+            Debug.LogWarning(
+                $"SPAWN POOL RESTORE | Invalid or locked pool '{poolId}'; " +
+                "falling back to P1.");
+        }
+
+        return IsSpawnPoolUnlocked(selectedSpawnPoolId, ovenLevel);
+    }
+
+    public static bool IsValidSpawnPoolId(string poolId)
+    {
+        return GetSpawnPoolIndex(poolId) >= 0;
+    }
+
+    public static int GetSpawnPoolFirstTier(string poolId)
+    {
+        int index = GetSpawnPoolIndex(poolId);
+        return index >= 0 ? SpawnPoolFirstTiers[index] : 0;
+    }
+
+    public static int GetSpawnPoolHighestTier(string poolId)
+    {
+        int index = GetSpawnPoolIndex(poolId);
+        return index >= 0 ? SpawnPoolHighestTiers[index] : 0;
+    }
+
+    public static int GetSpawnPoolTierForRoll(string poolId, int roll)
+    {
+        int index = GetSpawnPoolIndex(poolId);
+        if (index < 0)
+            return 0;
+
+        int totalWeight = 0;
+        foreach (int weight in SpawnPoolTierWeights[index])
+            totalWeight += weight;
+        if (roll < 0 || roll >= totalWeight)
+            return 0;
+
+        int cumulativeWeight = 0;
+        for (int tierIndex = 0;
+             tierIndex < SpawnPoolTierWeights[index].Length;
+             tierIndex++)
+        {
+            cumulativeWeight += SpawnPoolTierWeights[index][tierIndex];
+            if (roll < cumulativeWeight)
+                return SpawnPoolFirstTiers[index] + tierIndex;
+        }
+
+        return 0;
+    }
+
+    public static int GetBonusChancePerTenThousand(int ovenLevel)
+    {
+        return ovenLevel >= 1 &&
+               ovenLevel <= BonusChancePerTenThousand.Length
+            ? BonusChancePerTenThousand[ovenLevel - 1]
+            : 0;
+    }
+
+    public static int GetEffectiveBonusChancePerHundredThousand(
+        int ovenLevel,
+        float luckMultiplier)
+    {
+        if (float.IsNaN(luckMultiplier) ||
+            float.IsInfinity(luckMultiplier) ||
+            luckMultiplier <= 0)
+            return 0;
+
+        return Mathf.RoundToInt(
+            GetBonusChancePerTenThousand(ovenLevel) *
+            10f *
+            luckMultiplier);
+    }
+
+    public static bool ShouldSpawnBonus(
+        int ovenLevel,
+        float luckMultiplier,
+        int roll)
+    {
+        return roll >= 0 &&
+               roll < 100000 &&
+               roll < GetEffectiveBonusChancePerHundredThousand(
+                   ovenLevel,
+                   luckMultiplier);
+    }
+
+    public static bool ShouldSpawnBonus(int ovenLevel, int roll)
+    {
+        if (roll < 0 || roll >= 10000)
+            return false;
+
+        return roll < GetBonusChancePerTenThousand(ovenLevel);
+    }
+
+    public static bool CanFitBonusDessert(int emptyCellCount)
+    {
+        return emptyCellCount >= 2;
+    }
+
+    public static bool ShouldAttemptBonus(
+        int ovenLevel,
+        int roll,
+        int emptyCellCount)
+    {
+        return CanFitBonusDessert(emptyCellCount) &&
+               ShouldSpawnBonus(ovenLevel, roll);
+    }
+
+    public static bool TryGetBonusDessertDefinition(
+        DessertDefinition[] definitions,
+        string selectedPoolId,
+        int ovenLevel,
+        int maxTier,
+        int roll,
+        out DessertDefinition bonusDefinition)
+    {
+        bonusDefinition = null;
+        int selectedPoolIndex = GetSpawnPoolIndex(selectedPoolId);
+        if (definitions == null ||
+            selectedPoolIndex < 0 ||
+            ovenLevel < 1 ||
+            ovenLevel > SpawnPoolIds.Length ||
+            maxTier < 1)
+            return false;
+
+        int selectedPoolHighestTier =
+            SpawnPoolHighestTiers[selectedPoolIndex];
+        int preferredPoolIndex = Math.Min(ovenLevel, SpawnPoolIds.Length) - 1;
+        for (int poolIndex = preferredPoolIndex;
+             poolIndex > selectedPoolIndex;
+             poolIndex--)
+        {
+            if (SpawnPoolUnlockLevels[poolIndex] > ovenLevel)
+                continue;
+
+            int firstTier = Math.Max(
+                SpawnPoolFirstTiers[poolIndex],
+                selectedPoolHighestTier + 1);
+            int lastTier = Math.Min(
+                SpawnPoolHighestTiers[poolIndex],
+                maxTier);
+            int totalWeight = 0;
+
+            for (int tier = firstTier; tier <= lastTier; tier++)
+            {
+                int weight = GetSpawnPoolTierWeight(
+                    SpawnPoolIds[poolIndex],
+                    tier);
+                DessertDefinition definition = FindDefinition(definitions, tier);
+                if (weight > 0 && definition != null && definition.CanSpawnFromOven)
+                    totalWeight += weight;
+            }
+
+            if (totalWeight == 0)
+                continue;
+            if (roll < 0 || roll >= totalWeight)
+                return false;
+
+            int cumulativeWeight = 0;
+            for (int tier = firstTier; tier <= lastTier; tier++)
+            {
+                int weight = GetSpawnPoolTierWeight(
+                    SpawnPoolIds[poolIndex],
+                    tier);
+                DessertDefinition definition = FindDefinition(definitions, tier);
+                if (weight <= 0 || definition == null || !definition.CanSpawnFromOven)
+                    continue;
+
+                cumulativeWeight += weight;
+                if (roll < cumulativeWeight)
+                {
+                    bonusDefinition = definition;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static DessertDefinition FindDefinition(
+        DessertDefinition[] definitions,
+        int tier)
+    {
+        foreach (DessertDefinition definition in definitions)
+            if (definition != null && definition.Tier == tier)
+                return definition;
+        return null;
+    }
+
+    private void PublishSpawnPoolChanged()
+    {
+        string poolId = selectedSpawnPoolId;
+        SaveManager.Instance?.RecordSelectedSpawnPool(poolId);
+        SpawnPoolChanged?.Invoke(
+            poolId,
+            GetSpawnPoolFirstTier(poolId),
+            GetSpawnPoolHighestTier(poolId));
     }
 
     public static IReadOnlyList<string> GetUnlockedSpawnPoolIds(
@@ -367,6 +599,7 @@ public class DessertSpawner : MonoBehaviour
         DessertDefinition definitionToSpawn =
             nextDessert;
 
+        int emptyCellsBeforeSpawn = gridManager.EmptyCellCount;
         Dessert dessert =
             SpawnDessert(
                 definitionToSpawn,
@@ -385,8 +618,6 @@ public class DessertSpawner : MonoBehaviour
             dessertAnimator.PlaySpawnPop();
         }
 
-        gridManager.NotifyBoardChanged();
-
         GameplayEvents.RaiseDessertSpawned(
             definitionToSpawn.Tier
         );
@@ -396,6 +627,45 @@ public class DessertSpawner : MonoBehaviour
             $"{definitionToSpawn.DisplayName} " +
             $"in {cell.name}."
         );
+
+        int bonusRoll = CanFitBonusDessert(emptyCellsBeforeSpawn)
+            ? UnityEngine.Random.Range(0, 100000)
+            : -1;
+        if (CanFitBonusDessert(emptyCellsBeforeSpawn) &&
+            ShouldSpawnBonus(
+                CurrentOvenLevel,
+                progressionManager != null
+                    ? progressionManager.LuckMultiplier
+                    : 1f,
+                bonusRoll) &&
+            TryGetBonusDessertDefinition(
+                dessertDefinitions,
+                selectedSpawnPoolId,
+                CurrentOvenLevel,
+                MaxUnlockedDessertTier,
+                UnityEngine.Random.Range(0, 100),
+                out DessertDefinition bonusDefinition))
+        {
+            if (gridManager.TryGetEmptyCell(out GridCell bonusCell))
+            {
+                Dessert bonusDessert = SpawnDessert(bonusDefinition, bonusCell);
+                if (bonusDessert != null)
+                {
+                    DessertAnimator bonusAnimator =
+                        bonusDessert.GetComponent<DessertAnimator>();
+                    if (bonusAnimator != null)
+                        bonusAnimator.PlaySpawnPop();
+
+                    GameplayEvents.RaiseDessertSpawned(
+                        bonusDefinition.Tier);
+                    Debug.Log(
+                        $"OVEN BONUS | Spawned {bonusDefinition.DisplayName} " +
+                        $"(T{bonusDefinition.Tier}) in {bonusCell.name}.");
+                }
+            }
+        }
+
+        gridManager.NotifyBoardChanged();
 
         /*
          * The saved/restored dessert has now
@@ -824,12 +1094,7 @@ public class DessertSpawner : MonoBehaviour
                     ? progressionManager.OvenLevel
                     : 1))
         {
-            selectedSpawnPoolId =
-                GetPoolIdForOvenLevel(
-                    progressionManager != null
-                        ? progressionManager.OvenLevel
-                        : 1
-                );
+            selectedSpawnPoolId = "P1";
             selectedPoolIndex =
                 GetSpawnPoolIndex(selectedSpawnPoolId);
         }
@@ -874,7 +1139,7 @@ public class DessertSpawner : MonoBehaviour
         }
 
         int roll =
-            Random.Range(
+            UnityEngine.Random.Range(
                 0,
                 totalWeight
             );

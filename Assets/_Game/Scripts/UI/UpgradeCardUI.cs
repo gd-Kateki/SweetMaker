@@ -595,6 +595,9 @@ public class UpgradeCardUI : MonoBehaviour
             case UpgradeType.MoneyMultiplier:
                 return "Money Multiplier";
 
+            case UpgradeType.Luck:
+                return "Bonus Dessert Chance";
+
             default:
                 return "Upgrade Effect";
         }
@@ -644,6 +647,10 @@ public class UpgradeCardUI : MonoBehaviour
             case UpgradeType.MoneyMultiplier:
                 return
                     $"×{levelData.FloatValue:0.0#}";
+
+            case UpgradeType.Luck:
+                return
+                    $"×{levelData.FloatValue:0.##}";
 
             default:
                 return "-";

@@ -423,6 +423,9 @@ public class UpgradePurchaseManager : MonoBehaviour
 
     private bool IsUnlockedByRebirth(UpgradeType type, int targetLevel)
     {
+        if (type == UpgradeType.Luck)
+            return true;
+
         int requiredRebirthCount = GetRequiredRebirthCount(type, targetLevel);
         return requiredRebirthCount >= 0 &&
                progressionManager.CurrentRebirthCount >= requiredRebirthCount;
@@ -434,6 +437,8 @@ public class UpgradePurchaseManager : MonoBehaviour
     {
         if (type == UpgradeType.Oven)
             return -1;
+        if (type == UpgradeType.Luck)
+            return 0;
 
         switch (targetLevel)
         {
@@ -525,6 +530,8 @@ public class UpgradePurchaseManager : MonoBehaviour
         DebugUpgradeState(
             UpgradeType.MoneyMultiplier
         );
+
+        DebugUpgradeState(UpgradeType.Luck);
     }
 
     private void DebugUpgradeState(

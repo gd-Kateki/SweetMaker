@@ -21,6 +21,8 @@ public class SaveManager : MonoBehaviour
     {
 
         public int mergeSessionCustomerCapacity;
+        public string selectedSpawnPoolId;
+        public int luckLevel;
 
     }
 
@@ -33,8 +35,15 @@ public class SaveManager : MonoBehaviour
     private string capacityFingerprint;
 
     private int sessionCustomerCapacity;
+    private string loadedSelectedSpawnPoolId;
+    private string sessionSelectedSpawnPoolId;
+    private int loadedLuckLevel = 1;
+    private int sessionLuckLevel = 1;
 
-    public void RecordSessionCustomerCapacity(MergeSessionData data, int capacity)
+    public void RecordSessionCustomerCapacity(
+        MergeSessionData data,
+        int capacity,
+        string selectedPoolId = null)
 
     {
 
@@ -43,7 +52,38 @@ public class SaveManager : MonoBehaviour
         capacityFingerprint = RestorationVerification.Fingerprint(data);
 
         sessionCustomerCapacity = capacity;
+        if (selectedPoolId != null &&
+            DessertSpawner.IsValidSpawnPoolId(selectedPoolId))
+        {
+            sessionSelectedSpawnPoolId = selectedPoolId;
+        }
 
+    }
+
+    public void RecordSelectedSpawnPool(string poolId)
+    {
+        if (!DessertSpawner.IsValidSpawnPoolId(poolId))
+        {
+            Debug.LogError(
+                $"SAVE | Refusing to record invalid Oven spawn pool '{poolId}'.");
+            return;
+        }
+
+        sessionSelectedSpawnPoolId = poolId;
+    }
+
+    public bool RestoreSelectedSpawnPool(DessertSpawner spawner)
+    {
+        if (spawner == null)
+        {
+            Debug.LogError("LOAD | Cannot restore Oven spawn pool without DessertSpawner.");
+            return false;
+        }
+
+        string selectedPool = sessionSelectedSpawnPoolId ??
+                              loadedSelectedSpawnPoolId ??
+                              "P1";
+        return spawner.TryRestoreSpawnPool(selectedPool);
     }
 
     public bool TryGetSessionCustomerCapacity(MergeSessionData data, int currentCapacity,
@@ -84,6 +124,57 @@ public class SaveManager : MonoBehaviour
 
             ",\"mergeSessionCustomerCapacity\":" + capacity.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
 
+    }
+
+    private static string SerializeWithSpawnPool(
+        PlayerSaveData data,
+        int capacity,
+        string selectedPoolId)
+    {
+        string json = SerializeWithCapacity(data, capacity);
+        if (string.IsNullOrWhiteSpace(selectedPoolId))
+            return json;
+        if (!DessertSpawner.IsValidSpawnPoolId(selectedPoolId))
+            throw new ArgumentException(
+                "Selected Oven spawn pool is invalid.",
+                nameof(selectedPoolId));
+
+        return json.Substring(0, json.Length - 1) +
+               ",\"selectedSpawnPoolId\":\"" + selectedPoolId + "\"}";
+    }
+
+    private static string SerializeWithLuck(
+        PlayerSaveData data,
+        int capacity,
+        string selectedPoolId,
+        int luckLevel)
+    {
+        string json = SerializeWithSpawnPool(data, capacity, selectedPoolId);
+        if (luckLevel <= 0)
+            return json;
+        if (luckLevel > 4)
+            throw new ArgumentOutOfRangeException(
+                nameof(luckLevel),
+                "Luck level must be in the range 1-4.");
+
+        return json.Substring(0, json.Length - 1) +
+               ",\"luckLevel\":" +
+               luckLevel.ToString(
+                   System.Globalization.CultureInfo.InvariantCulture) +
+               "}";
+    }
+
+    private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
+    {
+        DessertSpawner spawner = FindAnyObjectByType<DessertSpawner>();
+        PlayerProgressionManager progression = PlayerProgressionManager.Instance;
+        string selectedPool = spawner != null
+            ? spawner.SelectedSpawnPoolId
+            : sessionSelectedSpawnPoolId;
+        int luckLevel = progression != null
+            ? progression.LuckLevel
+            : sessionLuckLevel;
+        return SerializeWithLuck(data, capacity, selectedPool, luckLevel);
     }
 
     internal bool TryPrepareDetachedSnapshot(
@@ -128,7 +219,9 @@ public class SaveManager : MonoBehaviour
                 return false;
             }
 
-            string serialized = SerializeWithCapacity(detached, sessionCapacity);
+            string serialized = SerializeCurrentWithCapacity(
+                detached,
+                sessionCapacity);
             if (!IsValidBackupCandidate(SaveEncoding.GetBytes(serialized)))
             {
                 failureReason =
@@ -701,7 +794,9 @@ public class SaveManager : MonoBehaviour
 
             $"Money L" +
 
-            $"{saveData.progression.moneyMultiplierLevel}"
+            $"{saveData.progression.moneyMultiplierLevel} | " +
+
+            $"Luck L{progressionManager.LuckLevel}"
 
         );
 
@@ -1072,19 +1167,23 @@ public class SaveManager : MonoBehaviour
 
             saveData.progression.customerLevel,
 
-            saveData.progression.moneyMultiplierLevel
+            saveData.progression.moneyMultiplierLevel,
+
+            loadedLuckLevel
 
         );
+
+        UpgradeType[] types = { UpgradeType.Oven, UpgradeType.BoardSpace, UpgradeType.Shelf,
+
+            UpgradeType.Customer, UpgradeType.MoneyMultiplier, UpgradeType.Luck };
 
         int[] expectedLevels = { saveData.progression.ovenLevel,
 
             saveData.progression.boardSpaceLevel, saveData.progression.shelfLevel,
 
-            saveData.progression.customerLevel, saveData.progression.moneyMultiplierLevel };
+            saveData.progression.customerLevel, saveData.progression.moneyMultiplierLevel,
 
-        UpgradeType[] types = { UpgradeType.Oven, UpgradeType.BoardSpace, UpgradeType.Shelf,
-
-            UpgradeType.Customer, UpgradeType.MoneyMultiplier };
+            loadedLuckLevel };
 
         for (int i = 0; i < types.Length; i++)
 
@@ -1825,7 +1924,7 @@ public class SaveManager : MonoBehaviour
         out bool snapshotCommitted)
     {
         snapshotCommitted = false;
-        string json = SerializeWithCapacity(saveData, capacity);
+        string json = SerializeCurrentWithCapacity(saveData, capacity);
         if (!IsValidSerializedSnapshot(json))
         {
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
@@ -2243,17 +2342,39 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
-        int capacity = JsonUtility.FromJson<CustomerCapacityMetadata>(json).mergeSessionCustomerCapacity;
+        CustomerCapacityMetadata metadata =
+            JsonUtility.FromJson<CustomerCapacityMetadata>(json);
+        if (metadata == null ||
+            (!string.IsNullOrEmpty(metadata.selectedSpawnPoolId) &&
+             !DessertSpawner.IsValidSpawnPoolId(metadata.selectedSpawnPoolId)) ||
+            metadata.luckLevel < 0 ||
+            metadata.luckLevel > 4)
+            return false;
+        int capacity = metadata.mergeSessionCustomerCapacity;
 
         if (check.mergeGameplay.hasSession && (capacity < 1 || capacity > 4)) return false;
 
-        if (!string.Equals(json, SerializeWithCapacity(check, capacity), StringComparison.Ordinal))
+        if (!string.Equals(
+                json,
+                SerializeWithLuck(
+                    check,
+                    capacity,
+                    metadata.selectedSpawnPoolId,
+                    metadata.luckLevel),
+                StringComparison.Ordinal))
 
             return false;
 
         SanitizeSaveData(check);
 
-        return string.Equals(json, SerializeWithCapacity(check, capacity), StringComparison.Ordinal);
+        return string.Equals(
+            json,
+            SerializeWithLuck(
+                check,
+                capacity,
+                metadata.selectedSpawnPoolId,
+                metadata.luckLevel),
+            StringComparison.Ordinal);
 
     }
 
@@ -2536,6 +2657,12 @@ public class SaveManager : MonoBehaviour
             // canonical, structural and non-destructive sanitation validation.
             capacityLoadedData = parsed;
             loadedCustomerCapacity = metadata.mergeSessionCustomerCapacity;
+            loadedSelectedSpawnPoolId = metadata.selectedSpawnPoolId;
+            sessionSelectedSpawnPoolId = loadedSelectedSpawnPoolId;
+            loadedLuckLevel = metadata.luckLevel > 0
+                ? metadata.luckLevel
+                : 1;
+            sessionLuckLevel = loadedLuckLevel;
             data = parsed;
             Debug.Log("LOAD | Successfully read validated save file.\nPath: " + sourcePath);
             return true;

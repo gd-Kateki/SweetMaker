@@ -4,5 +4,6 @@ public enum UpgradeType
     BoardSpace,
     Shelf,
     Customer,
-    MoneyMultiplier
+    MoneyMultiplier,
+    Luck
 }

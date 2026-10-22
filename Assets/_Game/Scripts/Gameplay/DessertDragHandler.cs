@@ -22,6 +22,9 @@ public class DessertDragHandler :
     [SerializeField]
     private PlayerProgressionManager progressionManager;
 
+    [SerializeField]
+    private RecycleDropTarget recycleDropTarget;
+
     [Header("Dragging")]
     [SerializeField]
     private int draggingSortingOrder = 100;
@@ -41,6 +44,7 @@ public class DessertDragHandler :
 
     private bool isDragging;
     private bool isInteractionLocked;
+    private bool hasBeenRecycled;
 
     private void Awake()
     {
@@ -77,6 +81,12 @@ public class DessertDragHandler :
         {
             shelfManager =
                 FindAnyObjectByType<ShelfManager>();
+        }
+
+        if (recycleDropTarget == null)
+        {
+            recycleDropTarget =
+                FindAnyObjectByType<RecycleDropTarget>();
         }
 
         /*
@@ -176,7 +186,8 @@ public class DessertDragHandler :
             pointerPosition;
 
         UpdateTargetHighlight(
-            pointerPosition
+            pointerPosition,
+            eventData.position
         );
     }
 
@@ -195,6 +206,23 @@ public class DessertDragHandler :
             GetWorldPointerPosition(
                 eventData
             );
+
+        if (recycleDropTarget != null &&
+            recycleDropTarget.ContainsScreenPoint(
+                eventData.position))
+        {
+            ClearHighlights();
+            if (TryRecycleDraggedDessert())
+            {
+                if (Application.isPlaying)
+                    Destroy(gameObject);
+                else
+                    DestroyImmediate(gameObject);
+            }
+            else
+                ReturnToOrigin();
+            return;
+        }
 
         GridCell targetCell =
             FindGridCellAtPosition(
@@ -317,8 +345,21 @@ public class DessertDragHandler :
     // ==================================================
 
     private void UpdateTargetHighlight(
-        Vector3 pointerPosition)
+        Vector3 pointerPosition,
+        Vector2 screenPosition)
     {
+        if (recycleDropTarget != null &&
+            recycleDropTarget.ContainsScreenPoint(
+                screenPosition))
+        {
+            ClearHighlights();
+            recycleDropTarget.SetHighlighted(true);
+            return;
+        }
+
+        if (recycleDropTarget != null)
+            recycleDropTarget.SetHighlighted(false);
+
         GridCell targetCell =
             FindGridCellAtPosition(
                 pointerPosition
@@ -480,6 +521,9 @@ public class DessertDragHandler :
 
     private void ClearHighlights()
     {
+        if (recycleDropTarget != null)
+            recycleDropTarget.SetHighlighted(false);
+
         if (highlightedCell != null)
         {
             highlightedCell
@@ -495,6 +539,42 @@ public class DessertDragHandler :
 
             highlightedShelfSlot = null;
         }
+    }
+
+    private bool TryRecycleDraggedDessert()
+    {
+        if (hasBeenRecycled || dessert == null)
+            return false;
+
+        if (originCell != null &&
+            dessert.LocationType == DessertLocationType.Board &&
+            dessert.CurrentCell == originCell &&
+            originCell.CurrentDessert == dessert)
+        {
+            originCell.RemoveDessert(dessert);
+            if (gridManager != null)
+                gridManager.NotifyBoardChanged();
+        }
+        else if (originShelfSlot != null &&
+                 dessert.LocationType == DessertLocationType.Shelf &&
+                 dessert.CurrentShelfSlot == originShelfSlot &&
+                 originShelfSlot.CurrentDessert == dessert)
+        {
+            originShelfSlot.RemoveDessert(dessert);
+            if (shelfManager != null)
+                shelfManager.NotifyShelfChanged();
+        }
+        else
+        {
+            return false;
+        }
+
+        hasBeenRecycled = true;
+        originCell = null;
+        originShelfSlot = null;
+        if (dessertCollider != null)
+            dessertCollider.enabled = false;
+        return true;
     }
 
     // ==================================================

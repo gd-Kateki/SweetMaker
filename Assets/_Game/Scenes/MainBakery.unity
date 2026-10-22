@@ -275,11 +275,13 @@ MonoBehaviour:
   shelfUpgrade: {fileID: 11400000, guid: 7caccb4a7e4e63e4a93abb0595b81b1c, type: 2}
   customerUpgrade: {fileID: 11400000, guid: 96c7743dfeef3de48aa4643f4174a491, type: 2}
   moneyMultiplierUpgrade: {fileID: 11400000, guid: 9816b589df8ce2245ba6f47fedbd2c9b, type: 2}
+  luckUpgrade: {fileID: 11400000, guid: 4cbb0f69c6a346f9afdcfd6b3051a7b2, type: 2}
   ovenLevel: 1
   boardSpaceLevel: 1
   shelfLevel: 1
   customerLevel: 1
   moneyMultiplierLevel: 1
+  luckLevel: 1
 --- !u!1 &219666848
 GameObject:
   m_ObjectHideFlags: 0
@@ -447,7 +449,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 655531135779920435, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: upgradeDefinition
-      value: 
+      value: ""
       objectReference: {fileID: 11400000, guid: 96c7743dfeef3de48aa4643f4174a491, type: 2}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
@@ -1106,6 +1108,32 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6622985527145384076, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
   m_PrefabInstance: {fileID: 716581756}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &940000000
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 793876648}
+    m_Modifications:
+    - target: {fileID: 655531135779920435, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: upgradeDefinition
+      value: ""
+      objectReference: {fileID: 11400000, guid: 4cbb0f69c6a346f9afdcfd6b3051a7b2, type: 2}
+    - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_Name
+      value: LuckUpgradeCard
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+--- !u!224 &940000001 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 6622985527145384076, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+  m_PrefabInstance: {fileID: 940000000}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &793876647
 GameObject:
   m_ObjectHideFlags: 0
@@ -1141,6 +1169,7 @@ RectTransform:
   - {fileID: 1187551937}
   - {fileID: 349117848}
   - {fileID: 716581757}
+  - {fileID: 940000001}
   m_Father: {fileID: 886075658}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
