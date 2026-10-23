@@ -217,6 +217,8 @@ public sealed class RebirthUI : MonoBehaviour
 
     public void Open()
     {
+        if (entryButton != null)
+            entryButton.interactable = false;
         if (modalBackdrop != null)
             modalBackdrop.SetActive(true);
         if (modalPanel != null)
@@ -229,6 +231,8 @@ public sealed class RebirthUI : MonoBehaviour
             modalPanel.SetActive(false);
         if (modalBackdrop != null)
             modalBackdrop.SetActive(false);
+        if (entryButton != null)
+            entryButton.interactable = true;
     }
 
     private static string FormatTierProgress(int createdTier, int requiredTier, bool tierReady)
@@ -251,7 +255,13 @@ public sealed class RebirthUI : MonoBehaviour
         if (entryButtonText != null)
             entryButtonText.text = label;
         if (entryButton != null)
-            entryButton.interactable = true;
+            entryButton.interactable = !IsModalOpen();
+    }
+
+    private bool IsModalOpen()
+    {
+        return (modalPanel != null && modalPanel.activeSelf) ||
+               (modalBackdrop != null && modalBackdrop.activeSelf);
     }
 
     private void SetReadyIndicator(bool visible)

@@ -250,6 +250,18 @@ public class UpgradePurchaseManager : MonoBehaviour
                IsUnlockedByRebirth(type, nextLevel.Level);
     }
 
+    public int GetRequiredRebirthCountForNextUpgrade(UpgradeType type)
+    {
+        if (!EnsureReferences() || type == UpgradeType.Oven ||
+            IsMaxLevel(type))
+            return -1;
+
+        UpgradeLevelData nextLevel = GetNextLevel(type);
+        return nextLevel != null
+            ? GetRequiredRebirthCount(type, nextLevel.Level)
+            : -1;
+    }
+
     // ==================================================
     // PURCHASE
     // ==================================================

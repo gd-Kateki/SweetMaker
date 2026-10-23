@@ -105,6 +105,9 @@ public class UpgradeCardUI : MonoBehaviour
         progressionManager.UpgradeLevelChanged +=
             HandleUpgradeLevelChanged;
 
+        progressionManager.RebirthProgressionChanged +=
+            HandleRebirthProgressionChanged;
+
         economyManager.CashChanged +=
             HandleCashChanged;
 
@@ -124,6 +127,9 @@ public class UpgradeCardUI : MonoBehaviour
         {
             progressionManager.UpgradeLevelChanged -=
                 HandleUpgradeLevelChanged;
+
+            progressionManager.RebirthProgressionChanged -=
+                HandleRebirthProgressionChanged;
         }
 
         if (economyManager != null)
@@ -474,19 +480,57 @@ public class UpgradeCardUI : MonoBehaviour
 
         bool unlockedByRebirth = purchaseManager != null &&
             purchaseManager.IsNextUpgradeUnlockedByRebirth(type);
+        int requiredRebirthCount = purchaseManager != null
+            ? purchaseManager.GetRequiredRebirthCountForNextUpgrade(type)
+            : -1;
+        bool canAfford = unlockedByRebirth &&
+            purchaseManager.CanAffordNextUpgrade(type);
 
         if (purchaseButton != null)
         {
-            purchaseButton.interactable =
-                unlockedByRebirth;
+            purchaseButton.interactable = IsPurchaseButtonInteractable(
+                type,
+                unlockedByRebirth,
+                canAfford);
         }
 
         if (buttonText != null && !showingPurchaseFeedback)
         {
-            buttonText.text = unlockedByRebirth
-                ? "UPGRADE"
-                : type == UpgradeType.Oven ? "REBIRTH" : "LOCKED";
+            buttonText.text = GetPurchaseButtonLabel(
+                type,
+                unlockedByRebirth,
+                requiredRebirthCount,
+                canAfford);
         }
+    }
+
+    internal static string GetPurchaseButtonLabel(
+        UpgradeType type,
+        bool unlockedByRebirth,
+        int requiredRebirthCount,
+        bool canAfford)
+    {
+        if (type == UpgradeType.Oven)
+            return "REBIRTH";
+
+        if (!unlockedByRebirth)
+        {
+            return requiredRebirthCount >= 0
+                ? $"Requires Rebirth {requiredRebirthCount}"
+                : "LOCKED";
+        }
+
+        return canAfford ? "UPGRADE" : "NEED CASH";
+    }
+
+    internal static bool IsPurchaseButtonInteractable(
+        UpgradeType type,
+        bool unlockedByRebirth,
+        bool canAfford)
+    {
+        return type != UpgradeType.Oven &&
+               unlockedByRebirth &&
+               canAfford;
     }
 
     // ==================================================
@@ -693,6 +737,11 @@ public class UpgradeCardUI : MonoBehaviour
 
     private void HandleCashChanged(
         int newCash)
+    {
+        Refresh();
+    }
+
+    private void HandleRebirthProgressionChanged()
     {
         Refresh();
     }

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Dessert_20
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 20
-  displayName: Tier 20 Placeholder
-  sprite: {fileID: 0}
+  displayName: Premium Mooncake
+  sprite: {fileID: -8383529098132627122, guid: 941d0af5f54150e42a08112f368d7251, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
   visualScale: 0.5
   canSpawnFromOven: 1

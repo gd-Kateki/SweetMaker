@@ -1721,6 +1721,8 @@ public class DataFoundationTests
                 .GetMethod("CanPurchaseUpgrade");
             MethodInfo purchase = purchaseManager.GetType()
                 .GetMethod("TryPurchaseUpgrade");
+            MethodInfo requiredRebirth = purchaseManager.GetType()
+                .GetMethod("GetRequiredRebirthCountForNextUpgrade");
 
             foreach (var gate in gates)
             {
@@ -1736,6 +1738,10 @@ public class DataFoundationTests
                 Assert.AreEqual(
                     gate.level - 1,
                     getLevel.Invoke(setup.Progression, new[] { type }));
+                Assert.AreEqual(
+                    gate.rebirthCount,
+                    requiredRebirth.Invoke(purchaseManager, new[] { type }),
+                    $"{gate.type} L{gate.level} should report its authoritative Rebirth gate.");
 
                 int cashBefore = (int)setup.Economy.GetType()
                     .GetProperty("CurrentCash").GetValue(setup.Economy);
@@ -1776,6 +1782,126 @@ public class DataFoundationTests
         {
             UnityEngine.Object.DestroyImmediate(managerObject);
             DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    [Category("Step6C.4")]
+    public void UpgradeCardGateLabelsAndButtonStatesAreDistinct()
+    {
+        Type upgradeType = FindPlayerType("UpgradeType");
+        Type cardType = FindPlayerType("UpgradeCardUI");
+        MethodInfo labelMethod = cardType.GetMethod(
+            "GetPurchaseButtonLabel",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo interactableMethod = cardType.GetMethod(
+            "IsPurchaseButtonInteractable",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(labelMethod);
+        Assert.IsNotNull(interactableMethod);
+
+        object boardType = Enum.Parse(upgradeType, "BoardSpace");
+        object ovenType = Enum.Parse(upgradeType, "Oven");
+
+        Assert.AreEqual(
+            "Requires Rebirth 5",
+            labelMethod.Invoke(null, new object[]
+            {
+                boardType, false, 5, false
+            }));
+        Assert.AreEqual(
+            "NEED CASH",
+            labelMethod.Invoke(null, new object[]
+            {
+                boardType, true, 5, false
+            }));
+        Assert.AreEqual(
+            "UPGRADE",
+            labelMethod.Invoke(null, new object[]
+            {
+                boardType, true, 5, true
+            }));
+        Assert.AreEqual(
+            "LOCKED",
+            labelMethod.Invoke(null, new object[]
+            {
+                boardType, false, -1, false
+            }));
+        Assert.AreEqual(
+            "REBIRTH",
+            labelMethod.Invoke(null, new object[]
+            {
+                ovenType, false, -1, false
+            }));
+
+        Assert.IsFalse((bool)interactableMethod.Invoke(null, new object[]
+        {
+            boardType, false, false
+        }));
+        Assert.IsFalse((bool)interactableMethod.Invoke(null, new object[]
+        {
+            boardType, true, false
+        }));
+        Assert.IsTrue((bool)interactableMethod.Invoke(null, new object[]
+        {
+            boardType, true, true
+        }));
+        Assert.IsFalse((bool)interactableMethod.Invoke(null, new object[]
+        {
+            ovenType, false, true
+        }));
+    }
+
+    [Test]
+    [Category("Step6C.4")]
+    public void UpgradeCardValueAndEffectLabelsUseReadableBoundedText()
+    {
+        string prefabText = File.ReadAllText(
+            "Assets/_Game/Prefabs/UI/UpgradeCard.prefab");
+        long[] textComponentIds =
+        {
+            9161292831575217704,
+            4523219856188570108,
+            2443458557906387767
+        };
+        long[] transformIds =
+        {
+            8556136637770781890,
+            4977570080075652214,
+            1530713658673336081
+        };
+
+        foreach (long textComponentId in textComponentIds)
+        {
+            Match text = Regex.Match(
+                prefabText,
+                $@"(?ms)^--- !u!114 &{textComponentId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(text.Success);
+            StringAssert.Contains("m_enableAutoSizing: 1", text.Value);
+            StringAssert.Contains("m_fontSizeMin: 16", text.Value);
+            StringAssert.Contains("m_TextWrappingMode: 0", text.Value);
+            StringAssert.Contains("m_overflowMode: 1", text.Value);
+            if (textComponentId == 2443458557906387767)
+            {
+                StringAssert.Contains("m_fontSize: 24", text.Value);
+                StringAssert.Contains("m_fontSizeMax: 24", text.Value);
+            }
+            else
+            {
+                StringAssert.Contains("m_fontSize: 20", text.Value);
+                StringAssert.Contains("m_fontSizeMax: 20", text.Value);
+            }
+        }
+
+        foreach (long transformId in transformIds)
+        {
+            Match transform = Regex.Match(
+                prefabText,
+                $@"(?ms)^--- !u!224 &{transformId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(transform.Success);
+            StringAssert.Contains(
+                "m_SizeDelta: {x: 200, y: 50}",
+                transform.Value);
         }
     }
 
@@ -2223,6 +2349,329 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("Step6C.2")]
+    public void CashDisplayTopRightRectFitsWithinSafeArea()
+    {
+        const float width = 200f;
+        const float height = 50f;
+        Vector2 offset = new Vector2(-100.25f, -25.45f);
+        Rect canvasRect = new Rect(0, 0, 1080, 1920);
+        Rect[] safeAreas =
+        {
+            new Rect(0, 48, 1080, 1824),
+            new Rect(0, 96, 1080, 1740),
+            new Rect(0, 112, 1080, 1720)
+        };
+
+        foreach (Rect safeArea in safeAreas)
+        {
+            Vector4 anchors = CalculateSafeAreaAnchors(
+                Vector2.one,
+                Vector2.one,
+                safeArea,
+                canvasRect);
+            Vector2 safeTopRight = new Vector2(
+                canvasRect.xMin + anchors.x * canvasRect.width,
+                canvasRect.yMin + anchors.y * canvasRect.height);
+            Rect cashBounds = new Rect(
+                safeTopRight.x + offset.x - width * 0.5f,
+                safeTopRight.y + offset.y - height * 0.5f,
+                width,
+                height);
+
+            Assert.GreaterOrEqual(cashBounds.xMin, safeArea.xMin);
+            Assert.LessOrEqual(cashBounds.xMax, safeArea.xMax);
+            Assert.GreaterOrEqual(cashBounds.yMin, safeArea.yMin);
+            Assert.LessOrEqual(cashBounds.yMax, safeArea.yMax);
+        }
+    }
+
+    [Test]
+    [Category("Step6C.5.2")]
+    public void RebirthEntryButtonFitsPortraitSafeAreas()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/Game.unity");
+        Match buttonObject = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!1 &915782262\r?\n(.*?)(?=^--- !u!|\z)");
+        Match buttonTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &915782263\r?\n(.*?)(?=^--- !u!|\z)");
+        Match safeAreaFitter = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &2200000006\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(buttonObject.Success);
+        Assert.IsTrue(buttonTransform.Success);
+        Assert.IsTrue(safeAreaFitter.Success);
+        StringAssert.Contains(
+            "- component: {fileID: 2200000006}",
+            buttonObject.Value);
+        StringAssert.Contains(
+            "m_EditorClassIdentifier: Assembly-CSharp::SafeAreaFitter",
+            safeAreaFitter.Value);
+        StringAssert.Contains(
+            "guid: a64a846354a844edba8d64814a12c990",
+            safeAreaFitter.Value);
+        StringAssert.Contains(
+            "m_Father: {fileID: 1297646555}",
+            buttonTransform.Value);
+
+        Vector2 anchorMin = ReadSceneVector2(
+            buttonTransform.Value,
+            "m_AnchorMin");
+        Vector2 anchorMax = ReadSceneVector2(
+            buttonTransform.Value,
+            "m_AnchorMax");
+        Vector2 offset = ReadSceneVector2(
+            buttonTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 size = ReadSceneVector2(
+            buttonTransform.Value,
+            "m_SizeDelta");
+        Assert.AreEqual(new Vector2(0.5f, 0f), anchorMin);
+        Assert.AreEqual(anchorMin, anchorMax);
+
+        float[] screenHeights = { 1920f, 2340f, 2400f };
+        float[] bottomInsets = { 48f, 70f, 80f };
+        float[] topInsets = { 48f, 70f, 80f };
+        for (int i = 0; i < screenHeights.Length; i++)
+        {
+            float screenHeight = screenHeights[i];
+            Rect canvasRect = new Rect(0f, 0f, 1080f, screenHeight);
+            Rect safeArea = new Rect(
+                0f,
+                bottomInsets[i],
+                1080f,
+                screenHeight - bottomInsets[i] - topInsets[i]);
+            Vector4 anchors = CalculateSafeAreaAnchors(
+                anchorMin,
+                anchorMax,
+                safeArea,
+                canvasRect);
+            float scale = Mathf.Sqrt(screenHeight / 1920f);
+            Vector2 safeAnchor = new Vector2(
+                canvasRect.xMin + anchors.x * canvasRect.width,
+                canvasRect.yMin + anchors.y * canvasRect.height);
+            Rect buttonBounds = new Rect(
+                safeAnchor.x + offset.x * scale - size.x * scale * 0.5f,
+                safeAnchor.y + offset.y * scale,
+                size.x * scale,
+                size.y * scale);
+
+            Assert.GreaterOrEqual(buttonBounds.xMin, safeArea.xMin);
+            Assert.LessOrEqual(buttonBounds.xMax, safeArea.xMax);
+            Assert.GreaterOrEqual(buttonBounds.yMin, safeArea.yMin);
+            Assert.LessOrEqual(buttonBounds.yMax, safeArea.yMax);
+        }
+    }
+
+    [Test]
+    [Category("Step6C.5.3")]
+    public void UpgradeScrollViewIsVerticalOnlyWithStretchWidthContent()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/MainBakery.unity");
+        Match scrollRect = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &1616590803\r?\n(.*?)(?=^--- !u!|\z)");
+        Match contentTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &793876648\r?\n(.*?)(?=^--- !u!|\z)");
+        Match contentSizeFitter = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &793876649\r?\n(.*?)(?=^--- !u!|\z)");
+        Match verticalLayout = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &793876650\r?\n(.*?)(?=^--- !u!|\z)");
+        Match viewportTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &886075658\r?\n(.*?)(?=^--- !u!|\z)");
+        Match verticalScrollbarTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &373026617\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(scrollRect.Success);
+        Assert.IsTrue(contentTransform.Success);
+        Assert.IsTrue(contentSizeFitter.Success);
+        Assert.IsTrue(verticalLayout.Success);
+        Assert.IsTrue(viewportTransform.Success);
+        Assert.IsTrue(verticalScrollbarTransform.Success);
+        StringAssert.Contains("m_Horizontal: 0", scrollRect.Value);
+        StringAssert.Contains("m_Vertical: 1", scrollRect.Value);
+        StringAssert.Contains("m_Content: {fileID: 793876648}", scrollRect.Value);
+        StringAssert.Contains("m_Viewport: {fileID: 886075658}", scrollRect.Value);
+        StringAssert.Contains(
+            "m_VerticalScrollbar: {fileID: 373026618}",
+            scrollRect.Value);
+        StringAssert.Contains("m_HorizontalFit: 0", contentSizeFitter.Value);
+        StringAssert.Contains("m_VerticalFit: 2", contentSizeFitter.Value);
+        StringAssert.Contains(
+            "UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup",
+            verticalLayout.Value);
+        StringAssert.Contains("m_ChildForceExpandWidth: 1", verticalLayout.Value);
+        StringAssert.Contains("m_ChildControlWidth: 1", verticalLayout.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 1}", contentTransform.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", contentTransform.Value);
+        StringAssert.Contains("m_Father: {fileID: 886075658}", contentTransform.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}", viewportTransform.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", viewportTransform.Value);
+        StringAssert.Contains("m_SizeDelta: {x: -20, y: -17}", viewportTransform.Value);
+        StringAssert.Contains("m_Father: {fileID: 1616590802}", viewportTransform.Value);
+        StringAssert.Contains(
+            "m_AnchorMin: {x: 1, y: 0}",
+            verticalScrollbarTransform.Value);
+        StringAssert.Contains(
+            "m_AnchorMax: {x: 1, y: 1}",
+            verticalScrollbarTransform.Value);
+    }
+
+    [Test]
+    [Category("Step6C.3")]
+    public void CustomerOrderTitleFitsItsSingleLineHeaderBounds()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/Game.unity");
+        Match titleTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &373534310\r?\n(.*?)(?=^--- !u!|\z)");
+        Match orderNumberTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &276639108\r?\n(.*?)(?=^--- !u!|\z)");
+        Match titleText = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &373534311\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(titleTransform.Success);
+        Assert.IsTrue(orderNumberTransform.Success);
+        Assert.IsTrue(titleText.Success);
+        StringAssert.Contains("m_enableAutoSizing: 1", titleText.Value);
+        StringAssert.Contains("m_fontSize: 36", titleText.Value);
+        StringAssert.Contains("m_fontSizeMin: 18", titleText.Value);
+        StringAssert.Contains("m_fontSizeMax: 36", titleText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 0", titleText.Value);
+        StringAssert.Contains("m_overflowMode: 1", titleText.Value);
+        StringAssert.Contains(
+            "m_margin: {x: 0, y: 0, z: 0, w: 0}",
+            titleText.Value);
+
+        Vector2 titlePosition = ReadSceneVector2(
+            titleTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 titleSize = ReadSceneVector2(
+            titleTransform.Value,
+            "m_SizeDelta");
+        Vector2 orderNumberPosition = ReadSceneVector2(
+            orderNumberTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 orderNumberSize = ReadSceneVector2(
+            orderNumberTransform.Value,
+            "m_SizeDelta");
+
+        float titleRight = titlePosition.x + titleSize.x * 0.5f;
+        float orderNumberLeft =
+            orderNumberPosition.x - orderNumberSize.x * 0.5f;
+        foreach (float screenHeight in new[] { 1920f, 2340f, 2400f })
+        {
+            float canvasScale = Mathf.Sqrt(screenHeight / 1920f);
+            Assert.Less(
+                titleRight * canvasScale,
+                orderNumberLeft * canvasScale,
+                $"Order title overlaps its number at 1080x{screenHeight:0}.");
+        }
+    }
+
+    [Test]
+    [Category("Step6C.5.1")]
+    public void RebirthRequirementsFitBetweenModalButtonsWithBoundedText()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/Game.unity");
+        Match panelTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &270310534\r?\n(.*?)(?=^--- !u!|\z)");
+        Match requirementsTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &505775532\r?\n(.*?)(?=^--- !u!|\z)");
+        Match actionButtonTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &1971709281\r?\n(.*?)(?=^--- !u!|\z)");
+        Match closeButtonTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &1226504787\r?\n(.*?)(?=^--- !u!|\z)");
+        Match requirementsText = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &505775533\r?\n(.*?)(?=^--- !u!|\z)");
+        Match backdrop = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &1812561283\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(panelTransform.Success);
+        Assert.IsTrue(requirementsTransform.Success);
+        Assert.IsTrue(actionButtonTransform.Success);
+        Assert.IsTrue(closeButtonTransform.Success);
+        Assert.IsTrue(requirementsText.Success);
+        Assert.IsTrue(backdrop.Success);
+
+        Vector2 panelSize = ReadSceneVector2(
+            panelTransform.Value,
+            "m_SizeDelta");
+        Vector2 requirementsOffset = ReadSceneVector2(
+            requirementsTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 requirementsSize = ReadSceneVector2(
+            requirementsTransform.Value,
+            "m_SizeDelta");
+        Vector2 actionButtonOffset = ReadSceneVector2(
+            actionButtonTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 actionButtonSize = ReadSceneVector2(
+            actionButtonTransform.Value,
+            "m_SizeDelta");
+        Vector2 closeButtonOffset = ReadSceneVector2(
+            closeButtonTransform.Value,
+            "m_AnchoredPosition");
+        Vector2 closeButtonSize = ReadSceneVector2(
+            closeButtonTransform.Value,
+            "m_SizeDelta");
+
+        float requirementsTop =
+            panelSize.y * 0.5f + requirementsOffset.y;
+        float requirementsBottom =
+            requirementsTop - requirementsSize.y;
+        float actionButtonTop =
+            -panelSize.y * 0.5f + actionButtonOffset.y +
+            actionButtonSize.y;
+        float closeButtonBottom =
+            panelSize.y * 0.5f + closeButtonOffset.y -
+            closeButtonSize.y;
+
+        Assert.Less(requirementsTop, panelSize.y * 0.5f);
+        Assert.Greater(requirementsBottom, actionButtonTop);
+        Assert.Less(requirementsTop, closeButtonBottom);
+        Assert.Greater(requirementsSize.x, 0f);
+        Assert.Greater(requirementsSize.y, 0f);
+        StringAssert.Contains("m_enableAutoSizing: 1", requirementsText.Value);
+        StringAssert.Contains("m_fontSize: 32", requirementsText.Value);
+        StringAssert.Contains("m_fontSizeMin: 20", requirementsText.Value);
+        StringAssert.Contains("m_fontSizeMax: 32", requirementsText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 1", requirementsText.Value);
+        StringAssert.Contains("m_overflowMode: 1", requirementsText.Value);
+        StringAssert.Contains("m_RaycastTarget: 1", backdrop.Value);
+        StringAssert.Contains(
+            "m_AnchorMin: {x: 0, y: 0}",
+            Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!224 &1812561282\r?\n(.*?)(?=^--- !u!|\z)").Value);
+        StringAssert.Contains(
+            "m_AnchorMax: {x: 1, y: 1}",
+            Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!224 &1812561282\r?\n(.*?)(?=^--- !u!|\z)").Value);
+    }
+
+    [Test]
     [Category("Step6B.3")]
     public void SafeAreaAnchorConversionPreservesBaseLayoutAndHandlesInvalidRectangles()
     {
@@ -2381,6 +2830,90 @@ public class DataFoundationTests
         {
             EditorSceneManager.ClosePreviewScene(previewScene);
         }
+    }
+
+    [Test]
+    [Category("Step6B.6")]
+    public void GameSceneSerializedTransformHierarchyHasExactlyOneConsistentParent()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/Game.unity");
+        MatchCollection transformMatches = Regex.Matches(
+            sceneText,
+            @"(?ms)^--- !u!(?:4|224) &(-?\d+)\r?\n(.*?)(?=^--- !u!|\z)");
+        Dictionary<long, long> fathers = new Dictionary<long, long>();
+        Dictionary<long, List<long>> children =
+            new Dictionary<long, List<long>>();
+        Dictionary<long, int> childReferenceCounts =
+            new Dictionary<long, int>();
+
+        foreach (Match transformMatch in transformMatches)
+        {
+            long transformId = long.Parse(transformMatch.Groups[1].Value);
+            Match fatherMatch = Regex.Match(
+                transformMatch.Groups[2].Value,
+                @"(?m)^  m_Father: \{fileID: (-?\d+)\}");
+            Assert.IsTrue(fatherMatch.Success,
+                $"Transform {transformId} has no m_Father.");
+            fathers.Add(
+                transformId,
+                long.Parse(fatherMatch.Groups[1].Value));
+
+            Match childrenMatch = Regex.Match(
+                transformMatch.Groups[2].Value,
+                @"(?ms)^  m_Children:\r?\n((?:  - \{fileID: -?\d+\}\r?\n)*)");
+            List<long> childIds = new List<long>();
+            if (childrenMatch.Success)
+            {
+                foreach (Match childMatch in Regex.Matches(
+                             childrenMatch.Groups[1].Value,
+                             @"fileID: (-?\d+)"))
+                {
+                    long childId = long.Parse(childMatch.Groups[1].Value);
+                    childIds.Add(childId);
+                    childReferenceCounts.TryGetValue(childId, out int count);
+                    childReferenceCounts[childId] = count + 1;
+                }
+            }
+            children.Add(transformId, childIds);
+            Assert.AreEqual(
+                childIds.Count,
+                childIds.Distinct().Count(),
+                $"Transform {transformId} lists a child more than once.");
+        }
+
+        foreach (KeyValuePair<long, long> transform in fathers)
+        {
+            long transformId = transform.Key;
+            long fatherId = transform.Value;
+            if (fatherId == 0)
+            {
+                Assert.IsFalse(childReferenceCounts.ContainsKey(transformId),
+                    $"Root transform {transformId} is listed as another transform's child.");
+                continue;
+            }
+
+            Assert.IsTrue(children.ContainsKey(fatherId),
+                $"Transform {transformId} references missing parent {fatherId}.");
+            Assert.IsTrue(children[fatherId].Contains(transformId),
+                $"Parent {fatherId} does not list child {transformId}.");
+            Assert.AreEqual(
+                1,
+                childReferenceCounts[transformId],
+                $"Transform {transformId} is listed under multiple parents.");
+        }
+
+        const long bottomNavigationTransformId = 705582561;
+        const long homeButtonTransformId = 2047490582;
+        const long recycleTargetTransformId = 2200000001;
+        Assert.IsTrue(children[bottomNavigationTransformId]
+            .Contains(homeButtonTransformId));
+        Assert.IsTrue(children[bottomNavigationTransformId]
+            .Contains(recycleTargetTransformId));
+        Assert.AreEqual(bottomNavigationTransformId,
+            fathers[homeButtonTransformId]);
+        Assert.AreEqual(bottomNavigationTransformId,
+            fathers[recycleTargetTransformId]);
     }
 
     [Test]
@@ -2722,9 +3255,19 @@ public class DataFoundationTests
             entryButton.onClick.Invoke();
             Assert.IsTrue(modalPanel.activeSelf);
             Assert.IsTrue(modalBackdrop.activeSelf);
+            Assert.IsFalse(
+                entryButton.interactable,
+                "The entry button must be disabled while the modal is open.");
+            ui.GetType().GetMethod("Refresh").Invoke(ui, null);
+            Assert.IsFalse(
+                entryButton.interactable,
+                "Refreshing requirements must not re-enable the open modal entry.");
             closeButton.onClick.Invoke();
             Assert.IsFalse(modalPanel.activeSelf);
             Assert.IsFalse(modalBackdrop.activeSelf);
+            Assert.IsTrue(
+                entryButton.interactable,
+                "Closing the modal must restore entry-button interaction.");
 
             setup.Progression.GetType()
                 .GetMethod("RestoreRebirthProgression")
@@ -4285,6 +4828,24 @@ public class DataFoundationTests
             safeArea,
             canvasPixelRect
         });
+    }
+
+    private static Vector2 ReadSceneVector2(
+        string serializedObject,
+        string fieldName)
+    {
+        Match match = Regex.Match(
+            serializedObject,
+            $@"(?m)^  {Regex.Escape(fieldName)}: \{{x: (-?[\d.]+), y: (-?[\d.]+)\}}");
+        Assert.IsTrue(match.Success,
+            $"Scene field {fieldName} was not found.");
+        return new Vector2(
+            float.Parse(
+                match.Groups[1].Value,
+                System.Globalization.CultureInfo.InvariantCulture),
+            float.Parse(
+                match.Groups[2].Value,
+                System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static object GetField(object target, string fieldName)

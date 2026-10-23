@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Dessert_05
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 5
-  displayName: Coconut Sticky Rice
-  sprite: {fileID: 5509327674621122132, guid: b2b47b7496a6ee147a2e0b9369bc00ec, type: 3}
+  displayName: Taiyaki
+  sprite: {fileID: 8469441793465053950, guid: 35d0305c3e8ece04586958aadc126552, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: 0.5
   canSpawnFromOven: 1
