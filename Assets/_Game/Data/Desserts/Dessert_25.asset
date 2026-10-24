@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_25
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 25
-  displayName: Tier 25 Placeholder
-  sprite: {fileID: 0}
+  displayName: Imperial Dragon Cake
+  sprite: {fileID: -6541722678651329750, guid: 72de10f17e9316f499b3ef7fd00b6dd1, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.5
+  visualScale: 0.1
   canSpawnFromOven: 1
   spawnWeight: 0

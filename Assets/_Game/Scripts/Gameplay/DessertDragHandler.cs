@@ -1307,6 +1307,9 @@ public class DessertDragHandler :
                 PlayerProgressionManager.Instance != null
                     ? PlayerProgressionManager.Instance
                     : progressionManager;
+            bool campaignWasComplete =
+                activeProgressionManager != null &&
+                activeProgressionManager.CampaignComplete;
             bool isNewHighestTier =
                 activeProgressionManager != null &&
                 GameplayEvents.IsNewHighestTier(
@@ -1320,6 +1323,14 @@ public class DessertDragHandler :
 
             Destroy(targetDessert.gameObject);
             Destroy(gameObject);
+
+            if (resultingTier == 30 &&
+                !campaignWasComplete &&
+                activeProgressionManager != null &&
+                activeProgressionManager.CampaignComplete)
+            {
+                activeProgressionManager.TryPersistCampaignCompletion();
+            }
         }
         finally
         {

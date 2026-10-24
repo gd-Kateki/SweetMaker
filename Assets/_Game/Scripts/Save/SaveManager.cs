@@ -372,18 +372,21 @@ public class SaveManager : MonoBehaviour
 
     // ==================================================
 
+    public string SaveDirectory =>
+        SavePathPolicy.GetSaveDirectory();
+
     public string SaveFilePath =>
 
         Path.Combine(
 
-            Application.persistentDataPath,
+            SaveDirectory,
 
             SaveFileName
         );
 
     public string LegacyV1SaveFilePath =>
         Path.Combine(
-            Application.persistentDataPath,
+            SaveDirectory,
             "player_save.json"
         );
 
@@ -416,6 +419,14 @@ public class SaveManager : MonoBehaviour
             gameObject
 
         );
+
+        Debug.Log(
+            "SAVE PATH POLICY | " +
+            SavePathPolicy.ModeName +
+            " | persistentDataPath: " +
+            Application.persistentDataPath +
+            " | save directory: " +
+            SaveDirectory);
 
     }
 
@@ -1341,11 +1352,12 @@ public class SaveManager : MonoBehaviour
 
         saveInProgress = true;
 
+        bool saveSucceeded = false;
         try
 
         {
 
-            return SaveCurrentGameCore();
+            saveSucceeded = SaveCurrentGameCore();
 
         }
 
@@ -1366,6 +1378,12 @@ public class SaveManager : MonoBehaviour
             saveInProgress = false;
 
         }
+
+        if (saveSucceeded)
+            PlayerProgressionManager.Instance?
+                .MarkCampaignCompletionSaved();
+
+        return saveSucceeded;
 
     }
 

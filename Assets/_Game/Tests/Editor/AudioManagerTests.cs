@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -530,10 +531,7 @@ public class AudioManagerTests
         int requestHelperStart = progressionSource.IndexOf(
             "private static void RequestSuccessfulRebirthAudio(",
             StringComparison.Ordinal);
-        int requestHelperEnd = progressionSource.IndexOf(
-            "private static",
-            requestHelperStart + 1,
-            StringComparison.Ordinal);
+        int requestHelperEnd;
         int initialRejection = progressionSource.IndexOf(
             "!RebirthProgression.CanRebirth(economy.CurrentCash)",
             StringComparison.Ordinal);
@@ -549,7 +547,29 @@ public class AudioManagerTests
             StringComparison.Ordinal);
 
         Assert.GreaterOrEqual(requestHelperStart, 0);
-        Assert.Greater(requestHelperEnd, requestHelperStart);
+        int helperBodyStart = progressionSource.IndexOf(
+            '{',
+            requestHelperStart);
+        Assert.Greater(helperBodyStart, requestHelperStart);
+        int braceDepth = 0;
+        requestHelperEnd = -1;
+        for (int i = helperBodyStart; i < progressionSource.Length; i++)
+        {
+            if (progressionSource[i] == '{')
+            {
+                braceDepth++;
+            }
+            else if (progressionSource[i] == '}')
+            {
+                braceDepth--;
+                if (braceDepth == 0)
+                {
+                    requestHelperEnd = i + 1;
+                    break;
+                }
+            }
+        }
+        Assert.Greater(requestHelperEnd, helperBodyStart);
         string requestHelper = progressionSource.Substring(
             requestHelperStart,
             requestHelperEnd - requestHelperStart);
@@ -853,6 +873,80 @@ public class AudioManagerTests
     }
 
     [Test]
+    public void CampaignCompletionSaveAndNotificationFollowClosedSuccessfulMerge()
+    {
+        string handlerSource = System.IO.File.ReadAllText(
+            "Assets/_Game/Scripts/Gameplay/DessertDragHandler.cs");
+        int failedCreationCheck = handlerSource.IndexOf(
+            "if (upgradedDessert == null)",
+            StringComparison.Ordinal);
+        int failedCreationExit = handlerSource.IndexOf(
+            "yield break;",
+            failedCreationCheck,
+            StringComparison.Ordinal);
+        int mergeCommit = handlerSource.IndexOf(
+            "GameplayEvents.RaiseDessertMergeCommitted(",
+            StringComparison.Ordinal);
+        int transactionClosed = handlerSource.IndexOf(
+            "CompleteMergeTransaction();",
+            mergeCommit,
+            StringComparison.Ordinal);
+        int completionSave = handlerSource.IndexOf(
+            "activeProgressionManager.TryPersistCampaignCompletion()",
+            transactionClosed,
+            StringComparison.Ordinal);
+
+        Assert.Greater(failedCreationExit, failedCreationCheck);
+        Assert.Greater(mergeCommit, failedCreationExit);
+        Assert.Greater(transactionClosed, mergeCommit);
+        Assert.Greater(completionSave, transactionClosed);
+        StringAssert.DoesNotContain(
+            "RaiseCampaignCompleted",
+            handlerSource,
+            "The merge handler must not announce completion before save confirmation.");
+        StringAssert.Contains("resultingTier == 30", handlerSource);
+        StringAssert.Contains("!campaignWasComplete", handlerSource);
+        StringAssert.Contains(
+            "activeProgressionManager.CampaignComplete",
+            handlerSource);
+
+        string saveManagerSource = System.IO.File.ReadAllText(
+            "Assets/_Game/Scripts/Save/SaveManager.cs");
+        int saveCore = saveManagerSource.IndexOf(
+            "saveSucceeded = SaveCurrentGameCore();",
+            StringComparison.Ordinal);
+        int saveConfirmation = saveManagerSource.IndexOf(
+            "MarkCampaignCompletionSaved();",
+            saveCore,
+            StringComparison.Ordinal);
+        Assert.Greater(saveConfirmation, saveCore,
+            "Persistence state must change only after the save core succeeds.");
+        int coreStart = saveManagerSource.IndexOf(
+            "private bool SaveCurrentGameCore()",
+            StringComparison.Ordinal);
+        int coreFailure = saveManagerSource.IndexOf(
+            "if (!SaveCore(saveData))",
+            coreStart,
+            StringComparison.Ordinal);
+        int coreSuccess = saveManagerSource.IndexOf(
+            "return true;",
+            coreFailure,
+            StringComparison.Ordinal);
+        Assert.Greater(coreFailure, coreStart);
+        Assert.Greater(coreSuccess, coreFailure,
+            "Completion persistence is confirmed only after SaveCore succeeds.");
+        StringAssert.Contains(
+            "if (!IsValidSerializedSnapshot(json))",
+            saveManagerSource,
+            "The completion save must use the validated V2 snapshot path.");
+        StringAssert.Contains("saveData.campaignComplete =", saveManagerSource);
+
+        string restoreSource = System.IO.File.ReadAllText(
+            "Assets/_Game/Scripts/Gameplay/MergeSessionController.cs");
+        StringAssert.DoesNotContain("RaiseCampaignCompleted", restoreSource);
+    }
+
+    [Test]
     public void FullBoardOvenTapRequestsInvalidOnce()
     {
         GameObject audioManagerObject = CreateManager(out _);
@@ -1043,6 +1137,7 @@ public class AudioManagerTests
                 FindPlayerType("Dessert"));
             Component handler = dessertObject.AddComponent(
                 FindPlayerType("DessertDragHandler"));
+            Invoke(handler, "Awake");
             Invoke(cell, "PlaceDessert", new object[] { dessert, false });
 
             LogAssert.Expect(
@@ -1119,6 +1214,7 @@ public class AudioManagerTests
             Component handler = dessertObject.AddComponent(
                 FindPlayerType("DessertDragHandler"));
 
+            Invoke(handler, "Awake");
             Invoke(handler, "OnPointerDown", new object[] { null });
             Assert.IsFalse((bool)GetPrivateField(handler, "isDragging"));
 
@@ -1163,6 +1259,7 @@ public class AudioManagerTests
             Component handler = dessertObject.AddComponent(
                 FindPlayerType("DessertDragHandler"));
 
+            Invoke(handler, "Awake");
             Invoke(origin, "PlaceDessert", new object[] { dessert, false });
             SetPrivateField(handler, "originCell", origin);
 
@@ -1208,7 +1305,7 @@ public class AudioManagerTests
     }
 
     [Test]
-    public void MainBakeryHasOneRootAudioManagerAndTwelveUnassignedEntries()
+    public void MainBakeryHasOneRootAudioManagerAndTwelveAssignedApprovedEntries()
     {
         string scene = System.IO.File.ReadAllText(
             "Assets/_Game/Scenes/MainBakery.unity");
@@ -1236,12 +1333,33 @@ public class AudioManagerTests
             "guid: 19f54824a0a24e89b87c5d5f847f1137",
             managerComponent.Value);
         StringAssert.Contains("sfxVolume: 1", managerComponent.Value);
-        Assert.AreEqual(
-            12,
-            Regex.Matches(managerComponent.Value, @"(?m)^  - id: \d+$").Count);
-        Assert.AreEqual(
-            12,
-            Regex.Matches(managerComponent.Value, @"clip: \{fileID: 0\}").Count);
+        MatchCollection entries = Regex.Matches(
+            managerComponent.Value,
+            @"(?m)^  - id: (?<id>\d+)\r?\n" +
+            @"(?<fields>(?:^    .*\r?\n?)*)");
+        CollectionAssert.AreEqual(
+            Enumerable.Range(0, 12).Select(id => id.ToString()).ToArray(),
+            entries.Cast<Match>()
+                .Select(entry => entry.Groups["id"].Value)
+                .ToArray(),
+            "The scene must configure each approved SfxId exactly once.");
+        Assert.AreEqual(12, entries.Count);
+        foreach (Match entry in entries)
+        {
+            Match clip = Regex.Match(
+                entry.Groups["fields"].Value,
+                @"(?m)^    clip: \{fileID: (?<fileId>\d+), " +
+                @"guid: (?<guid>[0-9a-f]{32}), type: 3\}$");
+            Assert.IsTrue(clip.Success,
+                $"SFX id {entry.Groups["id"].Value} needs an AudioClip reference.");
+            Assert.AreNotEqual("0", clip.Groups["fileId"].Value);
+            string assetPath = AssetDatabase.GUIDToAssetPath(
+                clip.Groups["guid"].Value);
+            Assert.IsNotEmpty(assetPath,
+                $"SFX id {entry.Groups["id"].Value} references an unknown asset GUID.");
+            Assert.IsNotNull(AssetDatabase.LoadAssetAtPath<AudioClip>(assetPath),
+                $"SFX id {entry.Groups["id"].Value} must resolve to an AudioClip.");
+        }
         StringAssert.Contains(
             "- {fileID: 2200000201}",
             sceneRoots.Value);

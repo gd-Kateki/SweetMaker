@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_28
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 28
-  displayName: Tier 28 Placeholder
-  sprite: {fileID: 0}
+  displayName: "Dragon's Heart P\xE2tisserie"
+  sprite: {fileID: -8672778906051187084, guid: f0528d5d8c088b84e91c7f2bfeb85b98, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.5
+  visualScale: 0.1
   canSpawnFromOven: 0
   spawnWeight: 0

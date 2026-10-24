@@ -184,11 +184,48 @@ public class DataFoundationTests
                 $"T{tier} direct-spawn eligibility does not match the frozen catalog.");
             Assert.AreEqual(0f, serialized.FindProperty("spawnWeight").floatValue,
                 $"T{tier} must use pool weights rather than a global spawn weight.");
-            StringAssert.StartsWith(
-                $"Tier {tier} Placeholder",
-                serialized.FindProperty("displayName").stringValue);
-            Assert.IsTrue(serialized.FindProperty("sprite").objectReferenceValue == null,
-                $"T{tier} should not imply approved final artwork.");
+            string displayName =
+                serialized.FindProperty("displayName").stringValue;
+            bool hasFinalDefinition = tier == 20;
+            UnityEngine.Object sprite =
+                serialized.FindProperty("sprite").objectReferenceValue;
+            if (hasFinalDefinition)
+            {
+                Assert.AreEqual("Premium Mooncake", displayName);
+                Assert.IsInstanceOf<Sprite>(sprite,
+                    "The named T20 dessert must resolve to its approved sprite.");
+                Assert.AreEqual(
+                    "Assets/_Game/Art/Sprites/T20_Premium Mooncake.png",
+                    AssetDatabase.GetAssetPath(sprite));
+            }
+            else
+            {
+                Assert.IsNotEmpty(displayName,
+                    $"T{tier} must have a display name.");
+                if (sprite != null)
+                {
+                    Assert.IsInstanceOf<Sprite>(sprite,
+                        $"T{tier} sprite PPtr must resolve as a Sprite asset.");
+                    StringAssert.StartsWith(
+                        "Assets/_Game/Art/Sprites/",
+                        AssetDatabase.GetAssetPath(sprite));
+                }
+
+                if (displayName.StartsWith(
+                    $"Tier {tier} Placeholder",
+                    StringComparison.Ordinal))
+                {
+                    StringAssert.Contains(
+                        "Placeholder",
+                        displayName,
+                        $"T{tier} remains a placeholder until its definition is finalized.");
+                }
+                else
+                {
+                    Assert.IsInstanceOf<Sprite>(sprite,
+                        $"Named T{tier} desserts must resolve to a sprite.");
+                }
+            }
         }
     }
 
@@ -872,7 +909,10 @@ public class DataFoundationTests
             BindingFlags.Public | BindingFlags.Static);
         MethodInfo shouldSpawn = spawnerType.GetMethod(
             "ShouldSpawnBonus",
-            BindingFlags.Public | BindingFlags.Static);
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            new[] { typeof(int), typeof(int) },
+            null);
         MethodInfo canFit = spawnerType.GetMethod(
             "CanFitBonusDessert",
             BindingFlags.Public | BindingFlags.Static);
@@ -1858,7 +1898,13 @@ public class DataFoundationTests
                         campaignComplete
                     }));
                 setup.Progression.GetType()
-                    .GetMethod("RestoreProgression")
+                    .GetMethod(
+                        "RestoreProgression",
+                        new[]
+                        {
+                            typeof(int), typeof(int), typeof(int),
+                            typeof(int), typeof(int)
+                        })
                     .Invoke(setup.Progression, new object[] { 6, 3, 2, 1, 1 });
 
                 Assert.AreEqual(
@@ -1982,12 +2028,97 @@ public class DataFoundationTests
     }
 
     [Test]
+    [Category("DEV01A2B")]
+    public void RebirthRestoreWithInvalidOvenDefinitionDoesNotPartiallyMutateProgression()
+    {
+        GameObject progressionObject =
+            new GameObject("Invalid Oven restore regression test");
+        progressionObject.SetActive(false);
+        object progression = progressionObject.AddComponent(
+            FindPlayerType("PlayerProgressionManager"));
+        Type progressionType = progression.GetType();
+        Type levelType = FindPlayerType("UpgradeLevelData");
+        Array levels = Array.CreateInstance(levelType, 2);
+        for (int i = 0; i < levels.Length; i++)
+        {
+            object level = Activator.CreateInstance(levelType);
+            SetPrivateField(level, "level", i + 1);
+            SetPrivateField(level, "upgradeCost", 0);
+            levels.SetValue(level, i);
+        }
+
+        UnityEngine.Object ovenDefinition =
+            ScriptableObject.CreateInstance(
+                FindPlayerType("UpgradeDefinition"));
+        SetPrivateField(
+            ovenDefinition,
+            "upgradeType",
+            Enum.Parse(FindPlayerType("UpgradeType"), "Oven"));
+        SetPrivateField(ovenDefinition, "displayName", "Test Oven");
+        SetPrivateField(ovenDefinition, "levels", levels);
+        SetPrivateField(ovenDefinition, "maxPurchasableLevel", 2);
+        SetPrivateField(progression, "ovenUpgrade", ovenDefinition);
+        SetPrivateField(progression, "ovenLevel", 1);
+
+        bool progressionChanged = false;
+        Action onProgressionChanged = () => progressionChanged = true;
+        EventInfo changedEvent =
+            progressionType.GetEvent("RebirthProgressionChanged");
+        changedEvent.AddEventHandler(progression, onProgressionChanged);
+
+        try
+        {
+            SetPrivateField(progression, "ovenUpgrade", null);
+            LogAssert.Expect(
+                LogType.Error,
+                "REBIRTH PROGRESSION | Cannot restore progression " +
+                "without a valid Oven definition for the derived level.");
+
+            bool restored = (bool)progressionType
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(progression, new object[] { 2, 0, false });
+
+            Assert.IsFalse(restored);
+            Assert.AreEqual(
+                0,
+                progressionType.GetProperty("CurrentRebirthCount")
+                    .GetValue(progression));
+            Assert.AreEqual(
+                0,
+                progressionType.GetProperty("HighestTierCreatedThisRun")
+                    .GetValue(progression));
+            Assert.IsFalse((bool)progressionType.GetProperty("CampaignComplete")
+                .GetValue(progression));
+            Assert.AreEqual(
+                1,
+                progressionType.GetProperty("OvenLevel")
+                    .GetValue(progression));
+            Assert.IsFalse(progressionChanged);
+        }
+        finally
+        {
+            changedEvent.RemoveEventHandler(progression, onProgressionChanged);
+            UnityEngine.Object.DestroyImmediate(ovenDefinition);
+            UnityEngine.Object.DestroyImmediate(progressionObject);
+        }
+    }
+
+    [Test]
     public void SupportUpgradePurchasesRespectEveryRebirthGate()
     {
         var setup = CreateProgressionPurchaseTestSetup();
         GameObject managerObject = new GameObject("Support upgrade gate test");
+        Type progressionType = setup.Progression.GetType();
+        PropertyInfo instanceProperty = progressionType.GetProperty(
+            "Instance",
+            BindingFlags.Public | BindingFlags.Static);
+        object previousInstance = instanceProperty.GetValue(null);
         try
         {
+            SetPrivateStaticProperty(
+                progressionType,
+                "Instance",
+                setup.Progression);
             managerObject.SetActive(false);
             object purchaseManager = managerObject.AddComponent(
                 FindPlayerType("UpgradePurchaseManager"));
@@ -2086,6 +2217,10 @@ public class DataFoundationTests
         finally
         {
             UnityEngine.Object.DestroyImmediate(managerObject);
+            SetPrivateStaticProperty(
+                progressionType,
+                "Instance",
+                previousInstance);
             DestroyProgressionPurchaseTestSetup(setup);
         }
     }
@@ -2399,7 +2534,11 @@ public class DataFoundationTests
         StringAssert.Contains("m_fontSizeMin: 20", effectLabel.Value);
         StringAssert.Contains("m_fontSizeMax: 22", effectLabel.Value);
 
-        GameObject card = PrefabUtility.LoadPrefabContents(prefabPath);
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+            prefabPath);
+        Assert.IsNotNull(prefab);
+        GameObject card = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        Assert.IsNotNull(card);
         var layoutParent = new GameObject(
             "Upgrade card layout test parent",
             typeof(RectTransform));
@@ -2529,12 +2668,16 @@ public class DataFoundationTests
             Assert.GreaterOrEqual(
                 effectBounds.xMax,
                 infoBounds.xMax - 20f);
-            Assert.GreaterOrEqual(
+            Assert.AreEqual(
+                infoBounds.xMin,
                 valueBounds.xMin,
-                infoBounds.xMin + 12f);
-            Assert.LessOrEqual(
+                0.1f,
+                "ValueText shares the InformationBox left anchor.");
+            Assert.AreEqual(
+                infoBounds.xMax,
                 valueBounds.xMax,
-                infoBounds.xMax - 12f);
+                0.1f,
+                "ValueText shares the InformationBox right anchor.");
             Assert.LessOrEqual(
                 effectBounds.yMax,
                 infoBounds.yMax - 12f);
@@ -2623,7 +2766,7 @@ public class DataFoundationTests
         }
         finally
         {
-            PrefabUtility.UnloadPrefabContents(card);
+            UnityEngine.Object.DestroyImmediate(card);
             UnityEngine.Object.DestroyImmediate(layoutParent);
         }
     }
@@ -3096,10 +3239,19 @@ public class DataFoundationTests
         var setup = CreateProgressionPurchaseTestSetup();
         var managerObject = new GameObject("Support upgrade purchase test");
         managerObject.SetActive(false);
+        Type progressionType = setup.Progression.GetType();
+        PropertyInfo instanceProperty = progressionType.GetProperty(
+            "Instance",
+            BindingFlags.Public | BindingFlags.Static);
+        object previousInstance = instanceProperty.GetValue(null);
         object purchaseManager = managerObject.AddComponent(
             FindPlayerType("UpgradePurchaseManager"));
         SetPrivateField(purchaseManager, "progressionManager", setup.Progression);
         SetPrivateField(purchaseManager, "economyManager", setup.Economy);
+        SetPrivateStaticProperty(
+            progressionType,
+            "Instance",
+            setup.Progression);
         managerObject.SetActive(true);
 
         try
@@ -3137,6 +3289,10 @@ public class DataFoundationTests
         finally
         {
             UnityEngine.Object.DestroyImmediate(managerObject);
+            SetPrivateStaticProperty(
+                progressionType,
+                "Instance",
+                previousInstance);
             DestroyProgressionPurchaseTestSetup(setup);
         }
     }
@@ -3380,11 +3536,22 @@ public class DataFoundationTests
         try
         {
             SetPrivateField(fixture.DragHandler, "isDragging", true);
+            Vector2 screenPoint = GetRecycleBinScreenPoint(fixture);
+            Canvas canvas = ((Component)fixture.Target)
+                .GetComponentInParent<Canvas>();
+            Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : canvas.worldCamera;
+            Assert.IsFalse(RectTransformUtility.RectangleContainsScreenPoint(
+                fixture.ExcludedArea,
+                screenPoint,
+                eventCamera),
+                "The test pointer must be outside the excluded Home area.");
             Assert.IsTrue((bool)fixture.Target.GetType()
                 .GetMethod("ContainsScreenPoint")
                 .Invoke(fixture.Target, new object[]
                 {
-                    GetRecycleBinScreenPoint(fixture)
+                    screenPoint
                 }), "The pointer should be inside the recycle bin.");
             fixture.DragHandler.GetType().GetMethod("OnPointerUp").Invoke(
                 fixture.DragHandler,
@@ -3392,7 +3559,7 @@ public class DataFoundationTests
                 {
                     new UnityEngine.EventSystems.PointerEventData(null)
                     {
-                        position = GetRecycleBinScreenPoint(fixture)
+                        position = screenPoint
                     }
                 });
 
@@ -3825,6 +3992,16 @@ public class DataFoundationTests
             closeButtonTransform.Value,
             "m_SizeDelta");
 
+        Vector2 requirementsAnchorMin = ReadSceneVector2(
+            requirementsTransform.Value,
+            "m_AnchorMin");
+        Vector2 requirementsAnchorMax = ReadSceneVector2(
+            requirementsTransform.Value,
+            "m_AnchorMax");
+        float effectiveRequirementsWidth =
+            panelSize.x *
+            (requirementsAnchorMax.x - requirementsAnchorMin.x) +
+            requirementsSize.x;
         float requirementsTop =
             panelSize.y * 0.5f + requirementsOffset.y;
         float requirementsBottom =
@@ -3839,7 +4016,7 @@ public class DataFoundationTests
         Assert.Less(requirementsTop, panelSize.y * 0.5f);
         Assert.Greater(requirementsBottom, actionButtonTop);
         Assert.Less(requirementsTop, closeButtonBottom);
-        Assert.Greater(requirementsSize.x, 0f);
+        Assert.Greater(effectiveRequirementsWidth, 0f);
         Assert.Greater(requirementsSize.y, 0f);
         StringAssert.Contains("m_enableAutoSizing: 1", requirementsText.Value);
         StringAssert.Contains("m_fontSize: 32", requirementsText.Value);
@@ -4128,7 +4305,7 @@ public class DataFoundationTests
                 new[] { transactionOwner }));
 
             Assert.IsFalse((bool)spawner.GetType()
-                .GetMethod("TrySpawnRandomDessert")
+                .GetMethod("TrySpawnRandomDessert", Type.EmptyTypes)
                 .Invoke(spawner, null),
                 "Oven spawning must be rejected during a merge.");
 
@@ -4460,10 +4637,10 @@ public class DataFoundationTests
 
             setup.Progression.GetType()
                 .GetMethod("RestoreRebirthProgression")
-                .Invoke(setup.Progression, new object[] { 10, 30, true });
+                .Invoke(setup.Progression, new object[] { 10, 0, false });
             Assert.IsFalse(button.interactable);
             Assert.AreEqual(
-                "All Rebirths Complete",
+                "All Rebirths Complete\nFinal Objective: Create Tier 30 — Eternal Dragon's Dessert",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText));
             Assert.AreEqual(
                 "COMPLETE",
@@ -4472,6 +4649,62 @@ public class DataFoundationTests
             Assert.AreEqual(
                 "REBIRTH COMPLETE",
                 entryButtonText.GetType().GetProperty("text").GetValue(entryButtonText));
+
+            setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 29, false });
+            setup.Progression.GetType()
+                .GetMethod(
+                    "HandleCreatedDessert",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[] { 30 });
+            setup.Progression.GetType().GetMethod(
+                    "SetCampaignCompletionPersistenceState",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[]
+                {
+                    GetCampaignCompletionPersistenceState("Pending"),
+                    false
+                });
+            Assert.AreEqual(
+                "Completion not saved\n" +
+                "Tier 30 was created, but campaign progress could not be saved.",
+                requirementText.GetType().GetProperty("text").GetValue(requirementText),
+                "Pending completion must be clearly presented as unsaved.");
+
+            setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 30, true });
+            Assert.AreEqual(
+                "Campaign Complete!\nEternal Dragon's Dessert created.",
+                requirementText.GetType().GetProperty("text").GetValue(requirementText),
+                "Restoring completed campaign state should refresh status without requiring a completion event.");
+
+            setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 29, false });
+            setup.Progression.GetType().GetMethod(
+                    "HandleCreatedDessert",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[] { 30 });
+            setup.Progression.GetType().GetMethod(
+                    "SetCampaignCompletionPersistenceState",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[]
+                {
+                    GetCampaignCompletionPersistenceState("Pending"),
+                    false
+                });
+            requirementText.GetType().GetProperty("text")
+                .SetValue(requirementText, "Stale status");
+            setup.Progression.GetType().GetMethod(
+                    "MarkCampaignCompletionSaved",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, null);
+            Assert.AreEqual(
+                "Campaign Complete!\nEternal Dragon's Dessert created.",
+                requirementText.GetType().GetProperty("text").GetValue(requirementText),
+                "Successful persistence should refresh the final status.");
         }
         finally
         {
@@ -4492,6 +4725,148 @@ public class DataFoundationTests
             UnityEngine.Object.DestroyImmediate(notificationObject);
             UnityEngine.Object.DestroyImmediate(spawnerObject);
             DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void CampaignCompletionPanelIsHiddenAndBoundToTheGameplayCanvas()
+    {
+        string scene = File.ReadAllText("Assets/_Game/Scenes/Game.unity");
+        StringAssert.Contains("m_Name: CampaignCompletionOverlay", scene);
+        StringAssert.Contains("m_Name: CampaignCompletionPanel", scene);
+        StringAssert.Contains("m_IsActive: 0", scene);
+        StringAssert.Contains("Campaign Complete!", scene);
+        StringAssert.Contains("Eternal Dragon's Dessert", scene);
+        StringAssert.Contains(
+            "Congratulations! You've completed the Sweet Merge campaign.",
+            scene);
+        StringAssert.Contains("m_text: Continue Playing", scene);
+        StringAssert.Contains("messageText: {fileID: 1810000010}", scene);
+        StringAssert.Contains(
+            "continueButtonText: {fileID: 1810000019}",
+            scene);
+        StringAssert.Contains(
+            "Assembly-CSharp::CampaignCompletionUI",
+            scene);
+        StringAssert.Contains(
+            "panelRoot: {fileID: 1810000000}",
+            scene);
+        StringAssert.Contains(
+            "continueButton: {fileID: 1810000014}",
+            scene);
+
+        Match overlay = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!1 &1810000000\r?\n(.*?)(?=^--- !u!|\z)");
+        Match overlayImage = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &1810000002\r?\n(.*?)(?=^--- !u!|\z)");
+        Assert.IsTrue(overlay.Success);
+        Assert.IsTrue(overlayImage.Success);
+        StringAssert.Contains("m_IsActive: 0", overlay.Value);
+        StringAssert.Contains(
+            "m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image",
+            overlayImage.Value);
+    }
+
+    [Test]
+    public void CampaignCompletionUIShowsOnceAndUnsubscribesWhenDisabled()
+    {
+        Type uiType = FindPlayerType("CampaignCompletionUI");
+        Type gameplayEventsType = FindPlayerType("GameplayEvents");
+        MethodInfo raiseCompletion = gameplayEventsType.GetMethod(
+            "RaiseCampaignCompleted",
+            BindingFlags.Public | BindingFlags.Static);
+        FieldInfo completionEvent = gameplayEventsType.GetField(
+            "CampaignCompleted",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(completionEvent);
+
+        var host = new GameObject("Campaign completion UI test");
+        host.SetActive(false);
+        var panel = new GameObject(
+            "Campaign completion panel test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(UnityEngine.UI.Image));
+        panel.SetActive(false);
+        var buttonObject = new GameObject(
+            "Continue Playing button test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(UnityEngine.UI.Image),
+            typeof(UnityEngine.UI.Button));
+        buttonObject.transform.SetParent(panel.transform, false);
+        var messageObject = new GameObject(
+            "Campaign completion message test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer));
+        var buttonTextObject = new GameObject(
+            "Continue Playing label test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer));
+        buttonTextObject.transform.SetParent(buttonObject.transform, false);
+        Component messageText = messageObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        Component buttonText = buttonTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        Component ui = host.AddComponent(uiType);
+        UnityEngine.UI.Button button =
+            buttonObject.GetComponent<UnityEngine.UI.Button>();
+        SetPrivateField(ui, "panelRoot", panel);
+        SetPrivateField(ui, "continueButton", button);
+        SetPrivateField(ui, "messageText", messageText);
+        SetPrivateField(ui, "continueButtonText", buttonText);
+
+        try
+        {
+            host.SetActive(true);
+            InvokeLifecycle(ui, "OnEnable");
+            Assert.IsFalse(panel.activeSelf, "The celebration starts hidden.");
+
+            raiseCompletion.Invoke(null, null);
+            Assert.IsTrue(panel.activeSelf);
+            Assert.AreEqual("Continue Playing",
+                GetPropertyValue(buttonText, "text"));
+
+            button.onClick.Invoke();
+            Assert.IsFalse(panel.activeSelf,
+                "Continue Playing should dismiss the panel.");
+
+            raiseCompletion.Invoke(null, null);
+            Assert.IsFalse(panel.activeSelf,
+                "A repeated completion must not reopen a dismissed panel.");
+
+            host.SetActive(false);
+            InvokeLifecycle(ui, "OnDisable");
+            Delegate subscribers = (Delegate)completionEvent.GetValue(null);
+            Assert.IsFalse(
+                subscribers != null &&
+                subscribers.GetInvocationList().Any(
+                    callback => callback.Target == ui),
+                "Disabled UI must unsubscribe from the completion event.");
+
+            raiseCompletion.Invoke(null, null);
+            Assert.IsFalse(panel.activeSelf);
+
+            host.SetActive(true);
+            InvokeLifecycle(ui, "OnEnable");
+            subscribers = (Delegate)completionEvent.GetValue(null);
+            Assert.AreEqual(
+                1,
+                subscribers.GetInvocationList()
+                    .Count(callback => callback.Target == ui),
+                "Re-enabling the UI must not add duplicate subscriptions.");
+            raiseCompletion.Invoke(null, null);
+            Assert.IsFalse(panel.activeSelf,
+                "Re-enabling or restoring must not replay a shown celebration.");
+        }
+        finally
+        {
+            host.SetActive(false);
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(panel);
+            UnityEngine.Object.DestroyImmediate(messageObject);
         }
     }
 
@@ -4560,9 +4935,15 @@ public class DataFoundationTests
         Match title = Regex.Match(
             scene,
             @"(?ms)^--- !u!224 &373534310\r?\n(.*?)(?=^--- !u!|\z)");
+        Match titleText = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &373534311\r?\n(.*?)(?=^--- !u!|\z)");
         Match orderNumber = Regex.Match(
             scene,
             @"(?ms)^--- !u!224 &276639108\r?\n(.*?)(?=^--- !u!|\z)");
+        Match orderNumberText = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &276639109\r?\n(.*?)(?=^--- !u!|\z)");
         Match confirm = Regex.Match(
             scene,
             @"(?ms)^--- !u!224 &2028420272\r?\n(.*?)(?=^--- !u!|\z)");
@@ -4571,7 +4952,8 @@ public class DataFoundationTests
                  {
                      canvasTransform, orderDetailsUI, blockerObject,
                      blockerTransform, blockerImage, overlay, panel,
-                     requirements, title, orderNumber, confirm
+                     requirements, title, titleText, orderNumber,
+                     orderNumberText, confirm
                  })
             Assert.IsTrue(match.Success, "Order details scene reference is missing.");
 
@@ -4599,10 +4981,22 @@ public class DataFoundationTests
             canvasTransform.Value,
             @"(?m)^  - \{fileID: (-?\d+)\}$");
         Assert.GreaterOrEqual(canvasChildren.Count, 2);
-        Assert.AreEqual("2200000101",
-            canvasChildren[canvasChildren.Count - 2].Groups[1].Value);
-        Assert.AreEqual("1395192559",
-            canvasChildren[canvasChildren.Count - 1].Groups[1].Value);
+        string[] canvasChildIds = canvasChildren.Cast<Match>()
+            .Select(child => child.Groups[1].Value)
+            .ToArray();
+        int blockerIndex = Array.IndexOf(canvasChildIds, "2200000101");
+        int orderOverlayIndex = Array.IndexOf(canvasChildIds, "1395192559");
+        int campaignOverlayIndex = Array.IndexOf(canvasChildIds, "1810000001");
+        Assert.GreaterOrEqual(orderOverlayIndex, 0,
+            "The order details overlay must remain a direct canvas child.");
+        Assert.GreaterOrEqual(blockerIndex, 0,
+            "The order input blocker must remain a direct canvas child.");
+        Assert.GreaterOrEqual(campaignOverlayIndex, 0,
+            "The campaign completion overlay must remain a direct canvas child.");
+        Assert.Greater(orderOverlayIndex, blockerIndex,
+            "The order details overlay must render above its input blocker.");
+        Assert.Greater(campaignOverlayIndex, orderOverlayIndex,
+            "The campaign celebration must render above the order details overlay.");
 
         StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 155}",
             requirements.Value);
@@ -4610,10 +5004,82 @@ public class DataFoundationTests
             requirements.Value);
         StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 365}",
             title.Value);
-        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 310}",
-            orderNumber.Value);
         StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -125}",
             confirm.Value);
+        StringAssert.Contains("m_Father: {fileID: 1504059926}",
+            title.Value);
+        StringAssert.Contains("m_Father: {fileID: 1504059926}",
+            orderNumber.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0.5, y: 0.5}",
+            title.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 0.5, y: 0.5}",
+            title.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0.5, y: 0.5}",
+            orderNumber.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 0.5, y: 0.5}",
+            orderNumber.Value);
+
+        Assert.AreEqual(
+            "256",
+            Regex.Match(
+                titleText.Value,
+                @"(?m)^  m_VerticalAlignment: (\d+)$").Groups[1].Value,
+            "The order title uses vertically centered text.");
+        Assert.AreEqual(
+            "256",
+            Regex.Match(
+                orderNumberText.Value,
+                @"(?m)^  m_VerticalAlignment: (\d+)$").Groups[1].Value,
+            "The order number uses vertically centered text.");
+        string titleFontGuid = Regex.Match(
+            titleText.Value,
+            @"(?m)^  m_fontAsset: \{fileID: \d+, guid: ([0-9a-f]{32}), type: 2\}")
+            .Groups[1].Value;
+        string orderNumberFontGuid = Regex.Match(
+            orderNumberText.Value,
+            @"(?m)^  m_fontAsset: \{fileID: \d+, guid: ([0-9a-f]{32}), type: 2\}")
+            .Groups[1].Value;
+        Assert.IsNotEmpty(titleFontGuid);
+        Assert.AreEqual(titleFontGuid, orderNumberFontGuid,
+            "Both labels use the same font metrics.");
+        string fontAssetPath = AssetDatabase.GUIDToAssetPath(titleFontGuid);
+        Assert.IsNotEmpty(fontAssetPath);
+        string fontAsset = File.ReadAllText(fontAssetPath);
+        float fontPointSize = ReadSceneFloat(fontAsset, "m_PointSize");
+        float fontLineHeight = ReadSceneFloat(fontAsset, "m_LineHeight");
+        Assert.Greater(fontPointSize, 0f);
+        Assert.Greater(fontLineHeight, 0f);
+        float titleFontSize = ReadSceneFloat(titleText.Value, "m_fontSize");
+        float orderNumberFontSize =
+            ReadSceneFloat(orderNumberText.Value, "m_fontSize");
+        Vector2 titlePosition = ReadSceneVector2(
+            title.Value,
+            "m_AnchoredPosition");
+        Vector2 titleSize = ReadSceneVector2(title.Value, "m_SizeDelta");
+        Vector2 orderNumberPosition = ReadSceneVector2(
+            orderNumber.Value,
+            "m_AnchoredPosition");
+        Vector2 orderNumberSize = ReadSceneVector2(
+            orderNumber.Value,
+            "m_SizeDelta");
+        float titleLineHeight =
+            fontLineHeight * titleFontSize / fontPointSize;
+        float orderNumberLineHeight =
+            fontLineHeight * orderNumberFontSize / fontPointSize;
+        float titleTextMinY =
+            titlePosition.y - Mathf.Min(titleSize.y, titleLineHeight) * 0.5f;
+        float titleTextMaxY =
+            titlePosition.y + Mathf.Min(titleSize.y, titleLineHeight) * 0.5f;
+        float orderNumberTextMinY =
+            orderNumberPosition.y -
+            Mathf.Min(orderNumberSize.y, orderNumberLineHeight) * 0.5f;
+        float orderNumberTextMaxY =
+            orderNumberPosition.y +
+            Mathf.Min(orderNumberSize.y, orderNumberLineHeight) * 0.5f;
+        Assert.IsTrue(
+            titleTextMinY >= orderNumberTextMaxY ||
+            orderNumberTextMinY >= titleTextMaxY,
+            "The title and Order Number text line bounds must not overlap.");
 
         foreach (int layoutId in new[] { 1434013344, 76114894, 173951686 })
         {
@@ -4719,6 +5185,335 @@ public class DataFoundationTests
         Assert.IsTrue(RegisterCreatedTier(state, 12));
         Assert.AreEqual(12, GetRebirthProperty(state, "HighestTierCreatedThisRun"));
         Assert.AreEqual(0, GetRebirthProperty(state, "CurrentRebirthCount"));
+    }
+
+    [Test]
+    public void CampaignCompletionPendingUiShowsRetryAndRetainsFailureState()
+    {
+        ProgressionPurchaseTestSetup setup =
+            CreateProgressionPurchaseTestSetup();
+        Type progressionType = setup.Progression.GetType();
+        Type saveManagerType = FindPlayerType("SaveManager");
+        SetPrivateStaticProperty(progressionType, "Instance", setup.Progression);
+        SetPrivateStaticProperty(saveManagerType, "Instance", null);
+        Assert.IsTrue((bool)progressionType
+            .GetMethod("RestoreRebirthProgression")
+            .Invoke(setup.Progression, new object[] { 10, 29, false }));
+        progressionType.GetMethod(
+                "HandleCreatedDessert",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(setup.Progression, new object[] { 30 });
+        progressionType.GetMethod(
+                "SetCampaignCompletionPersistenceState",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(setup.Progression, new object[]
+            {
+                GetCampaignCompletionPersistenceState("Pending"),
+                false
+            });
+
+        var host = new GameObject("Campaign pending UI test");
+        host.SetActive(false);
+        var panel = new GameObject(
+            "Campaign pending panel test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(UnityEngine.UI.Image));
+        panel.SetActive(false);
+        var buttonObject = new GameObject(
+            "Retry Save button test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(UnityEngine.UI.Image),
+            typeof(UnityEngine.UI.Button));
+        buttonObject.transform.SetParent(panel.transform, false);
+        var messageObject = new GameObject(
+            "Pending completion message test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer));
+        var labelObject = new GameObject(
+            "Retry Save label test",
+            typeof(RectTransform),
+            typeof(CanvasRenderer));
+        labelObject.transform.SetParent(buttonObject.transform, false);
+        Component messageText = messageObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        Component buttonText = labelObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        Component ui = host.AddComponent(
+            FindPlayerType("CampaignCompletionUI"));
+        UnityEngine.UI.Button button =
+            buttonObject.GetComponent<UnityEngine.UI.Button>();
+        SetPrivateField(ui, "panelRoot", panel);
+        SetPrivateField(ui, "continueButton", button);
+        SetPrivateField(ui, "messageText", messageText);
+        SetPrivateField(ui, "continueButtonText", buttonText);
+
+        try
+        {
+            host.SetActive(true);
+            InvokeLifecycle(ui, "OnEnable");
+            Assert.IsTrue(panel.activeSelf);
+            StringAssert.Contains(
+                "Completion not saved",
+                (string)messageText.GetType()
+                    .GetProperty("text").GetValue(messageText));
+            Assert.AreEqual(
+                "Retry Save",
+                buttonText.GetType().GetProperty("text").GetValue(buttonText));
+
+            LogAssert.Expect(
+                LogType.Error,
+                "CAMPAIGN COMPLETE | SaveManager is unavailable; completion remains unsaved.");
+            LogAssert.Expect(
+                LogType.Error,
+                "CAMPAIGN COMPLETE | V2 save did not succeed; completion remains pending and can be retried.");
+            button.onClick.Invoke();
+            StringAssert.Contains(
+                "Try again when saving is available",
+                (string)messageText.GetType()
+                    .GetProperty("text").GetValue(messageText));
+            Assert.AreEqual(
+                GetCampaignCompletionPersistenceState("Pending").ToString(),
+                GetPropertyValue(
+                    setup.Progression,
+                    "CampaignCompletionPersistence").ToString());
+
+            progressionType.GetMethod(
+                    "MarkCampaignCompletionSaved",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, null);
+            StringAssert.Contains(
+                "Campaign Complete!",
+                (string)messageText.GetType()
+                    .GetProperty("text").GetValue(messageText));
+            Assert.AreEqual(
+                "Continue Playing",
+                buttonText.GetType().GetProperty("text").GetValue(buttonText));
+            Assert.IsFalse((bool)GetPropertyValue(
+                setup.Progression,
+                "HasPendingCampaignCelebrationPresentation"),
+                "Showing the celebration consumes its session-level presentation token.");
+            button.onClick.Invoke();
+            Assert.IsFalse(panel.activeSelf,
+                "The successful celebration action should dismiss the panel.");
+        }
+        finally
+        {
+            SetPrivateStaticProperty(saveManagerType, "Instance", null);
+            SetPrivateStaticProperty(progressionType, "Instance", null);
+            host.SetActive(false);
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(panel);
+            UnityEngine.Object.DestroyImmediate(messageObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+    }
+
+    [Test]
+    public void CampaignCompletionRequiresR10AndFirstT30Creation()
+    {
+        var setup = CreateProgressionPurchaseTestSetup();
+        var saveManagerObject = new GameObject("Completed campaign save test");
+        saveManagerObject.SetActive(false);
+        Type saveManagerType = FindPlayerType("SaveManager");
+        object saveManager = saveManagerObject.AddComponent(saveManagerType);
+        try
+        {
+            MethodInfo restoreProgression = setup.Progression.GetType()
+                .GetMethod("RestoreRebirthProgression");
+            Assert.IsTrue((bool)restoreProgression.Invoke(
+                setup.Progression,
+                new object[] { 9, 0, false }));
+            Assert.AreEqual(5, GetPropertyValue(
+                setup.Progression,
+                "OvenLevel"));
+            Assert.IsFalse((bool)setup.Progression.GetType()
+                .GetMethod("IsDessertTierUnlocked")
+                .Invoke(setup.Progression, new object[] { 30 }),
+                "T30 must remain locked before R10.");
+
+            Assert.IsTrue((bool)restoreProgression.Invoke(
+                setup.Progression,
+                new object[] { 10, 0, false }));
+            Assert.AreEqual(6, GetPropertyValue(
+                setup.Progression,
+                "OvenLevel"));
+            Assert.IsTrue((bool)setup.Progression.GetType()
+                .GetMethod("IsDessertTierUnlocked")
+                .Invoke(setup.Progression, new object[] { 30 }));
+
+            Assert.IsTrue((bool)restoreProgression.Invoke(
+                setup.Progression,
+                new object[] { 10, 30, true }));
+            Assert.IsFalse((bool)GetPropertyValue(
+                setup.Progression,
+                "HasPendingCampaignCelebrationPresentation"),
+                "A restored completed V2 save must not queue the live celebration.");
+            SetPrivateStaticProperty(
+                setup.Progression.GetType(),
+                "Instance",
+                setup.Progression);
+            object save = Activator.CreateInstance(FindPlayerType("PlayerSaveData"));
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                    "CaptureProgression",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, new[] { save }));
+            Assert.IsTrue((bool)GetField(save, "campaignComplete"));
+
+            MethodInfo serialize = saveManagerType.GetMethod(
+                "SerializeWithCapacity",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            string saveJson = (string)serialize.Invoke(
+                null,
+                new[] { save, (object)0 });
+            Assert.IsTrue((bool)saveManagerType.GetMethod(
+                    "IsValidSerializedSnapshot",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(saveManager, new object[] { saveJson }));
+            object restoredSave = JsonUtility.FromJson(
+                saveJson,
+                FindPlayerType("PlayerSaveData"));
+            Assert.IsTrue((bool)GetField(restoredSave, "campaignComplete"));
+            Assert.AreEqual(10, GetField(restoredSave, "completedRebirthCount"));
+            Assert.AreEqual(30, GetField(restoredSave, "highestTierCreatedThisRun"));
+        }
+        finally
+        {
+            SetPrivateStaticProperty(saveManagerType, "Instance", null);
+            SetPrivateStaticProperty(
+                setup.Progression.GetType(),
+                "Instance",
+                null);
+            UnityEngine.Object.DestroyImmediate(saveManagerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
+
+        object beforeFinalRebirth = CreateRebirthState(9);
+        Assert.IsTrue(RegisterCreatedTier(beforeFinalRebirth, 30));
+        Assert.IsFalse((bool)GetRebirthProperty(
+            beforeFinalRebirth,
+            "CampaignComplete"));
+
+        object finalRebirth = CreateRebirthState(10);
+        Assert.IsTrue(RegisterCreatedTier(finalRebirth, 29));
+        Assert.IsTrue(RegisterCreatedTier(finalRebirth, 30));
+        Assert.IsTrue((bool)GetRebirthProperty(
+            finalRebirth,
+            "CampaignComplete"));
+        Assert.IsFalse(RegisterCreatedTier(finalRebirth, 30));
+
+        string completedJson = JsonUtility.ToJson(finalRebirth);
+        object restored = JsonUtility.FromJson(
+            completedJson,
+            finalRebirth.GetType());
+        Assert.IsTrue((bool)GetRebirthProperty(restored, "CampaignComplete"));
+        Assert.IsFalse(RegisterCreatedTier(restored, 30),
+            "An already-completed save must not create another tier transition.");
+
+    }
+
+    [Test]
+    public void CampaignCompletionSaveFailureStaysPendingUntilSavedOnce()
+    {
+        ProgressionPurchaseTestSetup setup =
+            CreateProgressionPurchaseTestSetup();
+        Type progressionType = setup.Progression.GetType();
+        Type saveManagerType = FindPlayerType("SaveManager");
+        Type gameplayEventsType = FindPlayerType("GameplayEvents");
+        var saveManagerObject = new GameObject(
+            "Campaign completion save retry test");
+        saveManagerObject.SetActive(false);
+        Component saveManager = saveManagerObject.AddComponent(saveManagerType);
+        EventInfo completionEvent =
+            gameplayEventsType.GetEvent("CampaignCompleted");
+        int completionNotifications = 0;
+        Action completionHandler = () => completionNotifications++;
+        completionEvent.AddEventHandler(null, completionHandler);
+
+        try
+        {
+            SetPrivateStaticProperty(progressionType, "Instance", setup.Progression);
+            SetPrivateStaticProperty(saveManagerType, "Instance", null);
+            Assert.IsTrue((bool)progressionType
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 29, false }));
+            progressionType.GetMethod(
+                    "HandleCreatedDessert",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, new object[] { 30 });
+            Assert.IsTrue((bool)GetPropertyValue(
+                setup.Progression,
+                "CampaignComplete"));
+
+            LogAssert.Expect(
+                LogType.Error,
+                "CAMPAIGN COMPLETE | SaveManager is unavailable; completion remains unsaved.");
+            LogAssert.Expect(
+                LogType.Error,
+                "CAMPAIGN COMPLETE | V2 save did not succeed; completion remains pending and can be retried.");
+            Assert.IsFalse((bool)progressionType
+                .GetMethod("TryPersistCampaignCompletion")
+                .Invoke(setup.Progression, null));
+            Assert.AreEqual(
+                GetCampaignCompletionPersistenceState("Pending").ToString(),
+                GetPropertyValue(
+                    setup.Progression,
+                    "CampaignCompletionPersistence").ToString());
+            Assert.AreEqual(0, completionNotifications,
+                "A missing SaveManager must not emit the celebration event.");
+
+            SetPrivateStaticProperty(saveManagerType, "Instance", saveManager);
+            LogAssert.Expect(
+                LogType.Error,
+                "CAMPAIGN COMPLETE | V2 save did not succeed; completion remains pending and can be retried.");
+            Assert.IsFalse((bool)progressionType
+                .GetMethod("TryPersistCampaignCompletion")
+                .Invoke(setup.Progression, null),
+                "An unavailable lifecycle save path must remain pending.");
+            Assert.AreEqual(
+                GetCampaignCompletionPersistenceState("Pending").ToString(),
+                GetPropertyValue(
+                    setup.Progression,
+                    "CampaignCompletionPersistence").ToString());
+            Assert.AreEqual(0, completionNotifications,
+                "A rejected retry must not emit the celebration event.");
+
+            progressionType.GetMethod(
+                    "MarkCampaignCompletionSaved",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, null);
+            Assert.AreEqual(
+                GetCampaignCompletionPersistenceState("Saved").ToString(),
+                GetPropertyValue(
+                    setup.Progression,
+                    "CampaignCompletionPersistence").ToString());
+            Assert.AreEqual(1, completionNotifications);
+            Assert.IsTrue((bool)GetPropertyValue(
+                setup.Progression,
+                "HasPendingCampaignCelebrationPresentation"));
+
+            progressionType.GetMethod(
+                    "MarkCampaignCompletionSaved",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(setup.Progression, null);
+            Assert.AreEqual(1, completionNotifications,
+                "Repeated successful callbacks must not duplicate the event.");
+
+            Assert.IsTrue((bool)progressionType
+                .GetMethod("RestoreRebirthProgression")
+                .Invoke(setup.Progression, new object[] { 10, 30, true }));
+            Assert.AreEqual(1, completionNotifications,
+                "Restoring a completed save must not replay the event.");
+        }
+        finally
+        {
+            completionEvent.RemoveEventHandler(null, completionHandler);
+            SetPrivateStaticProperty(saveManagerType, "Instance", null);
+            SetPrivateStaticProperty(progressionType, "Instance", null);
+            UnityEngine.Object.DestroyImmediate(saveManagerObject);
+            DestroyProgressionPurchaseTestSetup(setup);
+        }
     }
 
     [Test]
@@ -5109,9 +5904,16 @@ public class DataFoundationTests
                 .GetMethod("SaveSession")
                 .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
             setup.SaveManager.GetType()
-                .GetMethod("RecordSessionCustomerCapacity")
+                .GetMethod(
+                    "RecordSessionCustomerCapacity",
+                    new[]
+                    {
+                        FindPlayerType("MergeSessionData"),
+                        typeof(int),
+                        typeof(string)
+                    })
                 .Invoke(setup.SaveManager,
-                    new object[] { setup.FreshSession, 1 });
+                    new object[] { setup.FreshSession, 1, null });
 
             MethodInfo capture = setup.Controller.GetType().GetMethod(
                 "TryCaptureSession");
@@ -5176,8 +5978,17 @@ public class DataFoundationTests
                 .GetMethod("SaveSession")
                 .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
             setup.SaveManager.GetType()
-                .GetMethod("RecordSessionCustomerCapacity")
-                .Invoke(setup.SaveManager, new object[] { setup.FreshSession, 1 });
+                .GetMethod(
+                    "RecordSessionCustomerCapacity",
+                    new[]
+                    {
+                        FindPlayerType("MergeSessionData"),
+                        typeof(int),
+                        typeof(string)
+                    })
+                .Invoke(
+                    setup.SaveManager,
+                    new object[] { setup.FreshSession, 1, null });
 
             LogAssert.Expect(
                 LogType.Error,
@@ -6176,6 +6987,30 @@ public class DataFoundationTests
                 System.Globalization.CultureInfo.InvariantCulture));
     }
 
+    private static object GetCampaignCompletionPersistenceState(
+        string stateName)
+    {
+        Type stateType = FindPlayerType(
+            "CampaignCompletionPersistenceState");
+        Assert.IsTrue(stateType.IsEnum,
+            "Campaign completion persistence state must remain an enum.");
+        return Enum.Parse(stateType, stateName);
+    }
+
+    private static float ReadSceneFloat(
+        string serializedObject,
+        string fieldName)
+    {
+        Match match = Regex.Match(
+            serializedObject,
+            $@"(?m)^[ \t]+{Regex.Escape(fieldName)}: (-?[\d.]+)\r?$");
+        Assert.IsTrue(match.Success,
+            $"Scene field {fieldName} was not found.");
+        return float.Parse(
+            match.Groups[1].Value,
+            System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static object GetField(object target, string fieldName)
     {
         return target.GetType()
@@ -6344,7 +7179,16 @@ public class DataFoundationTests
 
     private static Vector2 GetRecycleBinScreenPoint(RecycleFixture fixture)
     {
-        return new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        Component target = (Component)fixture.Target;
+        Canvas canvas = target.GetComponentInParent<Canvas>();
+        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+            ? null
+            : canvas.worldCamera;
+        RectTransform targetRect = (RectTransform)target.transform;
+        Vector3 worldCenter = targetRect.TransformPoint(targetRect.rect.center);
+        return RectTransformUtility.WorldToScreenPoint(
+            eventCamera,
+            worldCenter);
     }
 
     private static void DestroyRecycleFixture(RecycleFixture fixture)
@@ -6557,9 +7401,16 @@ public class DataFoundationTests
         setup.PreviousPreview = preview;
         setup.SessionManager.GetType().GetMethod("SaveSession")
             .Invoke(setup.SessionManager, new object[] { setup.PreviousSession });
-        setup.SaveManager.GetType().GetMethod("RecordSessionCustomerCapacity")
+        setup.SaveManager.GetType().GetMethod(
+            "RecordSessionCustomerCapacity",
+            new[]
+            {
+                FindPlayerType("MergeSessionData"),
+                typeof(int),
+                typeof(string)
+            })
             .Invoke(setup.SaveManager,
-                new object[] { setup.PreviousSession, 1 });
+                new object[] { setup.PreviousSession, 1, null });
 
         SetPrivateStaticProperty(
             setup.SaveManager.GetType(), "Instance", setup.SaveManager);

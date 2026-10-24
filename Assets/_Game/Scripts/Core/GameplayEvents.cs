@@ -14,6 +14,9 @@ public static class GameplayEvents
     public static event Action<int, bool>
         DessertMergeCommitted;
 
+    public static event Action
+        CampaignCompleted;
+
     public static event Action<DessertDefinition>
         NextDessertChanged;
 
@@ -49,6 +52,11 @@ public static class GameplayEvents
             resultingTier,
             isNewHighestTier
         );
+    }
+
+    public static void RaiseCampaignCompleted()
+    {
+        CampaignCompleted?.Invoke();
     }
 
     internal static bool IsNewHighestTier(

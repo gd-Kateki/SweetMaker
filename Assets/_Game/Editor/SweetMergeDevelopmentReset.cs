@@ -31,7 +31,7 @@ public static class SweetMergeDevelopmentReset
             return;
         }
 
-        string saveDirectory = Application.persistentDataPath;
+        string saveDirectory = SavePathPolicy.GetSaveDirectory();
         string primaryPath = Path.Combine(
             saveDirectory, SaveFileName);
 

@@ -1,6 +1,13 @@
 using System;
 using UnityEngine;
 
+public enum CampaignCompletionPersistenceState
+{
+    Incomplete,
+    Pending,
+    Saved
+}
+
 public class PlayerProgressionManager : MonoBehaviour
 {
     public static PlayerProgressionManager Instance
@@ -63,6 +70,11 @@ public class PlayerProgressionManager : MonoBehaviour
         new RebirthProgressionState();
 
     private bool rebirthInProgress;
+    private bool campaignCompletionSaveInProgress;
+    private bool campaignCelebrationPendingPresentation;
+    private CampaignCompletionPersistenceState
+        campaignCompletionPersistenceState =
+            CampaignCompletionPersistenceState.Incomplete;
 
     // ==================================================
     // EVENTS
@@ -73,6 +85,9 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public event Action
         RebirthProgressionChanged;
+
+    public event Action<CampaignCompletionPersistenceState>
+        CampaignCompletionPersistenceChanged;
 
     // ==================================================
     // LEVEL PROPERTIES
@@ -104,6 +119,13 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public bool CampaignComplete =>
         RebirthProgression.CampaignComplete;
+
+    public CampaignCompletionPersistenceState
+        CampaignCompletionPersistence =>
+            campaignCompletionPersistenceState;
+
+    public bool HasPendingCampaignCelebrationPresentation =>
+        campaignCelebrationPendingPresentation;
 
     public int NextRebirthNumber =>
         RebirthProgression.NextRebirthNumber;
@@ -225,6 +247,34 @@ public class PlayerProgressionManager : MonoBehaviour
         int highestTierCreatedThisRun,
         bool campaignComplete)
     {
+        RebirthProgressionState restoredProgression =
+            new RebirthProgressionState();
+        if (!restoredProgression.Restore(
+                completedRebirthCount,
+                highestTierCreatedThisRun,
+                campaignComplete))
+        {
+            return false;
+        }
+
+        int restoredOvenLevel =
+            restoredProgression.RebirthUnlockedOvenLevel;
+        UpgradeDefinition ovenDefinition =
+            GetDefinition(UpgradeType.Oven);
+        if (ovenDefinition == null ||
+            !ovenDefinition.IsValid ||
+            ovenDefinition.GetLevel(restoredOvenLevel) == null)
+        {
+            Debug.LogError(
+                "REBIRTH PROGRESSION | Cannot restore progression " +
+                "without a valid Oven definition for the derived level.");
+            return false;
+        }
+
+        CampaignCompletionPersistenceState restoredPersistence =
+            campaignComplete
+                ? CampaignCompletionPersistenceState.Saved
+                : CampaignCompletionPersistenceState.Incomplete;
         if (!RebirthProgression.Restore(
             completedRebirthCount,
             highestTierCreatedThisRun,
@@ -234,11 +284,93 @@ public class PlayerProgressionManager : MonoBehaviour
             return false;
         }
 
-        if (!SynchronizeOvenLevelWithRebirth())
-            return false;
+        if (ovenLevel != restoredOvenLevel)
+            SetLevel(UpgradeType.Oven, restoredOvenLevel);
 
+        SetCampaignCompletionPersistenceState(restoredPersistence);
         RebirthProgressionChanged?.Invoke();
         return true;
+    }
+
+    public bool TryPersistCampaignCompletion()
+    {
+        if (!CampaignComplete ||
+            campaignCompletionPersistenceState ==
+                CampaignCompletionPersistenceState.Saved ||
+            campaignCompletionSaveInProgress)
+        {
+            return campaignCompletionPersistenceState ==
+                   CampaignCompletionPersistenceState.Saved;
+        }
+
+        campaignCompletionSaveInProgress = true;
+        bool saved = false;
+        try
+        {
+            SaveManager saveManager = SaveManager.Instance;
+            if (saveManager == null)
+            {
+                Debug.LogError(
+                    "CAMPAIGN COMPLETE | SaveManager is unavailable; " +
+                    "completion remains unsaved.");
+            }
+            else
+            {
+                saved = saveManager.SaveCurrentGame();
+            }
+        }
+        finally
+        {
+            campaignCompletionSaveInProgress = false;
+        }
+
+        if (!saved)
+        {
+            Debug.LogError(
+                "CAMPAIGN COMPLETE | V2 save did not succeed; " +
+                "completion remains pending and can be retried.");
+            SetCampaignCompletionPersistenceState(
+                CampaignCompletionPersistenceState.Pending,
+                notifyEvenIfUnchanged: true);
+        }
+
+        return saved &&
+               campaignCompletionPersistenceState ==
+                   CampaignCompletionPersistenceState.Saved;
+    }
+
+    internal void MarkCampaignCompletionSaved()
+    {
+        if (!CampaignComplete ||
+            campaignCompletionPersistenceState ==
+                CampaignCompletionPersistenceState.Saved)
+        {
+            return;
+        }
+
+        campaignCelebrationPendingPresentation = true;
+        SetCampaignCompletionPersistenceState(
+            CampaignCompletionPersistenceState.Saved);
+        GameplayEvents.RaiseCampaignCompleted();
+    }
+
+    public void MarkCampaignCompletionCelebrationPresented()
+    {
+        campaignCelebrationPendingPresentation = false;
+    }
+
+    private void SetCampaignCompletionPersistenceState(
+        CampaignCompletionPersistenceState state,
+        bool notifyEvenIfUnchanged = false)
+    {
+        if (!notifyEvenIfUnchanged &&
+            campaignCompletionPersistenceState == state)
+        {
+            return;
+        }
+
+        campaignCompletionPersistenceState = state;
+        CampaignCompletionPersistenceChanged?.Invoke(state);
     }
 
     internal static int GetOvenLevelForRebirthCount(int rebirthCount)

@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_24
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 24
-  displayName: Tier 24 Placeholder
-  sprite: {fileID: 0}
+  displayName: Heavenly Sakura Mille-Feuille
+  sprite: {fileID: -3212952942036204974, guid: c93198939db06814ea65e294d0ac2c63, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.5
+  visualScale: 0.1
   canSpawnFromOven: 1
   spawnWeight: 0

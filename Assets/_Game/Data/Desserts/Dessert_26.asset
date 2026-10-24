@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Dessert_26
   m_EditorClassIdentifier: Assembly-CSharp::DessertDefinition
   tier: 26
-  displayName: Tier 26 Placeholder
-  sprite: {fileID: 0}
+  displayName: Cloud Palace Parfait
+  sprite: {fileID: -7091707862557128816, guid: 14db73e4ec5b1ca4895ea0f365cdb22a, type: 3}
   color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
-  visualScale: 0.5
+  visualScale: 0.1
   canSpawnFromOven: 0
   spawnWeight: 0

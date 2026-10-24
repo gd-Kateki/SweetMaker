@@ -8,6 +8,16 @@ public sealed class RebirthUI : MonoBehaviour
     private const string AvailableNotification =
         "Rebirth Available! Tap Rebirth to continue!";
 
+    private const string FinalObjectiveText =
+        "Final Objective: Create Tier 30 — Eternal Dragon's Dessert";
+
+    private const string CampaignCompleteText =
+        "Campaign Complete!\nEternal Dragon's Dessert created.";
+
+    private const string CampaignCompletionPendingText =
+        "Completion not saved\n" +
+        "Tier 30 was created, but campaign progress could not be saved.";
+
     [SerializeField]
     private TMP_Text requirementsText;
 
@@ -75,6 +85,9 @@ public sealed class RebirthUI : MonoBehaviour
         }
 
         progressionManager.RebirthProgressionChanged += Refresh;
+        progressionManager.CampaignCompletionPersistenceChanged +=
+            HandleCampaignCompletionPersistenceChanged;
+        GameplayEvents.CampaignCompleted += HandleCampaignCompleted;
         economyManager.CashChanged += HandleCashChanged;
 
         if (rebirthButton != null)
@@ -101,7 +114,13 @@ public sealed class RebirthUI : MonoBehaviour
             StopCoroutine(notificationCoroutine);
 
         if (progressionManager != null)
+        {
             progressionManager.RebirthProgressionChanged -= Refresh;
+            progressionManager.CampaignCompletionPersistenceChanged -=
+                HandleCampaignCompletionPersistenceChanged;
+        }
+
+        GameplayEvents.CampaignCompleted -= HandleCampaignCompleted;
 
         if (economyManager != null)
             economyManager.CashChanged -= HandleCashChanged;
@@ -158,6 +177,17 @@ public sealed class RebirthUI : MonoBehaviour
         Refresh();
     }
 
+    private void HandleCampaignCompleted()
+    {
+        Refresh();
+    }
+
+    private void HandleCampaignCompletionPersistenceChanged(
+        CampaignCompletionPersistenceState state)
+    {
+        Refresh();
+    }
+
     private void HandleRebirthClicked()
     {
         if (rebirthClickInProgress || progressionManager == null)
@@ -193,7 +223,22 @@ public sealed class RebirthUI : MonoBehaviour
         if (progressionManager.CurrentRebirthCount >= 10)
         {
             if (requirementsText != null)
-                requirementsText.text = "All Rebirths Complete";
+            {
+                if (!progressionManager.CampaignComplete)
+                {
+                    requirementsText.text =
+                        "All Rebirths Complete\n" + FinalObjectiveText;
+                }
+                else
+                {
+                    requirementsText.text =
+                        progressionManager.CampaignCompletionPersistence ==
+                        CampaignCompletionPersistenceState.Saved
+                            ? CampaignCompleteText
+                            : CampaignCompletionPendingText;
+                }
+            }
+
             SetButtonState(false, "COMPLETE");
             SetReadyIndicator(false);
             SetEntryButtonState("REBIRTH COMPLETE");
