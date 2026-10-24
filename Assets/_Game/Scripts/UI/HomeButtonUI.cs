@@ -129,6 +129,7 @@ public class HomeButtonUI : MonoBehaviour
         // NAVIGATE TO MAIN BAKERY
         // ------------------------------------------
 
+        UiClickSfx.TryPlay(homeButton);
         isNavigating = true;
 
         if (homeButton != null)

@@ -8,6 +8,8 @@ public class OvenManager : MonoBehaviour
 
     private bool isProcessingRequest;
 
+    public bool LastRequestFailedForNoBoardSpace { get; private set; }
+
     public bool CanUseOven
     {
         get
@@ -24,6 +26,8 @@ public class OvenManager : MonoBehaviour
 
     public void RequestSpawn()
     {
+        LastRequestFailedForNoBoardSpace = false;
+
         if (!CanUseOven)
         {
             Debug.Log(
@@ -46,7 +50,10 @@ public class OvenManager : MonoBehaviour
         isProcessingRequest = true;
 
         bool spawned =
-            dessertSpawner.TrySpawnRandomDessert();
+            dessertSpawner.TrySpawnRandomDessert(
+                out bool failedForNoBoardSpace);
+        LastRequestFailedForNoBoardSpace =
+            failedForNoBoardSpace;
 
         isProcessingRequest = false;
 

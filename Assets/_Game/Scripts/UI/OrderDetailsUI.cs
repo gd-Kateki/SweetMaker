@@ -71,7 +71,7 @@ public class OrderDetailsUI : MonoBehaviour
         if (closeButton != null)
         {
             closeButton.onClick.AddListener(
-                Close
+                HandleCloseClicked
             );
         }
 
@@ -99,7 +99,7 @@ public class OrderDetailsUI : MonoBehaviour
         if (closeButton != null)
         {
             closeButton.onClick.RemoveListener(
-                Close
+                HandleCloseClicked
             );
         }
 
@@ -198,6 +198,15 @@ public class OrderDetailsUI : MonoBehaviour
     // ==================================================
     // OPEN / CLOSE
     // ==================================================
+
+    private void HandleCloseClicked()
+    {
+        if (!IsOpen)
+            return;
+
+        UiClickSfx.TryPlay(closeButton);
+        Close();
+    }
 
     public void OpenForCustomer(
         int customerIndex)

@@ -83,12 +83,12 @@ public sealed class RebirthUI : MonoBehaviour
             Debug.LogError("REBIRTH UI | Rebirth button reference is missing.");
 
         if (entryButton != null)
-            entryButton.onClick.AddListener(Open);
+            entryButton.onClick.AddListener(HandleOpenClicked);
         else
             Debug.LogError("REBIRTH UI | Entry button reference is missing.");
 
         if (closeButton != null)
-            closeButton.onClick.AddListener(Close);
+            closeButton.onClick.AddListener(HandleCloseClicked);
         else
             Debug.LogError("REBIRTH UI | Close button reference is missing.");
 
@@ -110,10 +110,31 @@ public sealed class RebirthUI : MonoBehaviour
             rebirthButton.onClick.RemoveListener(HandleRebirthClicked);
 
         if (entryButton != null)
-            entryButton.onClick.RemoveListener(Open);
+            entryButton.onClick.RemoveListener(HandleOpenClicked);
 
         if (closeButton != null)
-            closeButton.onClick.RemoveListener(Close);
+            closeButton.onClick.RemoveListener(HandleCloseClicked);
+    }
+
+    private void HandleOpenClicked()
+    {
+        if (IsModalOpen() ||
+            (modalPanel == null && modalBackdrop == null))
+        {
+            return;
+        }
+
+        UiClickSfx.TryPlay(entryButton);
+        Open();
+    }
+
+    private void HandleCloseClicked()
+    {
+        if (!IsModalOpen())
+            return;
+
+        UiClickSfx.TryPlay(closeButton);
+        Close();
     }
 
     private void ResolveReferences()

@@ -34,6 +34,15 @@ public class PlayButtonUI : MonoBehaviour
 
     private void HandlePlayClicked()
     {
+        if (SceneManager.GetActiveScene().name ==
+            SceneNavigationManager.MergeGameplayScene ||
+            !SceneNavigationManager.CanEnterMergeGameplay())
+        {
+            return;
+        }
+
+        UiClickSfx.TryPlay(playButton);
+
         if (SceneNavigationManager.Instance != null)
         {
             SceneNavigationManager.Instance
@@ -43,9 +52,6 @@ public class PlayButtonUI : MonoBehaviour
         }
 
         // Direct-scene/editor fallback.
-        if (!SceneNavigationManager.CanEnterMergeGameplay())
-            return;
-
         SceneManager.LoadScene(
             SceneNavigationManager
                 .MergeGameplayScene

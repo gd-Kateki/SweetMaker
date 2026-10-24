@@ -581,5 +581,10 @@ public class CustomerButtonUI : MonoBehaviour
         orderDetailsUI.OpenForCustomer(
             customerIndex
         );
+        if (orderDetailsUI.IsOpen &&
+            orderDetailsUI.SelectedCustomerIndex == customerIndex)
+        {
+            UiClickSfx.TryPlay(button);
+        }
     }
 }

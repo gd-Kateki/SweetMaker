@@ -44,5 +44,7 @@ public class OvenController : MonoBehaviour, IPointerDownHandler
         }
 
         ovenManager.RequestSpawn();
+        if (ovenManager.LastRequestFailedForNoBoardSpace)
+            AudioManager.Play(SfxId.Action_Invalid);
     }
 }

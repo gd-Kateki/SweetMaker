@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [Serializable]
 public sealed class SfxClipEntry
@@ -51,6 +52,8 @@ public sealed class AudioManager : MonoBehaviour
     private readonly HashSet<SfxId> missingClipWarnings =
         new HashSet<SfxId>();
     private AudioSource[] audioSources = Array.Empty<AudioSource>();
+    private OrderManager subscribedOrderManager;
+    private UpgradePurchaseManager subscribedUpgradePurchaseManager;
 
     public int SourcePoolCount => audioSources.Length;
 
@@ -68,6 +71,10 @@ public sealed class AudioManager : MonoBehaviour
         Instance = this;
         GameplayEvents.DessertSpawned += HandleDessertSpawned;
         GameplayEvents.DessertMergeCommitted += HandleDessertMergeCommitted;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        SubscribeToOrderManager(FindAnyObjectByType<OrderManager>());
+        SubscribeToUpgradePurchaseManager(
+            FindAnyObjectByType<UpgradePurchaseManager>());
         if (!Application.isPlaying)
             return;
 
@@ -80,6 +87,9 @@ public sealed class AudioManager : MonoBehaviour
     {
         GameplayEvents.DessertSpawned -= HandleDessertSpawned;
         GameplayEvents.DessertMergeCommitted -= HandleDessertMergeCommitted;
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SubscribeToOrderManager(null);
+        SubscribeToUpgradePurchaseManager(null);
         if (Instance == this)
             Instance = null;
     }
@@ -97,6 +107,63 @@ public sealed class AudioManager : MonoBehaviour
             isNewHighestTier
                 ? SfxId.Dessert_MergeSpecial
                 : SfxId.Dessert_Merge);
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        SubscribeToOrderManager(FindAnyObjectByType<OrderManager>());
+        SubscribeToUpgradePurchaseManager(
+            FindAnyObjectByType<UpgradePurchaseManager>());
+    }
+
+    private void SubscribeToOrderManager(OrderManager orderManager)
+    {
+        if (subscribedOrderManager == orderManager)
+            return;
+
+        if (subscribedOrderManager != null)
+        {
+            subscribedOrderManager.OrderCompleted -= HandleOrderCompleted;
+        }
+
+        subscribedOrderManager = orderManager;
+        if (subscribedOrderManager != null)
+        {
+            subscribedOrderManager.OrderCompleted += HandleOrderCompleted;
+        }
+    }
+
+    private void HandleOrderCompleted(CustomerOrder order)
+    {
+        Play(SfxId.Order_Complete);
+    }
+
+    private void SubscribeToUpgradePurchaseManager(
+        UpgradePurchaseManager upgradePurchaseManager)
+    {
+        if (subscribedUpgradePurchaseManager == upgradePurchaseManager)
+            return;
+
+        if (subscribedUpgradePurchaseManager != null)
+        {
+            subscribedUpgradePurchaseManager.UpgradePurchased -=
+                HandleUpgradePurchased;
+        }
+
+        subscribedUpgradePurchaseManager = upgradePurchaseManager;
+        if (subscribedUpgradePurchaseManager != null)
+        {
+            subscribedUpgradePurchaseManager.UpgradePurchased +=
+                HandleUpgradePurchased;
+        }
+    }
+
+    private void HandleUpgradePurchased(
+        UpgradeType type,
+        int newLevel,
+        int amountSpent)
+    {
+        Play(SfxId.Upgrade_Success);
     }
 
     public static void Play(SfxId id)

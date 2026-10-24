@@ -18,14 +18,14 @@ public class UpgradeScreenUI : MonoBehaviour
         if (openButton != null)
         {
             openButton.onClick.AddListener(
-                Open
+                HandleOpenClicked
             );
         }
 
         if (closeButton != null)
         {
             closeButton.onClick.AddListener(
-                Close
+                HandleCloseClicked
             );
         }
 
@@ -37,16 +37,34 @@ public class UpgradeScreenUI : MonoBehaviour
         if (openButton != null)
         {
             openButton.onClick.RemoveListener(
-                Open
+                HandleOpenClicked
             );
         }
 
         if (closeButton != null)
         {
             closeButton.onClick.RemoveListener(
-                Close
+                HandleCloseClicked
             );
         }
+    }
+
+    private void HandleOpenClicked()
+    {
+        if (upgradeScreen == null || upgradeScreen.activeSelf)
+            return;
+
+        UiClickSfx.TryPlay(openButton);
+        Open();
+    }
+
+    private void HandleCloseClicked()
+    {
+        if (upgradeScreen == null || !upgradeScreen.activeSelf)
+            return;
+
+        UiClickSfx.TryPlay(closeButton);
+        Close();
     }
 
     public void Open()

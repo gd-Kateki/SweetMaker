@@ -568,6 +568,14 @@ public class DessertSpawner : MonoBehaviour
 
     public bool TrySpawnRandomDessert()
     {
+        return TrySpawnRandomDessert(out _);
+    }
+
+    public bool TrySpawnRandomDessert(
+        out bool failedForNoBoardSpace)
+    {
+        failedForNoBoardSpace = false;
+
         if (gridManager != null &&
             gridManager.IsMergeTransactionActive)
         {
@@ -581,6 +589,7 @@ public class DessertSpawner : MonoBehaviour
         if (!gridManager.TryGetEmptyCell(
                 out GridCell cell))
         {
+            failedForNoBoardSpace = true;
             Debug.Log(
                 "The grid is full."
             );

@@ -284,12 +284,16 @@ public class PlayerProgressionManager : MonoBehaviour
 
         int cashHeld = economy.CurrentCash;
         int nextRebirthCount = CurrentRebirthCount + 1;
+        int previousOvenLevel = ovenLevel;
+        int newOvenLevel = GetOvenLevelForRebirthCount(nextRebirthCount);
         bool snapshotCommitted = false;
+        bool rebirthCompleted = false;
         rebirthInProgress = true;
 
         try
         {
-            return sessionControllers[0].TryReplaceWithFreshSession(() =>
+            rebirthCompleted =
+                sessionControllers[0].TryReplaceWithFreshSession(() =>
             {
                 bool saved = saveManager.TryCommitRebirthSnapshot(
                     nextRebirthCount,
@@ -341,16 +345,32 @@ public class PlayerProgressionManager : MonoBehaviour
                     "REBIRTH COMMITTED | " +
                     "A post-commit session operation failed.\n" +
                     exception);
-                return true;
+                rebirthCompleted = true;
             }
-
-            Debug.LogError("REBIRTH FAILED | Transaction was not committed.\n" + exception);
-            return false;
+            else
+            {
+                Debug.LogError("REBIRTH FAILED | Transaction was not committed.\n" + exception);
+            }
         }
         finally
         {
             rebirthInProgress = false;
         }
+
+        if (rebirthCompleted)
+            RequestSuccessfulRebirthAudio(previousOvenLevel, newOvenLevel);
+
+        return rebirthCompleted;
+    }
+
+    private static void RequestSuccessfulRebirthAudio(
+        int previousOvenLevel,
+        int newOvenLevel)
+    {
+        AudioManager.Play(SfxId.Rebirth_Start);
+        if (newOvenLevel > previousOvenLevel)
+            AudioManager.Play(SfxId.Oven_Unlock);
+        AudioManager.Play(SfxId.Rebirth_Complete);
     }
 
     // ==================================================

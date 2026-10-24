@@ -658,6 +658,7 @@ public class DessertDragHandler :
             if (targetDessert.Tier !=
                 dessert.Tier)
             {
+                AudioManager.Play(SfxId.Action_Invalid);
                 ReturnToOrigin();
                 return;
             }

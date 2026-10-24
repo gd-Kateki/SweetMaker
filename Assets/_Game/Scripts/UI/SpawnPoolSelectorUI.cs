@@ -229,8 +229,11 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
 
         int targetIndex = (IndexOfSelectedPool() - 1 + unlockedPoolIds.Count) %
                           unlockedPoolIds.Count;
-        if (targetIndex >= 0)
-            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]);
+        if (targetIndex >= 0 &&
+            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]))
+        {
+            UiClickSfx.TryPlay(previousButton);
+        }
     }
 
     private void SelectNextPool()
@@ -239,8 +242,11 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             return;
 
         int targetIndex = (IndexOfSelectedPool() + 1) % unlockedPoolIds.Count;
-        if (targetIndex >= 0)
-            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]);
+        if (targetIndex >= 0 &&
+            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]))
+        {
+            UiClickSfx.TryPlay(nextButton);
+        }
     }
 
     private void UpdatePosition()
