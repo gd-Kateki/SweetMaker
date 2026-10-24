@@ -11,6 +11,9 @@ public static class GameplayEvents
     public static event Action<int>
         DessertMerged;
 
+    public static event Action<int, bool>
+        DessertMergeCommitted;
+
     public static event Action<DessertDefinition>
         NextDessertChanged;
 
@@ -33,6 +36,26 @@ public static class GameplayEvents
         DessertMerged?.Invoke(
             resultingTier
         );
+    }
+
+    public static void RaiseDessertMergeCommitted(
+        int resultingTier,
+        bool isNewHighestTier)
+    {
+        DessertMerged?.Invoke(
+            resultingTier
+        );
+        DessertMergeCommitted?.Invoke(
+            resultingTier,
+            isNewHighestTier
+        );
+    }
+
+    internal static bool IsNewHighestTier(
+        int resultingTier,
+        int highestTierCreatedEarlier)
+    {
+        return resultingTier > highestTierCreatedEarlier;
     }
 
     public static void RaiseNextDessertChanged(

@@ -468,9 +468,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: 96c7743dfeef3de48aa4643f4174a491, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: CustomerUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -480,6 +512,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -609,13 +645,14 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 886075658}
   - {fileID: 1473892350}
   m_Father: {fileID: 1616590802}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 20, y: -17}
+  m_AnchoredPosition: {x: 0, y: -230}
+  m_SizeDelta: {x: 20, y: -230}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &373026618
 MonoBehaviour:
@@ -660,8 +697,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 428923060}
   m_HandleRect: {fileID: 428923059}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 1
+  m_Value: 1
+  m_Size: 0.5911309
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -811,10 +848,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2065082387}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -397, y: -46.363}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: -145}
+  m_SizeDelta: {x: 600, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &466511030
 MonoBehaviour:
@@ -830,13 +867,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: UPGRADES
+  m_text: SHOP UPGRADE
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -845,8 +882,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4283175475
+  m_fontColor: {r: 0.2, g: 0.07, b: 0.3, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -863,15 +900,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 48
+  m_fontSizeBase: 48
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 36
+  m_fontSizeMax: 48
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
-  m_VerticalAlignment: 256
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -902,7 +939,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: -27.432457, w: 0}
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -1070,7 +1107,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2065082387}
+  - {fileID: 2290013143}
   - {fileID: 1616590802}
   m_Father: {fileID: 191567261}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1123,9 +1160,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: 9816b589df8ce2245ba6f47fedbd2c9b, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: MoneyMultiplierUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -1135,6 +1204,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -1375,8 +1448,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup
   m_Padding:
-    m_Left: 20
-    m_Right: 20
+    m_Left: 40
+    m_Right: 32
     m_Top: 20
     m_Bottom: 20
   m_ChildAlignment: 1
@@ -1452,12 +1525,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 793876648}
-  m_Father: {fileID: 1616590802}
+  m_Father: {fileID: 373026617}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -934.1022, y: 0}
+  m_SizeDelta: {x: 871.2042, y: -95.6206}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &886075659
 MonoBehaviour:
@@ -1574,9 +1647,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: 4cbb0f69c6a346f9afdcfd6b3051a7b2, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: LuckUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -1586,6 +1691,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -1955,9 +2064,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: 7caccb4a7e4e63e4a93abb0595b81b1c, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: ShelfUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -1967,6 +2108,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -2469,6 +2614,7 @@ GameObject:
   - component: {fileID: 1616590805}
   - component: {fileID: 1616590806}
   - component: {fileID: 1616590803}
+  - component: {fileID: 2290013141}
   m_Layer: 0
   m_Name: UpgradeScrollView
   m_TagString: Untagged
@@ -2488,8 +2634,8 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 886075658}
   - {fileID: 373026617}
+  - {fileID: 2065082387}
   m_Father: {fileID: 638951466}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2922,9 +3068,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: bb0929dca6830ac4688588a27669abc5, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: BoardSpaceUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -2934,6 +3112,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -3505,12 +3687,12 @@ RectTransform:
   m_Children:
   - {fileID: 466511029}
   - {fileID: 2117529018}
-  m_Father: {fileID: 638951466}
+  m_Father: {fileID: 1616590802}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 180}
+  m_SizeDelta: {x: 0, y: 220}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &2072408960
 GameObject:
@@ -3755,9 +3937,9 @@ RectTransform:
   - {fileID: 1872124161}
   m_Father: {fileID: 2065082387}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 431, y: -46.363}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -42, y: -35}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2117529019
@@ -3842,6 +4024,200 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2117529017}
   m_CullTransparentMesh: 1
+--- !u!1 &2200000200
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2200000201}
+  - component: {fileID: 2200000202}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2200000201
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2200000202
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19f54824a0a24e89b87c5d5f847f1137, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  clips:
+  - id: 0
+    clip: {fileID: 8300000, guid: 92d6ae37bba342f438647272e2cf07ad, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 1
+    clip: {fileID: 8300000, guid: 29a4c2673011e52408b54422b10f7631, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 2
+    clip: {fileID: 8300000, guid: cd40e5c986552914d9e21ce363318434, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 3
+    clip: {fileID: 8300000, guid: 7181c36ac785a8143a91bb26cf3f5940, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 4
+    clip: {fileID: 8300000, guid: 9f612d15b49b8f64f886d6059e93e0ab, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 5
+    clip: {fileID: 8300000, guid: 971ccdcae7ed8c446ac620b6534d7355, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 6
+    clip: {fileID: 8300000, guid: d8dff072d7dbded408c828b0f267fd02, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 7
+    clip: {fileID: 8300000, guid: 64edfcc03b179df46a69c0670f94d9af, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 8
+    clip: {fileID: 8300000, guid: ad3dd208732a64e47acfe5fbb7b33a21, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 9
+    clip: {fileID: 8300000, guid: b3281c5b1be78a5408f4cc87e10329fd, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 10
+    clip: {fileID: 8300000, guid: 806c1cd1bd48b184ea0c1fb5873a355c, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  - id: 11
+    clip: {fileID: 8300000, guid: 3993c56b1a595fe4eb8c66b4f1ab55e1, type: 3}
+    baseVolume: 1
+    pitchVariation: 0
+    minimumReplayInterval: 0
+  sfxVolume: 1
+  testSfxId: 0
+--- !u!114 &2290013141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1616590801}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c807438b2714186ac3e90bb8d43a63e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeViewportRuntimeDiagnostic
+--- !u!1 &2290013142
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2290013143}
+  - component: {fileID: 2290013144}
+  - component: {fileID: 2290013145}
+  m_Layer: 0
+  m_Name: ModalInputBlocker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2290013143
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2290013142}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 638951466}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &2290013144
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2290013142}
+  m_CullTransparentMesh: 1
+--- !u!114 &2290013145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2290013142}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!1001 &4562446554906840082
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3854,9 +4230,41 @@ PrefabInstance:
       propertyPath: upgradeDefinition
       value: 
       objectReference: {fileID: 11400000, guid: e7bb43b82eaa5324fb4034115f275096, type: 2}
+    - target: {fileID: 1952818838986804043, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 3895022726347790742, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Name
       value: OvenUpgradeCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 162
+      objectReference: {fileID: 0}
+    - target: {fileID: 5500986577045446864, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5723161596120778220, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
@@ -3866,6 +4274,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3}
+    - target: {fileID: 6141380343991927113, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
+      propertyPath: m_overflowMode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6606862767538336197, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_Type
       value: 0
@@ -3974,3 +4386,4 @@ SceneRoots:
   - {fileID: 855974654}
   - {fileID: 658912802}
   - {fileID: 1993278210}
+  - {fileID: 2200000201}

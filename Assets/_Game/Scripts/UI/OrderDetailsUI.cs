@@ -21,6 +21,9 @@ public class OrderDetailsUI : MonoBehaviour
     [SerializeField]
     private GameObject overlay;
 
+    [SerializeField]
+    private GameObject inputBlocker;
+
     [Header("Header")]
     [SerializeField]
     private TMP_Text orderTitleText;
@@ -210,6 +213,15 @@ public class OrderDetailsUI : MonoBehaviour
             return;
         }
 
+        if (inputBlocker == null)
+        {
+            Debug.LogError(
+                "OrderDetailsUI: Full-screen " +
+                "input blocker is not assigned."
+            );
+            return;
+        }
+
         if (!orderManager.IsCustomerUnlocked(
                 customerIndex))
         {
@@ -235,6 +247,8 @@ public class OrderDetailsUI : MonoBehaviour
         selectedCustomerIndex =
             customerIndex;
 
+        inputBlocker.SetActive(true);
+
         if (overlay != null)
         {
             overlay.SetActive(true);
@@ -256,6 +270,11 @@ public class OrderDetailsUI : MonoBehaviour
         if (overlay != null)
         {
             overlay.SetActive(false);
+        }
+
+        if (inputBlocker != null)
+        {
+            inputBlocker.SetActive(false);
         }
     }
 

@@ -127,7 +127,8 @@ public class DessertDragHandler :
     public void OnPointerDown(
         PointerEventData eventData)
     {
-        if (isInteractionLocked)
+        if (isDragging ||
+            isInteractionLocked)
             return;
 
         if (gridManager != null &&
@@ -177,6 +178,7 @@ public class DessertDragHandler :
         }
 
         isDragging = true;
+        AudioManager.Play(SfxId.Dessert_Pickup);
 
         ClearHighlights();
 
@@ -815,6 +817,12 @@ public class DessertDragHandler :
 
         GameplayEvents
             .RaiseDessertMoved();
+
+        if (dessert.CurrentCell == targetCell &&
+            targetCell.CurrentDessert == dessert)
+        {
+            AudioManager.Play(SfxId.Dessert_Drop);
+        }
     }
 
     // ==================================================
@@ -974,6 +982,8 @@ public class DessertDragHandler :
 
         GameplayEvents
             .RaiseDessertMoved();
+
+        AudioManager.Play(SfxId.Dessert_Drop);
 
         Debug.Log(
             $"SHELF | Retrieved " +
@@ -1292,7 +1302,19 @@ public class DessertDragHandler :
             if (gridManager != null)
                 gridManager.NotifyBoardChanged();
 
-            GameplayEvents.RaiseDessertMerged(resultingTier);
+            PlayerProgressionManager activeProgressionManager =
+                PlayerProgressionManager.Instance != null
+                    ? PlayerProgressionManager.Instance
+                    : progressionManager;
+            bool isNewHighestTier =
+                activeProgressionManager != null &&
+                GameplayEvents.IsNewHighestTier(
+                    resultingTier,
+                    activeProgressionManager.HighestTierCreatedThisRun);
+
+            GameplayEvents.RaiseDessertMergeCommitted(
+                resultingTier,
+                isNewHighestTier);
             CompleteMergeTransaction();
 
             Destroy(targetDessert.gameObject);

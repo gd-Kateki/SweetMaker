@@ -462,9 +462,9 @@ public class UpgradeCardUI : MonoBehaviour
 
         if (priceText != null)
         {
-            priceText.text = type == UpgradeType.Oven
-                ? "REBIRTH"
-                : $"${nextData.UpgradeCost:N0}";
+            priceText.text = GetPriceLabel(
+                type,
+                nextData.UpgradeCost);
         }
 
         /*
@@ -521,6 +521,15 @@ public class UpgradeCardUI : MonoBehaviour
         }
 
         return canAfford ? "UPGRADE" : "NEED CASH";
+    }
+
+    internal static string GetPriceLabel(
+        UpgradeType type,
+        int upgradeCost)
+    {
+        return type == UpgradeType.Oven
+            ? string.Empty
+            : $"${upgradeCost:N0}";
     }
 
     internal static bool IsPurchaseButtonInteractable(

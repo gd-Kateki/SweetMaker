@@ -485,6 +485,311 @@ public class DataFoundationTests
     }
 
     [Test]
+    public void CustomerButtonPreviewBindsItsSlotAndRefreshesOnOrderStateChanges()
+    {
+        Array dessertDefinitions =
+            LoadDessertDefinitions();
+        Type orderType =
+            FindPlayerType("CustomerOrder");
+        Type orderManagerType =
+            FindPlayerType("OrderManager");
+        object singleOrder = Activator.CreateInstance(
+            orderType,
+            new object[]
+            {
+                101,
+                GenerateProceduralOrder(
+                    dessertDefinitions,
+                    1,
+                    8,
+                    0,
+                    0,
+                    0)
+            });
+        object mixedOrder = Activator.CreateInstance(
+            orderType,
+            new object[]
+            {
+                102,
+                GenerateProceduralOrder(
+                    dessertDefinitions,
+                    1,
+                    8,
+                    60,
+                    0,
+                    0)
+            });
+
+        GameObject orderManagerObject =
+            new GameObject("Customer preview test orders");
+        GameObject buttonObject = null;
+        try
+        {
+            Component orderManager =
+                orderManagerObject.AddComponent(orderManagerType);
+            InvokeLifecycle(orderManager, "Awake");
+            IList slots =
+                (IList)GetPropertyValue(
+                    orderManager,
+                    "CustomerOrders");
+            slots[0] = singleOrder;
+            slots[1] = mixedOrder;
+
+            buttonObject = new GameObject(
+                "Customer preview test button",
+                typeof(RectTransform),
+                typeof(CanvasRenderer));
+            Type imageType =
+                FindPlayerType("UnityEngine.UI.Image");
+            Type buttonType =
+                FindPlayerType("UnityEngine.UI.Button");
+            buttonObject.AddComponent(imageType);
+            buttonObject.AddComponent(buttonType);
+            GameObject labelObject = new GameObject(
+                "CustomerText",
+                typeof(RectTransform),
+                typeof(CanvasRenderer));
+            labelObject.AddComponent(
+                FindPlayerType("TMPro.TextMeshProUGUI"));
+            labelObject.transform.SetParent(
+                buttonObject.transform,
+                false);
+            Component customerButton =
+                buttonObject.AddComponent(
+                    FindPlayerType("CustomerButtonUI"));
+            InvokeLifecycle(customerButton, "Awake");
+            SetPrivateField(
+                customerButton,
+                "orderManager",
+                orderManager);
+
+            customerButton.GetType()
+                .GetMethod("Refresh")
+                .Invoke(customerButton, null);
+            customerButton.GetType()
+                .GetMethod(
+                    "SubscribeToEvents",
+                    BindingFlags.Instance |
+                    BindingFlags.NonPublic)
+                .Invoke(customerButton, null);
+            object label = buttonObject.GetComponentInChildren(
+                FindPlayerType("TMPro.TMP_Text"),
+                true);
+            object firstIcon = buttonObject.transform
+                .Find("OrderPreviewIcon_1")
+                .GetComponent(imageType);
+            object secondIcon = buttonObject.transform
+                .Find("OrderPreviewIcon_2")
+                .GetComponent(imageType);
+            object firstRequirementLabel =
+                buttonObject.transform
+                    .Find("OrderPreviewRequirement_1")
+                    .GetComponent(
+                        FindPlayerType("TMPro.TMP_Text"));
+            object secondRequirementLabel =
+                buttonObject.transform
+                    .Find("OrderPreviewRequirement_2")
+                    .GetComponent(
+                        FindPlayerType("TMPro.TMP_Text"));
+            object readinessLabel =
+                buttonObject.transform
+                    .Find("OrderPreviewReadiness")
+                    .GetComponent(
+                        FindPlayerType("TMPro.TMP_Text"));
+
+            object singleRequirement =
+                ((IEnumerable)GetPropertyValue(
+                    singleOrder,
+                    "Requirements"))
+                .Cast<object>()
+                .First();
+            object singleDessert =
+                GetPropertyValue(singleRequirement, "Dessert");
+            string labelText =
+                (string)GetPropertyValue(label, "text");
+            Assert.AreEqual("TABLE 1", labelText);
+            StringAssert.Contains(
+                $"T{GetPropertyValue(singleDessert, "Tier")} 0/1",
+                (string)GetPropertyValue(
+                    firstRequirementLabel,
+                    "text"));
+            Assert.IsFalse((bool)GetPropertyValue(
+                    GetPropertyValue(
+                        secondRequirementLabel,
+                        "gameObject"),
+                    "activeSelf"),
+                "The unused requirement row is hidden for a single order.");
+            Assert.AreEqual(
+                "NEED DESSERTS",
+                GetPropertyValue(readinessLabel, "text"));
+            Assert.IsTrue((bool)GetPropertyValue(
+                    buttonObject.GetComponent(buttonType),
+                    "interactable"),
+                "An active order remains clickable even when it is not ready.");
+            Assert.AreEqual(
+                GetPropertyValue(singleDessert, "Sprite"),
+                GetPropertyValue(firstIcon, "sprite"));
+            Assert.IsFalse((bool)GetPropertyValue(
+                    secondIcon,
+                    "enabled"),
+                "The unused second icon is hidden for a single-dessert order.");
+            AssertCustomerPreviewLayout(
+                buttonObject.transform,
+                firstIcon,
+                firstRequirementLabel,
+                secondIcon,
+                secondRequirementLabel,
+                label,
+                readinessLabel);
+
+            slots[0] = mixedOrder;
+            orderManager.GetType()
+                .GetMethod(
+                    "EvaluateOrders",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(orderManager, null);
+
+            object[] mixedRequirements =
+                ((IEnumerable)GetPropertyValue(
+                    mixedOrder,
+                    "Requirements"))
+                .Cast<object>()
+                .ToArray();
+            object secondDessert =
+                GetPropertyValue(mixedRequirements[1], "Dessert");
+            Assert.AreEqual(
+                GetPropertyValue(secondDessert, "Sprite"),
+                GetPropertyValue(secondIcon, "sprite"));
+            Assert.AreEqual(
+                GetPropertyValue(secondDessert, "Sprite") != null,
+                GetPropertyValue(secondIcon, "enabled"));
+            Assert.IsTrue((bool)GetPropertyValue(
+                    GetPropertyValue(
+                        secondRequirementLabel,
+                        "gameObject"),
+                    "activeSelf"),
+                "Mixed orders show the second requirement row.");
+            StringAssert.Contains(
+                $"T{GetPropertyValue(secondDessert, "Tier")} 0/2",
+                (string)GetPropertyValue(
+                    secondRequirementLabel,
+                    "text"));
+            StringAssert.Contains(
+                "NEED DESSERTS",
+                (string)GetPropertyValue(readinessLabel, "text"));
+        }
+        finally
+        {
+            if (buttonObject != null)
+                UnityEngine.Object.DestroyImmediate(buttonObject);
+            UnityEngine.Object.DestroyImmediate(orderManagerObject);
+        }
+    }
+
+    private static void AssertCustomerPreviewLayout(
+        Transform buttonTransform,
+        object firstIcon,
+        object firstRequirementLabel,
+        object secondIcon,
+        object secondRequirementLabel,
+        object headerLabel,
+        object readinessLabel)
+    {
+        RectTransform firstIconRect =
+            (RectTransform)GetPropertyValue(
+                firstIcon,
+                "rectTransform");
+        RectTransform firstTextRect =
+            (RectTransform)GetPropertyValue(
+                firstRequirementLabel,
+                "rectTransform");
+        RectTransform secondIconRect =
+            (RectTransform)GetPropertyValue(
+                secondIcon,
+                "rectTransform");
+        RectTransform secondTextRect =
+            (RectTransform)GetPropertyValue(
+                secondRequirementLabel,
+                "rectTransform");
+        RectTransform headerRect =
+            (RectTransform)GetPropertyValue(
+                headerLabel,
+                "rectTransform");
+        RectTransform readinessRect =
+            (RectTransform)GetPropertyValue(
+                readinessLabel,
+                "rectTransform");
+
+        Assert.AreEqual(new Vector2(18f, 18f), firstIconRect.sizeDelta);
+        Assert.AreEqual(new Vector2(190f, 22f), firstTextRect.sizeDelta);
+        Assert.AreEqual(18f, GetPropertyValue(headerLabel, "fontSize"));
+        Assert.AreEqual(16f,
+            GetPropertyValue(firstRequirementLabel, "fontSize"));
+        Assert.AreEqual(15f,
+            GetPropertyValue(readinessLabel, "fontSize"));
+        Assert.IsFalse((bool)GetPropertyValue(firstIcon, "raycastTarget"));
+        Assert.IsFalse((bool)GetPropertyValue(
+            firstRequirementLabel,
+            "raycastTarget"));
+        Assert.IsFalse((bool)GetPropertyValue(
+            secondIcon,
+            "raycastTarget"));
+        Assert.IsFalse((bool)GetPropertyValue(
+            secondRequirementLabel,
+            "raycastTarget"));
+        Assert.IsFalse((bool)GetPropertyValue(
+            headerLabel,
+            "raycastTarget"));
+        Assert.IsFalse((bool)GetPropertyValue(
+            readinessLabel,
+            "raycastTarget"));
+
+        float iconRight =
+            firstIconRect.anchoredPosition.x +
+            firstIconRect.sizeDelta.x / 2f;
+        float textLeft =
+            firstTextRect.anchoredPosition.x -
+            firstTextRect.sizeDelta.x / 2f;
+        Assert.Less(iconRight, textLeft,
+            "Requirement icon and text bounds must not overlap.");
+        Assert.Less(
+            secondIconRect.anchoredPosition.x +
+            secondIconRect.sizeDelta.x / 2f,
+            secondTextRect.anchoredPosition.x -
+            secondTextRect.sizeDelta.x / 2f,
+            "The second requirement icon and text must not overlap.");
+        Assert.LessOrEqual(
+            firstTextRect.anchoredPosition.y +
+            firstTextRect.sizeDelta.y / 2f,
+            headerRect.anchoredPosition.y -
+            headerRect.sizeDelta.y / 2f);
+        Assert.LessOrEqual(
+            secondTextRect.anchoredPosition.y +
+            secondTextRect.sizeDelta.y / 2f,
+            firstTextRect.anchoredPosition.y -
+            firstTextRect.sizeDelta.y / 2f);
+        Assert.LessOrEqual(
+            readinessRect.anchoredPosition.y +
+            readinessRect.sizeDelta.y / 2f,
+            secondTextRect.anchoredPosition.y -
+            secondTextRect.sizeDelta.y / 2f);
+        Assert.LessOrEqual(
+            headerRect.anchoredPosition.x +
+            headerRect.sizeDelta.x / 2f,
+            120f);
+        Assert.GreaterOrEqual(
+            firstIconRect.anchoredPosition.x -
+            firstIconRect.sizeDelta.x / 2f,
+            -120f);
+        Assert.LessOrEqual(
+            firstTextRect.anchoredPosition.x +
+            firstTextRect.sizeDelta.x / 2f,
+            120f);
+        Assert.AreEqual(buttonTransform, firstIconRect.parent);
+        Assert.AreEqual(buttonTransform, firstTextRect.parent);
+    }
+
+    [Test]
     [Category("Step5C")]
     public void SpawnPoolChoicesKeepGeneratedOrdersReachableAtEveryOvenLevel()
     {
@@ -1797,8 +2102,12 @@ public class DataFoundationTests
         MethodInfo interactableMethod = cardType.GetMethod(
             "IsPurchaseButtonInteractable",
             BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo priceLabelMethod = cardType.GetMethod(
+            "GetPriceLabel",
+            BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(labelMethod);
         Assert.IsNotNull(interactableMethod);
+        Assert.IsNotNull(priceLabelMethod);
 
         object boardType = Enum.Parse(upgradeType, "BoardSpace");
         object ovenType = Enum.Parse(upgradeType, "Oven");
@@ -1808,6 +2117,12 @@ public class DataFoundationTests
             labelMethod.Invoke(null, new object[]
             {
                 boardType, false, 5, false
+            }));
+        Assert.AreEqual(
+            "Requires Rebirth 10",
+            labelMethod.Invoke(null, new object[]
+            {
+                boardType, false, 10, false
             }));
         Assert.AreEqual(
             "NEED CASH",
@@ -1833,6 +2148,15 @@ public class DataFoundationTests
             {
                 ovenType, false, -1, false
             }));
+        Assert.AreEqual(
+            string.Empty,
+            priceLabelMethod.Invoke(null, new object[]
+            {
+                ovenType, 100
+            }));
+        Assert.IsNotEmpty((string)priceLabelMethod.Invoke(
+            null,
+            new object[] { boardType, 100 }));
 
         Assert.IsFalse((bool)interactableMethod.Invoke(null, new object[]
         {
@@ -1853,22 +2177,473 @@ public class DataFoundationTests
     }
 
     [Test]
-    [Category("Step6C.4")]
-    public void UpgradeCardValueAndEffectLabelsUseReadableBoundedText()
+    [Category("CustomUI_UI4_3_2")]
+    public void UpgradeButtonsRetainGreenArtworkWhenUnavailable()
     {
-        string prefabText = File.ReadAllText(
-            "Assets/_Game/Prefabs/UI/UpgradeCard.prefab");
-        long[] textComponentIds =
+        const string prefabPath =
+            "Assets/_Game/Prefabs/UI/UpgradeCard.prefab";
+        const string scenePath =
+            "Assets/_Game/Scenes/MainBakery.unity";
+        const string prefabGuid =
+            "f57edfc7bd9b74a4c942b4e61bc5d7a6";
+        const string upgradeSpriteGuid =
+            "9c680e7e11f4e7a4d8578168bb01d998";
+        const string disabledColor =
+            "m_DisabledColor: {r: 0.76, g: 0.9, b: 0.76, a: 0.9}";
+
+        string prefabText = File.ReadAllText(prefabPath);
+        Match buttonImage = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &6606862767538336197\r?\n(.*?)(?=^--- !u!|\z)");
+        Match button = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &9173353401447694653\r?\n(.*?)(?=^--- !u!|\z)");
+        Assert.IsTrue(buttonImage.Success);
+        Assert.IsTrue(button.Success);
+        StringAssert.Contains("m_Color: {r: 1, g: 1, b: 1, a: 1}",
+            buttonImage.Value);
+        StringAssert.Contains("m_Transition: 1", button.Value,
+            "The button must keep Color Tint transition.");
+        StringAssert.Contains(
+            "m_NormalColor: {r: 1, g: 1, b: 1, a: 1}",
+            button.Value);
+        StringAssert.Contains(disabledColor, button.Value);
+        StringAssert.Contains(
+            "m_TargetGraphic: {fileID: 6606862767538336197}",
+            button.Value);
+        StringAssert.Contains("m_Interactable: 1", button.Value);
+
+        string sceneText = File.ReadAllText(scenePath);
+        MatchCollection prefabInstances = Regex.Matches(
+            sceneText,
+            @"(?ms)^--- !u!1001 &-?\d+\r?\n(.*?)(?=^--- !u!|\z)");
+        List<string> upgradeCards = prefabInstances
+            .Cast<Match>()
+            .Select(match => match.Value)
+            .Where(instance => instance.Contains(
+                $"m_SourcePrefab: {{fileID: 100100000, guid: {prefabGuid}, type: 3}}"))
+            .ToList();
+        Assert.AreEqual(6, upgradeCards.Count,
+            "The Shop Upgrade scene must retain all six card instances.");
+
+        foreach (string instance in upgradeCards)
         {
-            9161292831575217704,
+            Assert.IsTrue(Regex.IsMatch(
+                instance,
+                $@"target: \{{fileID: 6606862767538336197, guid: {prefabGuid}, type: 3\}}\r?\n\s+propertyPath: m_Type\r?\n\s+value: 0"),
+                "Each card must preserve Simple image rendering.");
+            StringAssert.Contains(
+                $"objectReference: {{fileID: -1482606001489111098, guid: {upgradeSpriteGuid}, type: 3}}",
+                instance,
+                "Each card must retain SU_Upgrade.png.");
+            Assert.IsFalse(instance.Contains(
+                $"target: {{fileID: 9173353401447694653, guid: {prefabGuid}, type: 3}}"),
+                "Scene instances inherit the shared button ColorBlock.");
+        }
+
+        GameObject card = PrefabUtility.LoadPrefabContents(prefabPath);
+        try
+        {
+            Type buttonType = FindPlayerType("UnityEngine.UI.Button");
+            Type imageType = FindPlayerType("UnityEngine.UI.Image");
+            Type textType = FindPlayerType("TMPro.TextMeshProUGUI");
+            Transform buttonTransform = card.transform.Find(
+                "BodyRow/CostActionGroup/PurchaseButton");
+            Assert.IsNotNull(buttonTransform);
+            Component purchaseButton =
+                buttonTransform.GetComponent(buttonType);
+            Component image = buttonTransform.GetComponent(imageType);
+            Assert.IsNotNull(purchaseButton);
+            Assert.IsNotNull(image);
+            Assert.AreEqual("ColorTint",
+                buttonType.GetProperty("transition")
+                    .GetValue(purchaseButton).ToString());
+            Assert.AreSame(image,
+                buttonType.GetProperty("targetGraphic")
+                    .GetValue(purchaseButton));
+            Assert.AreEqual(new Vector2(0, 84),
+                ((RectTransform)buttonTransform).sizeDelta);
+
+            object colors = buttonType.GetProperty("colors")
+                .GetValue(purchaseButton);
+            Type colorBlockType = colors.GetType();
+            Assert.AreEqual(Color.white,
+                colorBlockType.GetProperty("normalColor")
+                    .GetValue(colors));
+            Color disabledTint = (Color)colorBlockType
+                .GetProperty("disabledColor")
+                .GetValue(colors);
+            Assert.AreEqual(0.76f, disabledTint.r, 0.001f);
+            Assert.AreEqual(0.9f, disabledTint.g, 0.001f);
+            Assert.AreEqual(0.76f, disabledTint.b, 0.001f);
+            Assert.AreEqual(0.9f, disabledTint.a, 0.001f);
+
+            Type cardType = FindPlayerType("UpgradeCardUI");
+            MethodInfo labelMethod = cardType.GetMethod(
+                "GetPurchaseButtonLabel",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo interactableMethod = cardType.GetMethod(
+                "IsPurchaseButtonInteractable",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(labelMethod);
+            Assert.IsNotNull(interactableMethod);
+            object boardType = Enum.Parse(
+                FindPlayerType("UpgradeType"), "BoardSpace");
+            object ovenType = Enum.Parse(
+                FindPlayerType("UpgradeType"), "Oven");
+            Assert.AreEqual("UPGRADE", labelMethod.Invoke(
+                null, new object[] { boardType, true, 0, true }));
+            Assert.AreEqual("NEED CASH", labelMethod.Invoke(
+                null, new object[] { boardType, true, 0, false }));
+            Assert.AreEqual("Requires Rebirth 10", labelMethod.Invoke(
+                null, new object[] { boardType, false, 10, false }));
+            Assert.AreEqual("REBIRTH", labelMethod.Invoke(
+                null, new object[] { ovenType, false, -1, false }));
+            Assert.IsFalse((bool)interactableMethod.Invoke(
+                null, new object[] { boardType, false, false }));
+            Assert.IsFalse((bool)interactableMethod.Invoke(
+                null, new object[] { boardType, true, false }));
+            Assert.IsTrue((bool)interactableMethod.Invoke(
+                null, new object[] { boardType, true, true }));
+            Assert.IsFalse((bool)interactableMethod.Invoke(
+                null, new object[] { ovenType, false, true }));
+
+            Component cardController =
+                card.GetComponent(cardType);
+            MethodInfo showMaxLevel = cardType.GetMethod(
+                "ShowMaxLevel",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            object ovenDefinition = AssetDatabase.LoadMainAssetAtPath(
+                "Assets/_Game/Data/Upgrades/Upgrade_Oven.asset");
+            Type definitionType = FindPlayerType("UpgradeDefinition");
+            int maxLevel = (int)definitionType
+                .GetProperty("MaxLevel")
+                .GetValue(ovenDefinition);
+            object maxLevelData = definitionType
+                .GetMethod("GetLevel")
+                .Invoke(ovenDefinition, new object[] { maxLevel });
+            Assert.IsNotNull(cardController);
+            Assert.IsNotNull(showMaxLevel);
+            Assert.IsNotNull(ovenDefinition);
+            cardType.GetField(
+                "upgradeDefinition",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(cardController, ovenDefinition);
+            showMaxLevel.Invoke(cardController, new object[]
+            {
+                maxLevel,
+                maxLevelData
+            });
+
+            Transform priceText = card.transform.Find(
+                "BodyRow/CostActionGroup/PriceText");
+            Transform buttonText = buttonTransform.Find("ButtonText");
+            Assert.AreEqual("MAX",
+                textType.GetProperty("text")
+                    .GetValue(priceText.GetComponent(textType)));
+            Assert.AreEqual("MAX LEVEL",
+                textType.GetProperty("text")
+                    .GetValue(buttonText.GetComponent(textType)));
+            Assert.IsFalse((bool)buttonType.GetProperty("interactable")
+                .GetValue(purchaseButton));
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(card);
+        }
+    }
+
+    [Test]
+    [Category("CustomUI_UI2")]
+    public void UpgradeCardLayoutFitsParentAndAlignsRegions()
+    {
+        const string prefabPath =
+            "Assets/_Game/Prefabs/UI/UpgradeCard.prefab";
+        string prefabText = File.ReadAllText(prefabPath);
+        long[] boundedTextIds =
+        {
+            1952818838986804043,
+            5723161596120778220,
             4523219856188570108,
+            9161292831575217704,
+            3790715771410225071,
             2443458557906387767
         };
-        long[] transformIds =
+
+        foreach (long textComponentId in boundedTextIds)
         {
-            8556136637770781890,
-            4977570080075652214,
-            1530713658673336081
+            Match text = Regex.Match(
+                prefabText,
+                $@"(?ms)^--- !u!114 &{textComponentId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(text.Success);
+            StringAssert.Contains("m_enableAutoSizing: 1", text.Value);
+            StringAssert.Contains("m_overflowMode: 1", text.Value);
+        }
+
+        foreach (long textComponentId in new long[]
+                 {
+                     1952818838986804043,
+                     4523219856188570108,
+                     9161292831575217704
+                 })
+        {
+            Match text = Regex.Match(
+                prefabText,
+                $@"(?ms)^--- !u!114 &{textComponentId}\r?\n(.*?)(?=^--- !u!|\z)");
+            StringAssert.Contains("m_TextWrappingMode: 1", text.Value);
+        }
+
+        Match effectLabel = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &4523219856188570108\r?\n(.*?)(?=^--- !u!|\z)");
+        StringAssert.Contains("m_fontSizeMin: 20", effectLabel.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", effectLabel.Value);
+
+        GameObject card = PrefabUtility.LoadPrefabContents(prefabPath);
+        var layoutParent = new GameObject(
+            "Upgrade card layout test parent",
+            typeof(RectTransform));
+        try
+        {
+            RectTransform cardRect =
+                (RectTransform)card.transform;
+            card.transform.SetParent(layoutParent.transform, false);
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.sizeDelta = new Vector2(900, 360);
+
+            Transform headerRow = card.transform.Find("HeaderRow");
+            Transform bodyRow = card.transform.Find("BodyRow");
+            Transform costActionGroup =
+                card.transform.Find("BodyRow/CostActionGroup");
+            Transform informationBox =
+                card.transform.Find("BodyRow/InformationBox");
+            Transform nameText =
+                card.transform.Find("HeaderRow/UpgradeNameText");
+            Transform levelText =
+                card.transform.Find("HeaderRow/LevelText");
+            Transform effectText =
+                card.transform.Find("BodyRow/EffectLabelText");
+            Transform valueText =
+                card.transform.Find("BodyRow/ValueText");
+            Transform priceText =
+                card.transform.Find("BodyRow/CostActionGroup/PriceText");
+            Transform purchaseButton =
+                card.transform.Find("BodyRow/CostActionGroup/PurchaseButton");
+
+            Assert.IsNotNull(headerRow);
+            Assert.IsNotNull(bodyRow);
+            Assert.IsNotNull(costActionGroup);
+            Assert.IsNotNull(informationBox);
+            Assert.IsNotNull(nameText);
+            Assert.IsNotNull(levelText);
+            Assert.IsNotNull(effectText);
+            Assert.IsNotNull(valueText);
+            Assert.IsNotNull(priceText);
+            Assert.IsNotNull(purchaseButton);
+            Assert.AreSame(headerRow, nameText.parent);
+            Assert.AreSame(headerRow, levelText.parent);
+            Assert.AreSame(bodyRow, informationBox.parent);
+            Assert.AreSame(bodyRow, effectText.parent);
+            Assert.AreSame(bodyRow, valueText.parent);
+            Assert.AreSame(bodyRow, costActionGroup.parent);
+            Assert.AreSame(costActionGroup, priceText.parent);
+            Assert.AreSame(costActionGroup, purchaseButton.parent);
+
+            Type imageType = FindPlayerType("UnityEngine.UI.Image");
+            Component cardBackground = card.GetComponent(imageType);
+            Assert.IsNotNull(cardBackground);
+            Assert.AreEqual(1, card.GetComponents(imageType).Length);
+            Color cardBackgroundColor = (Color)imageType
+                .GetProperty("color")
+                .GetValue(cardBackground);
+            Assert.AreEqual(0.392f, cardBackgroundColor.a, 0.001f);
+
+            Component informationImage =
+                informationBox.GetComponent(imageType);
+            Assert.IsNotNull(informationImage);
+            Assert.IsNotNull(
+                imageType.GetProperty("sprite").GetValue(informationImage));
+            Assert.IsFalse((bool)imageType.GetProperty("raycastTarget")
+                .GetValue(informationImage));
+            Assert.Less(
+                informationBox.GetSiblingIndex(),
+                effectText.GetSiblingIndex());
+            Assert.Less(
+                informationBox.GetSiblingIndex(),
+                valueText.GetSiblingIndex());
+
+            RectTransform nameRect = (RectTransform)nameText;
+            RectTransform levelRect = (RectTransform)levelText;
+            RectTransform infoRect = (RectTransform)informationBox;
+            RectTransform effectRect = (RectTransform)effectText;
+            RectTransform valueRect = (RectTransform)valueText;
+            RectTransform priceRect = (RectTransform)priceText;
+            RectTransform buttonRect = (RectTransform)purchaseButton;
+            Type layoutElementType =
+                FindPlayerType("UnityEngine.UI.LayoutElement");
+            Component cardLayout =
+                card.GetComponent(layoutElementType);
+            Assert.AreEqual(
+                360,
+                layoutElementType.GetProperty("preferredHeight")
+                    .GetValue(cardLayout));
+            Assert.AreEqual(Vector2.zero, infoRect.sizeDelta);
+            Assert.AreEqual(new Vector2(0, 84), buttonRect.sizeDelta);
+            Assert.AreEqual(new Vector2(0, 40), priceRect.sizeDelta);
+            Rect parentBounds = cardRect.rect;
+            Rect infoBounds = GetRectBoundsInParent(infoRect, cardRect);
+            Rect nameBounds = GetRectBoundsInParent(nameRect, cardRect);
+            Rect levelBounds = GetRectBoundsInParent(levelRect, cardRect);
+            Rect effectBounds = GetRectBoundsInParent(effectRect, cardRect);
+            Rect valueBounds = GetRectBoundsInParent(valueRect, cardRect);
+            Rect priceBounds = GetRectBoundsInParent(priceRect, cardRect);
+            Rect buttonBounds = GetRectBoundsInParent(buttonRect, cardRect);
+            Rect actionGroupBounds =
+                GetRectBoundsInParent((RectTransform)costActionGroup, cardRect);
+
+            Assert.IsTrue(parentBounds.Contains(infoBounds.min));
+            Assert.IsTrue(parentBounds.Contains(infoBounds.max));
+            Assert.IsTrue(parentBounds.Contains(nameBounds.min));
+            Assert.IsTrue(parentBounds.Contains(nameBounds.max));
+            Assert.IsTrue(parentBounds.Contains(levelBounds.min));
+            Assert.IsTrue(parentBounds.Contains(levelBounds.max));
+            Assert.IsTrue(parentBounds.Contains(priceBounds.min));
+            Assert.IsTrue(parentBounds.Contains(priceBounds.max));
+            Assert.IsTrue(parentBounds.Contains(buttonBounds.min));
+            Assert.IsTrue(parentBounds.Contains(buttonBounds.max));
+            Assert.IsTrue(parentBounds.Contains(actionGroupBounds.min));
+            Assert.IsTrue(parentBounds.Contains(actionGroupBounds.max));
+            Assert.AreEqual(260f, buttonBounds.width, 1f);
+            Assert.AreEqual(260f, priceBounds.width, 1f);
+            Assert.GreaterOrEqual(
+                infoBounds.xMin - parentBounds.xMin,
+                24f);
+            Assert.GreaterOrEqual(
+                infoBounds.yMin - parentBounds.yMin,
+                24f);
+            Assert.LessOrEqual(
+                effectBounds.xMin,
+                infoBounds.xMin + 20f);
+            Assert.GreaterOrEqual(
+                effectBounds.xMax,
+                infoBounds.xMax - 20f);
+            Assert.GreaterOrEqual(
+                valueBounds.xMin,
+                infoBounds.xMin + 12f);
+            Assert.LessOrEqual(
+                valueBounds.xMax,
+                infoBounds.xMax - 12f);
+            Assert.LessOrEqual(
+                effectBounds.yMax,
+                infoBounds.yMax - 12f);
+            Assert.GreaterOrEqual(
+                effectBounds.yMin,
+                valueBounds.yMax);
+            Assert.GreaterOrEqual(
+                valueBounds.yMin,
+                infoBounds.yMin + 12f);
+            Assert.GreaterOrEqual(
+                nameBounds.yMin,
+                effectBounds.yMax);
+            Assert.AreEqual(nameBounds.center.y, levelBounds.center.y, 0.1f);
+            Assert.LessOrEqual(nameBounds.xMax, levelBounds.xMin);
+            Assert.GreaterOrEqual(
+                buttonBounds.yMax,
+                parentBounds.yMin + 40f);
+            Assert.AreEqual(
+                priceBounds.center.x,
+                buttonBounds.center.x,
+                0.1f);
+            Assert.GreaterOrEqual(
+                priceBounds.yMin,
+                buttonBounds.yMax);
+            Assert.AreEqual(0.05f, priceRect.anchorMin.x);
+            Assert.AreEqual(0.95f, priceRect.anchorMax.x);
+            Assert.AreEqual(priceRect.anchorMin.x, buttonRect.anchorMin.x);
+            Assert.AreEqual(priceRect.anchorMax.x, buttonRect.anchorMax.x);
+
+            cardRect.sizeDelta = new Vector2(820, 360);
+            Canvas.ForceUpdateCanvases();
+            parentBounds = cardRect.rect;
+            infoBounds = GetRectBoundsInParent(infoRect, cardRect);
+            nameBounds = GetRectBoundsInParent(nameRect, cardRect);
+            levelBounds = GetRectBoundsInParent(levelRect, cardRect);
+            priceBounds = GetRectBoundsInParent(priceRect, cardRect);
+            buttonBounds = GetRectBoundsInParent(buttonRect, cardRect);
+            actionGroupBounds =
+                GetRectBoundsInParent((RectTransform)costActionGroup, cardRect);
+            Assert.IsTrue(parentBounds.Contains(infoBounds.min));
+            Assert.IsTrue(parentBounds.Contains(infoBounds.max));
+            Assert.IsTrue(parentBounds.Contains(nameBounds.min));
+            Assert.IsTrue(parentBounds.Contains(nameBounds.max));
+            Assert.IsTrue(parentBounds.Contains(levelBounds.min));
+            Assert.IsTrue(parentBounds.Contains(levelBounds.max));
+            Assert.IsTrue(parentBounds.Contains(priceBounds.min));
+            Assert.IsTrue(parentBounds.Contains(priceBounds.max));
+            Assert.IsTrue(parentBounds.Contains(buttonBounds.min));
+            Assert.IsTrue(parentBounds.Contains(buttonBounds.max));
+            Assert.IsTrue(parentBounds.Contains(actionGroupBounds.min));
+            Assert.IsTrue(parentBounds.Contains(actionGroupBounds.max));
+            Assert.AreEqual(priceBounds.center.x, buttonBounds.center.x, 0.1f);
+            Assert.Less(buttonBounds.width, 260f);
+            Assert.Greater(buttonBounds.width, 230f);
+
+            string sceneText = File.ReadAllText(
+                "Assets/_Game/Scenes/MainBakery.unity");
+            Match verticalLayout = Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!114 &793876650\r?\n(.*?)(?=^--- !u!|\z)");
+            Match scrollRect = Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!114 &1616590803\r?\n(.*?)(?=^--- !u!|\z)");
+            Match scrollPanel = Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!114 &1616590806\r?\n(.*?)(?=^--- !u!|\z)");
+            Match contentSizeFitter = Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!114 &793876649\r?\n(.*?)(?=^--- !u!|\z)");
+            Match viewportMask = Regex.Match(
+                sceneText,
+                @"(?ms)^--- !u!114 &886075659\r?\n(.*?)(?=^--- !u!|\z)");
+            MatchCollection cardBackgroundOverrides = Regex.Matches(
+                sceneText,
+                @"(?ms)target: \{fileID: 6120017046181462189, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3\}\r?\n\s+propertyPath: m_Sprite\r?\n\s+value:\s*\r?\n\s+objectReference: \{fileID: 5001796004668800298, guid: bf31d7cdbb4903449b668faaaa28d2d2, type: 3\}");
+            Assert.IsTrue(verticalLayout.Success);
+            Assert.IsTrue(scrollRect.Success);
+            Assert.IsTrue(contentSizeFitter.Success);
+            Assert.IsTrue(viewportMask.Success);
+            Assert.AreEqual(6, cardBackgroundOverrides.Count);
+            StringAssert.Contains("m_ShowMaskGraphic: 0", viewportMask.Value);
+            StringAssert.Contains("m_Spacing: 25", verticalLayout.Value);
+            StringAssert.Contains("m_Horizontal: 0", scrollRect.Value);
+            StringAssert.Contains("m_Vertical: 1", scrollRect.Value);
+            StringAssert.Contains("m_VerticalFit: 2", contentSizeFitter.Value);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(card);
+            UnityEngine.Object.DestroyImmediate(layoutParent);
+        }
+    }
+
+    [Test]
+    [Category("CustomUI_UI4_1")]
+    public void UpgradeCardTypographyUsesReadableConsistentHierarchy()
+    {
+        const string prefabPath =
+            "Assets/_Game/Prefabs/UI/UpgradeCard.prefab";
+        string prefabText = File.ReadAllText(prefabPath);
+        long[] textComponentIds =
+        {
+            1952818838986804043,
+            5723161596120778220,
+            4523219856188570108,
+            9161292831575217704,
+            3790715771410225071,
+            2443458557906387767,
+            6141380343991927113
         };
 
         foreach (long textComponentId in textComponentIds)
@@ -1876,33 +2651,443 @@ public class DataFoundationTests
             Match text = Regex.Match(
                 prefabText,
                 $@"(?ms)^--- !u!114 &{textComponentId}\r?\n(.*?)(?=^--- !u!|\z)");
-            Assert.IsTrue(text.Success);
+            Assert.IsTrue(text.Success, $"Missing TMP component {textComponentId}.");
+            StringAssert.Contains(
+                "guid: 8f586378b4e144a9851e7b34d9b748ee",
+                text.Value);
+            StringAssert.Contains("m_Material: {fileID: 0}", text.Value);
             StringAssert.Contains("m_enableAutoSizing: 1", text.Value);
-            StringAssert.Contains("m_fontSizeMin: 16", text.Value);
-            StringAssert.Contains("m_TextWrappingMode: 0", text.Value);
             StringAssert.Contains("m_overflowMode: 1", text.Value);
-            if (textComponentId == 2443458557906387767)
-            {
-                StringAssert.Contains("m_fontSize: 24", text.Value);
-                StringAssert.Contains("m_fontSizeMax: 24", text.Value);
-            }
-            else
-            {
-                StringAssert.Contains("m_fontSize: 20", text.Value);
-                StringAssert.Contains("m_fontSizeMax: 20", text.Value);
-            }
         }
 
-        foreach (long transformId in transformIds)
+        long[] boldTextIds =
         {
-            Match transform = Regex.Match(
+            1952818838986804043,
+            5723161596120778220,
+            4523219856188570108,
+            3790715771410225071,
+            2443458557906387767,
+            6141380343991927113
+        };
+        foreach (long textComponentId in boldTextIds)
+        {
+            Match text = Regex.Match(
                 prefabText,
-                $@"(?ms)^--- !u!224 &{transformId}\r?\n(.*?)(?=^--- !u!|\z)");
-            Assert.IsTrue(transform.Success);
-            StringAssert.Contains(
-                "m_SizeDelta: {x: 200, y: 50}",
-                transform.Value);
+                $@"(?ms)^--- !u!114 &{textComponentId}\r?\n(.*?)(?=^--- !u!|\z)");
+            StringAssert.Contains("m_fontWeight: 700", text.Value);
         }
+
+        Match nameText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &1952818838986804043\r?\n(.*?)(?=^--- !u!|\z)");
+        Match levelText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &5723161596120778220\r?\n(.*?)(?=^--- !u!|\z)");
+        Match effectText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &4523219856188570108\r?\n(.*?)(?=^--- !u!|\z)");
+        Match valueText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &9161292831575217704\r?\n(.*?)(?=^--- !u!|\z)");
+        Match priceText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &3790715771410225071\r?\n(.*?)(?=^--- !u!|\z)");
+        Match buttonText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &2443458557906387767\r?\n(.*?)(?=^--- !u!|\z)");
+        Match maxLevelText = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &6141380343991927113\r?\n(.*?)(?=^--- !u!|\z)");
+        Match cardController = Regex.Match(
+            prefabText,
+            @"(?ms)^--- !u!114 &655531135779920435\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(nameText.Success);
+        Assert.IsTrue(levelText.Success);
+        Assert.IsTrue(effectText.Success);
+        Assert.IsTrue(valueText.Success);
+        Assert.IsTrue(priceText.Success);
+        Assert.IsTrue(buttonText.Success);
+        Assert.IsTrue(maxLevelText.Success);
+        Assert.IsTrue(cardController.Success);
+        StringAssert.Contains("m_fontColor: {r: 1, g: 1, b: 1, a: 1}",
+            nameText.Value);
+        StringAssert.Contains("m_fontColor: {r: 1, g: 1, b: 1, a: 1}",
+            levelText.Value);
+        StringAssert.Contains("m_fontSizeMin: 32", nameText.Value);
+        StringAssert.Contains("m_fontSizeMax: 36", nameText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 1", nameText.Value);
+        StringAssert.Contains("m_fontSizeMin: 22", levelText.Value);
+        StringAssert.Contains("m_fontSizeMax: 26", levelText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 0", levelText.Value);
+        StringAssert.Contains("m_fontSizeMin: 20", effectText.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", effectText.Value);
+        StringAssert.Contains("m_fontColor: {r: 0.24705882, g: 0.12156863, b: 0.3372549, a: 1}",
+            effectText.Value);
+        StringAssert.Contains("m_margin: {x: 16, y: 6, z: 16, w: 6}",
+            effectText.Value);
+        StringAssert.Contains("m_fontWeight: 400", valueText.Value);
+        StringAssert.Contains("m_fontSizeMin: 20", valueText.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", valueText.Value);
+        StringAssert.Contains("m_fontColor: {r: 0.24705882, g: 0.12156863, b: 0.3372549, a: 1}",
+            valueText.Value);
+        StringAssert.Contains("m_margin: {x: 16, y: 8, z: 16, w: 8}",
+            valueText.Value);
+        StringAssert.Contains("m_fontSizeMin: 20", priceText.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", priceText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 0", priceText.Value);
+        StringAssert.Contains("m_fontColor: {r: 1, g: 0.9607843, b: 0.9019608, a: 1}",
+            priceText.Value);
+        StringAssert.Contains("m_fontSizeMin: 18", buttonText.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", buttonText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 0", buttonText.Value);
+        StringAssert.Contains("m_fontColor: {r: 1, g: 1, b: 1, a: 1}",
+            buttonText.Value);
+        StringAssert.Contains("m_fontSizeMin: 20", maxLevelText.Value);
+        StringAssert.Contains("m_fontSizeMax: 22", maxLevelText.Value);
+        StringAssert.Contains("m_TextWrappingMode: 0", maxLevelText.Value);
+        StringAssert.Contains("m_text: MAX LEVEL", maxLevelText.Value);
+        StringAssert.Contains("upgradeNameText: {fileID: 1952818838986804043}",
+            cardController.Value);
+        StringAssert.Contains("levelText: {fileID: 5723161596120778220}",
+            cardController.Value);
+        StringAssert.Contains("effectLabelText: {fileID: 4523219856188570108}",
+            cardController.Value);
+        StringAssert.Contains("valueText: {fileID: 9161292831575217704}",
+            cardController.Value);
+        StringAssert.Contains("priceText: {fileID: 3790715771410225071}",
+            cardController.Value);
+        StringAssert.Contains("buttonText: {fileID: 2443458557906387767}",
+            cardController.Value);
+
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/MainBakery.unity");
+        MatchCollection effectSizeOverrides = Regex.Matches(
+            sceneText,
+            @"(?ms)target: \{fileID: 4523219856188570108, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3\}\r?\n\s+propertyPath: m_fontSize\r?\n\s+value: 22");
+        Assert.AreEqual(6, effectSizeOverrides.Count,
+            "All six scene cards should use the same effect heading size.");
+    }
+
+    [Test]
+    [Category("CustomUI_UI3_2")]
+    public void ShopUpgradeHeaderAndCloseArePanelAnchoredAboveScrollViewport()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/MainBakery.unity");
+        Match upgradeScreen = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &638951466\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollView = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &1616590802\r?\n(.*?)(?=^--- !u!|\z)");
+        Match viewport = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &886075658\r?\n(.*?)(?=^--- !u!|\z)");
+        Match viewportMask = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &886075659\r?\n(.*?)(?=^--- !u!|\z)");
+        Match viewportImage = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &886075660\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollRect = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &1616590803\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollbar = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &373026617\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollPanel = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &1616590806\r?\n(.*?)(?=^--- !u!|\z)");
+        Match contentTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &793876648\r?\n(.*?)(?=^--- !u!|\z)");
+        Match header = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &2065082387\r?\n(.*?)(?=^--- !u!|\z)");
+        Match headerPosition = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &2065082387\r?\n.*?m_AnchoredPosition: \{x: -?\d+, y: (-?\d+)\}");
+        Match headerSize = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &2065082387\r?\n.*?m_SizeDelta: \{x: 0, y: (\d+)\}");
+        Match viewportPosition = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &886075658\r?\n.*?m_AnchoredPosition: \{x: 0, y: (-?\d+)\}");
+        Match title = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &466511029\r?\n(.*?)(?=^--- !u!|\z)");
+        Match titleText = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &466511030\r?\n(.*?)(?=^--- !u!|\z)");
+        Match closeButton = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &2117529018\r?\n(.*?)(?=^--- !u!|\z)");
+        Match closeImage = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &2117529020\r?\n(.*?)(?=^--- !u!|\z)");
+        MatchCollection headerChildren = Regex.Matches(
+            header.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+        MatchCollection scrollChildren = Regex.Matches(
+            scrollView.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+        MatchCollection contentChildren = Regex.Matches(
+            contentTransform.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+
+        Assert.IsTrue(upgradeScreen.Success);
+        Assert.IsTrue(scrollView.Success);
+        Assert.IsTrue(viewport.Success);
+        Assert.IsTrue(viewportMask.Success);
+        Assert.IsTrue(viewportImage.Success);
+        Assert.IsTrue(scrollRect.Success);
+        Assert.IsTrue(scrollbar.Success);
+        Assert.IsTrue(scrollPanel.Success);
+        Assert.IsTrue(header.Success);
+        Assert.IsTrue(contentTransform.Success);
+        Assert.IsTrue(title.Success);
+        Assert.IsTrue(titleText.Success);
+        Assert.IsTrue(closeButton.Success);
+        Assert.IsTrue(closeImage.Success);
+
+        Assert.IsTrue(Regex.IsMatch(
+            upgradeScreen.Value,
+            @"m_Children:\r?\n  - \{fileID: 2290013143\}\r?\n  - \{fileID: 1616590802\}"));
+        StringAssert.Contains("m_Father: {fileID: 638951466}",
+            scrollView.Value);
+        StringAssert.Contains("m_Father: {fileID: 1616590802}",
+            header.Value);
+        Assert.AreEqual(3, scrollChildren.Count);
+        Assert.AreEqual("373026617", scrollChildren[0].Groups[1].Value);
+        Assert.AreEqual("886075658", scrollChildren[1].Groups[1].Value);
+        Assert.AreEqual("2065082387", scrollChildren[2].Groups[1].Value);
+        Assert.AreEqual(6, contentChildren.Count,
+            "All six upgrade cards must remain in the scroll content.");
+        Assert.AreEqual(2, headerChildren.Count);
+        Assert.AreEqual("466511029", headerChildren[0].Groups[1].Value);
+        Assert.AreEqual("2117529018", headerChildren[1].Groups[1].Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}", scrollView.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", scrollView.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -70}",
+            scrollView.Value);
+        StringAssert.Contains("m_SizeDelta: {x: -80, y: -220}",
+            scrollView.Value);
+        StringAssert.Contains("guid: 3de7b6b8a96288744a69bba77fc7e655",
+            scrollPanel.Value);
+        StringAssert.Contains("m_RaycastTarget: 1", scrollPanel.Value);
+        StringAssert.Contains("m_Horizontal: 0", scrollRect.Value);
+        StringAssert.Contains("m_Vertical: 1", scrollRect.Value);
+        StringAssert.Contains("m_Viewport: {fileID: 886075658}",
+            scrollRect.Value);
+        StringAssert.Contains("m_Content: {fileID: 793876648}",
+            scrollRect.Value);
+        StringAssert.Contains("m_VerticalScrollbar: {fileID: 373026618}",
+            scrollRect.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}",
+            viewport.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}",
+            viewport.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -230}",
+            viewport.Value);
+        StringAssert.Contains("m_SizeDelta: {x: -20, y: -230}",
+            viewport.Value);
+        StringAssert.Contains("m_Pivot: {x: 0, y: 1}", viewport.Value);
+        StringAssert.Contains("m_Father: {fileID: 1616590802}",
+            viewport.Value);
+        StringAssert.Contains("m_ShowMaskGraphic: 0", viewportMask.Value);
+        StringAssert.Contains("m_Enabled: 1", viewportMask.Value);
+        StringAssert.Contains(
+            "UnityEngine.UI::UnityEngine.UI.Image",
+            viewportImage.Value);
+        StringAssert.Contains("m_Enabled: 1", viewportImage.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 1, y: 0}",
+            scrollbar.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}",
+            scrollbar.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -230}",
+            scrollbar.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 20, y: -230}",
+            scrollbar.Value);
+
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 1}", header.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", header.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 0}",
+            header.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 0, y: 220}", header.Value);
+        StringAssert.Contains("m_Pivot: {x: 0.5, y: 1}", header.Value);
+        Assert.IsTrue(headerPosition.Success);
+        Assert.IsTrue(headerSize.Success);
+        Assert.IsTrue(viewportPosition.Success);
+        int headerBottomOffset = int.Parse(headerPosition.Groups[1].Value)
+            - int.Parse(headerSize.Groups[1].Value);
+        int viewportTopOffset = int.Parse(viewportPosition.Groups[1].Value);
+        Assert.LessOrEqual(viewportTopOffset, headerBottomOffset - 10,
+            "The viewport must start at least 10 units below the fixed header.");
+        StringAssert.Contains("m_Father: {fileID: 2065082387}",
+            title.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0.5, y: 1}", title.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 0.5, y: 1}", title.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -145}",
+            title.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 600, y: 80}", title.Value);
+        StringAssert.Contains("m_text: SHOP UPGRADE", titleText.Value);
+        StringAssert.Contains("m_RaycastTarget: 0", titleText.Value);
+        StringAssert.Contains(
+            "m_fontColor: {r: 0.2, g: 0.07, b: 0.3, a: 1}",
+            titleText.Value);
+        StringAssert.Contains("m_enableAutoSizing: 1", titleText.Value);
+        StringAssert.Contains("m_fontSizeMin: 36", titleText.Value);
+        StringAssert.Contains("m_fontSizeMax: 48", titleText.Value);
+
+        StringAssert.Contains("m_Father: {fileID: 2065082387}",
+            closeButton.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 1, y: 1}",
+            closeButton.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}",
+            closeButton.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: -42, y: -35}",
+            closeButton.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 100, y: 100}",
+            closeButton.Value);
+        StringAssert.Contains("guid: de114e40e1617b345a123664e4f16228",
+            closeImage.Value);
+        StringAssert.Contains("m_RaycastTarget: 1", closeImage.Value);
+        Assert.AreEqual(32f, 40f - (50f - 42f));
+        Assert.AreEqual(165f, 180f - (50f - 35f));
+        Assert.Less(300f, 500f - 42f - 50f);
+
+        Match upgradeScreenController = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &910226780\r?\n(.*?)(?=^--- !u!|\z)");
+        Assert.IsTrue(upgradeScreenController.Success);
+        StringAssert.Contains("closeButton: {fileID: 2117529019}",
+            upgradeScreenController.Value);
+    }
+
+    [Test]
+    [Category("CustomUI_UI3_3_2")]
+    public void ShopUpgradeModalBlockerCoversScreenBehindInteractivePanel()
+    {
+        string sceneText = File.ReadAllText(
+            "Assets/_Game/Scenes/MainBakery.unity");
+        Match upgradeScreen = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &638951466\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerObject = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!1 &2290013142\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerTransform = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &2290013143\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerImage = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &2290013145\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollView = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &1616590802\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollRect = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &1616590803\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollbar = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &373026617\r?\n(.*?)(?=^--- !u!|\z)");
+        Match scrollbarControl = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &373026618\r?\n(.*?)(?=^--- !u!|\z)");
+        Match viewport = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &886075658\r?\n(.*?)(?=^--- !u!|\z)");
+        Match content = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!224 &793876648\r?\n(.*?)(?=^--- !u!|\z)");
+        Match closeButton = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &2117529019\r?\n(.*?)(?=^--- !u!|\z)");
+        Match upgradeScreenController = Regex.Match(
+            sceneText,
+            @"(?ms)^--- !u!114 &910226780\r?\n(.*?)(?=^--- !u!|\z)");
+
+        Assert.IsTrue(upgradeScreen.Success);
+        Assert.IsTrue(blockerObject.Success);
+        Assert.IsTrue(blockerTransform.Success);
+        Assert.IsTrue(blockerImage.Success);
+        Assert.IsTrue(scrollView.Success);
+        Assert.IsTrue(scrollRect.Success);
+        Assert.IsTrue(scrollbar.Success);
+        Assert.IsTrue(scrollbarControl.Success);
+        Assert.IsTrue(viewport.Success);
+        Assert.IsTrue(content.Success);
+        Assert.IsTrue(closeButton.Success);
+        Assert.IsTrue(upgradeScreenController.Success);
+
+        MatchCollection rootChildren = Regex.Matches(
+            upgradeScreen.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+        MatchCollection contentChildren = Regex.Matches(
+            content.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+        Assert.AreEqual(2, rootChildren.Count);
+        Assert.AreEqual("2290013143", rootChildren[0].Groups[1].Value,
+            "The blocker must be the first child, behind the panel.");
+        Assert.AreEqual("1616590802", rootChildren[1].Groups[1].Value);
+        StringAssert.Contains("m_Name: ModalInputBlocker",
+            blockerObject.Value);
+        StringAssert.Contains("m_IsActive: 1", blockerObject.Value);
+        StringAssert.Contains("m_Father: {fileID: 638951466}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 0}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 0, y: 0}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_Enabled: 1", blockerImage.Value);
+        StringAssert.Contains("m_Color: {r: 1, g: 1, b: 1, a: 0}",
+            blockerImage.Value);
+        StringAssert.Contains("m_RaycastTarget: 1", blockerImage.Value);
+
+        StringAssert.Contains("m_Father: {fileID: 638951466}",
+            scrollView.Value);
+        StringAssert.Contains("m_Horizontal: 0", scrollRect.Value);
+        StringAssert.Contains("m_Vertical: 1", scrollRect.Value);
+        StringAssert.Contains("m_Viewport: {fileID: 886075658}",
+            scrollRect.Value);
+        StringAssert.Contains("m_Content: {fileID: 793876648}",
+            scrollRect.Value);
+        StringAssert.Contains("m_Interactable: 1", scrollbarControl.Value);
+        StringAssert.Contains("m_Interactable: 1", closeButton.Value);
+        StringAssert.Contains("upgradeScreen: {fileID: 638951465}",
+            upgradeScreenController.Value,
+            "The controller toggles the blocker with its parent screen.");
+        StringAssert.Contains("closeButton: {fileID: 2117529019}",
+            upgradeScreenController.Value);
+        StringAssert.Contains("m_Father: {fileID: 373026617}",
+            viewport.Value,
+            "Preserve the existing Viewport-under-Scrollbar hierarchy.");
+        Assert.AreEqual(6, contentChildren.Count,
+            "All six upgrade cards must remain in the scroll content.");
+    }
+
+    private static Rect GetRectBoundsInParent(
+        RectTransform target,
+        RectTransform parent)
+    {
+        Vector3[] corners = new Vector3[4];
+        target.GetWorldCorners(corners);
+        Vector3 min = parent.InverseTransformPoint(corners[0]);
+        Vector3 max = min;
+
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector3 point = parent.InverseTransformPoint(corners[i]);
+            min = Vector3.Min(min, point);
+            max = Vector3.Max(max, point);
+        }
+
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
 
     [Test]
@@ -2512,12 +3697,16 @@ public class DataFoundationTests
             verticalLayout.Value);
         StringAssert.Contains("m_ChildForceExpandWidth: 1", verticalLayout.Value);
         StringAssert.Contains("m_ChildControlWidth: 1", verticalLayout.Value);
+        StringAssert.Contains("m_Top: 20", verticalLayout.Value);
         StringAssert.Contains("m_AnchorMin: {x: 0, y: 1}", contentTransform.Value);
         StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", contentTransform.Value);
         StringAssert.Contains("m_Father: {fileID: 886075658}", contentTransform.Value);
         StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}", viewportTransform.Value);
         StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", viewportTransform.Value);
-        StringAssert.Contains("m_SizeDelta: {x: -20, y: -17}", viewportTransform.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -230}",
+            viewportTransform.Value);
+        StringAssert.Contains("m_SizeDelta: {x: -20, y: -230}",
+            viewportTransform.Value);
         StringAssert.Contains("m_Father: {fileID: 1616590802}", viewportTransform.Value);
         StringAssert.Contains(
             "m_AnchorMin: {x: 1, y: 0}",
@@ -3337,6 +4526,145 @@ public class DataFoundationTests
                      "indicator", "panel", "backdrop", "close", "notification"
                  })
             Assert.AreNotEqual("0", component.Groups[reference].Value, reference);
+    }
+
+    [Test]
+    [Category("CustomerOrders_CO2_3")]
+    public void OrderDetailsModalLayoutAndInputBlockerAreSerializedCorrectly()
+    {
+        string scene = File.ReadAllText("Assets/_Game/Scenes/Game.unity");
+        Match canvasTransform = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &1297646555\r?\n(.*?)(?=^--- !u!|\z)");
+        Match orderDetailsUI = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &1297646559\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerObject = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!1 &2200000100\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerTransform = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &2200000101\r?\n(.*?)(?=^--- !u!|\z)");
+        Match blockerImage = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &2200000103\r?\n(.*?)(?=^--- !u!|\z)");
+        Match overlay = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!1 &1395192558\r?\n(.*?)(?=^--- !u!|\z)");
+        Match panel = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &121302785\r?\n(.*?)(?=^--- !u!|\z)");
+        Match requirements = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &401750353\r?\n(.*?)(?=^--- !u!|\z)");
+        Match title = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &373534310\r?\n(.*?)(?=^--- !u!|\z)");
+        Match orderNumber = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &276639108\r?\n(.*?)(?=^--- !u!|\z)");
+        Match confirm = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!224 &2028420272\r?\n(.*?)(?=^--- !u!|\z)");
+
+        foreach (Match match in new[]
+                 {
+                     canvasTransform, orderDetailsUI, blockerObject,
+                     blockerTransform, blockerImage, overlay, panel,
+                     requirements, title, orderNumber, confirm
+                 })
+            Assert.IsTrue(match.Success, "Order details scene reference is missing.");
+
+        StringAssert.Contains("inputBlocker: {fileID: 2200000100}",
+            orderDetailsUI.Value);
+        StringAssert.Contains("m_Name: OrderDetailsInputBlocker",
+            blockerObject.Value);
+        StringAssert.Contains("m_IsActive: 0", blockerObject.Value);
+        StringAssert.Contains("m_Father: {fileID: 1297646555}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 0, y: 0}",
+            blockerTransform.Value);
+        StringAssert.Contains("m_Color: {r: 1, g: 1, b: 1, a: 0}",
+            blockerImage.Value);
+        StringAssert.Contains("m_RaycastTarget: 1", blockerImage.Value);
+        StringAssert.Contains("m_IsActive: 0", overlay.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 750, y: 650}",
+            panel.Value);
+
+        MatchCollection canvasChildren = Regex.Matches(
+            canvasTransform.Value,
+            @"(?m)^  - \{fileID: (-?\d+)\}$");
+        Assert.GreaterOrEqual(canvasChildren.Count, 2);
+        Assert.AreEqual("2200000101",
+            canvasChildren[canvasChildren.Count - 2].Groups[1].Value);
+        Assert.AreEqual("1395192559",
+            canvasChildren[canvasChildren.Count - 1].Groups[1].Value);
+
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 155}",
+            requirements.Value);
+        StringAssert.Contains("m_SizeDelta: {x: 680, y: 210}",
+            requirements.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 365}",
+            title.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 310}",
+            orderNumber.Value);
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -125}",
+            confirm.Value);
+
+        foreach (int layoutId in new[] { 1434013344, 76114894, 173951686 })
+        {
+            Match rowLayout = Regex.Match(
+                scene,
+                $@"(?ms)^--- !u!114 &{layoutId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(rowLayout.Success);
+            StringAssert.Contains("m_ChildAlignment: 4", rowLayout.Value);
+            StringAssert.Contains("m_Spacing: 24", rowLayout.Value);
+            StringAssert.Contains("m_ChildForceExpandWidth: 0",
+                rowLayout.Value);
+            StringAssert.Contains("m_ChildForceExpandHeight: 0",
+                rowLayout.Value);
+        }
+
+        foreach (int rowId in new[] { 1434013343, 76114892, 173951685 })
+        {
+            Match row = Regex.Match(
+                scene,
+                $@"(?ms)^--- !u!224 &{rowId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(row.Success);
+            StringAssert.Contains("m_SizeDelta: {x: 0, y: 80}", row.Value);
+        }
+
+        foreach (int iconId in new[] { 1485393869, 1843911900, 2142781157 })
+        {
+            Match icon = Regex.Match(
+                scene,
+                $@"(?ms)^--- !u!224 &{iconId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(icon.Success);
+            StringAssert.Contains("m_SizeDelta: {x: 64, y: 64}", icon.Value);
+        }
+
+        foreach (int nameId in new[] { 1440474416, 1037492925, 335092719 })
+        {
+            Match name = Regex.Match(
+                scene,
+                $@"(?ms)^--- !u!224 &{nameId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(name.Success);
+            StringAssert.Contains("m_SizeDelta: {x: 260, y: 60}", name.Value);
+        }
+
+        foreach (int progressId in new[] { 514563158, 1228486872, 379113128 })
+        {
+            Match progress = Regex.Match(
+                scene,
+                $@"(?ms)^--- !u!224 &{progressId}\r?\n(.*?)(?=^--- !u!|\z)");
+            Assert.IsTrue(progress.Success);
+            StringAssert.Contains("m_SizeDelta: {x: 160, y: 60}",
+                progress.Value);
+        }
     }
 
     [Test]
