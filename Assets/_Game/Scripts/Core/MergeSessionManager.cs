@@ -345,11 +345,15 @@ public class MergeSessionManager : MonoBehaviour
                 continue;
             }
 
-            if (!TryCreateProceduralSaveData(state, out CustomerOrderSaveData savedOrder))
+            if (!TryCreateProceduralSaveData(
+                    state,
+                    out CustomerOrderSaveData savedOrder,
+                    out string reason))
             {
                 Debug.LogError(
                     $"MERGE SAVE ORDER FAILED | Customer {state.customerIndex + 1} | " +
-                    $"Order #{state.orderId} has invalid procedural data.");
+                    $"Order #{state.orderId} has invalid procedural data: " +
+                    (reason ?? "Unknown procedural validation failure."));
                 return false;
             }
 
@@ -360,15 +364,18 @@ public class MergeSessionManager : MonoBehaviour
 
     private static bool TryCreateProceduralSaveData(
         CustomerOrderState state,
-        out CustomerOrderSaveData savedOrder)
+        out CustomerOrderSaveData savedOrder,
+        out string reason)
     {
         savedOrder = null;
+        reason = null;
         if (state != null &&
             !string.IsNullOrWhiteSpace(state.proceduralDefinitionId))
         {
             if (!ProceduralCustomerOrderSaveCodec.TryDecode(
                     state.proceduralDefinitionId,
-                    out _))
+                    out _,
+                    out reason))
                 return false;
 
             savedOrder = new CustomerOrderSaveData(
@@ -383,8 +390,11 @@ public class MergeSessionManager : MonoBehaviour
                 state.displayName,
                 state.cashReward,
                 state.requirements,
-                out string encodedDefinitionId))
+                out string encodedDefinitionId,
+                out reason))
         {
+            if (state == null)
+                reason = "Order state is null.";
             return false;
         }
 

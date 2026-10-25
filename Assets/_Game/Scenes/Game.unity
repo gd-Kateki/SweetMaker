@@ -215,7 +215,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CUSTOMER ORDER
+  m_text: TABLE ORDER
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -6217,7 +6217,6 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 442593067}
   - {fileID: 1561043377}
   - {fileID: 1273620437}
   - {fileID: 705582561}
@@ -6226,6 +6225,7 @@ RectTransform:
   - {fileID: 915782263}
   - {fileID: 1141982299}
   - {fileID: 2200000101}
+  - {fileID: 442593067}
   - {fileID: 1395192559}
   - {fileID: 1810000001}
   m_Father: {fileID: 927524411}

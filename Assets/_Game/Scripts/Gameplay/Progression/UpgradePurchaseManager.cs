@@ -451,6 +451,22 @@ public class UpgradePurchaseManager : MonoBehaviour
             return -1;
         if (type == UpgradeType.Luck)
             return 0;
+        if (type == UpgradeType.Shelf)
+        {
+            switch (targetLevel)
+            {
+                case 2:
+                    return 5;
+                case 3:
+                    return 7;
+                case 4:
+                    return 9;
+                default:
+                    return -1;
+            }
+        }
+        if (type == UpgradeType.Customer && targetLevel > 3)
+            return -1;
 
         switch (targetLevel)
         {

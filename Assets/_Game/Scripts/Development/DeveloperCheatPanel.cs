@@ -28,6 +28,9 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     private TMP_InputField customCashInput;
     private Button clearBoardButton;
     private Button clearCancelButton;
+    private Button resetProgressButton;
+    private Button resetCancelButton;
+    private Button refreshOrdersButton;
     private Button spawnDessertButton;
     private Button setRebirthButton;
     private DeveloperCheatCommandResult lastResult;
@@ -37,6 +40,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     private int selectedTier = 1;
     private float nextRefreshTime;
     private bool clearConfirmationPending;
+    private bool resetConfirmationPending;
     private bool missingSceneUiReported;
     private bool hasInitializedRebirthSelection;
 
@@ -101,6 +105,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         overlayObject = null;
         missingSceneUiReported = false;
         clearConfirmationPending = false;
+        resetConfirmationPending = false;
 
         if (scene.name == GameplaySceneName)
             TryAttachToGameplayCanvas();
@@ -268,6 +273,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         BuildCashSection(content.transform);
         BuildRebirthSection(content.transform);
         BuildDessertSection(content.transform);
+        BuildProfileSection(content.transform);
         BuildBoardSection(content.transform);
         BuildDiagnosticsSection(content.transform);
     }
@@ -367,6 +373,47 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             () => RunCommand(
                 "Place dessert T" + selectedTier,
                 () => DeveloperCheatCommands.SpawnDessert(selectedTier)),
+            true).GetComponent<Button>();
+    }
+
+    private void BuildProfileSection(Transform content)
+    {
+        AddSection(content, "DEVELOPMENT PROFILE");
+        GameObject resetRow = CreateLayoutRow(content, 66f);
+        resetProgressButton = CreateButton(
+            "Reset All Progress",
+            resetRow.transform,
+            Vector2.zero,
+            Vector2.one,
+            Vector2.zero,
+            Vector2.zero,
+            new Color(0.45f, 0.19f, 0.2f),
+            HandleResetProgressPressed,
+            true).GetComponent<Button>();
+        resetCancelButton = CreateButton(
+            "CANCEL",
+            resetRow.transform,
+            Vector2.zero,
+            Vector2.one,
+            Vector2.zero,
+            Vector2.zero,
+            new Color(0.27f, 0.27f, 0.34f),
+            CancelResetProgressConfirmation,
+            true).GetComponent<Button>();
+        resetCancelButton.gameObject.SetActive(false);
+
+        GameObject refreshRow = CreateLayoutRow(content, 66f);
+        refreshOrdersButton = CreateButton(
+            "Refresh Customer Orders",
+            refreshRow.transform,
+            Vector2.zero,
+            Vector2.one,
+            Vector2.zero,
+            Vector2.zero,
+            new Color(0.18f, 0.34f, 0.25f),
+            () => RunCommand(
+                "Refresh customer orders",
+                DeveloperCheatCommands.RefreshCustomerOrders),
             true).GetComponent<Button>();
     }
 
@@ -589,6 +636,33 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             DeveloperCheatCommands.ClearBoardDesserts);
     }
 
+    private void HandleResetProgressPressed()
+    {
+        if (!resetConfirmationPending)
+        {
+            resetConfirmationPending = true;
+            resetCancelButton.gameObject.SetActive(true);
+            localFailureReason =
+                "Confirmation required: press Reset All Progress again.";
+            RefreshPanel();
+            return;
+        }
+
+        resetConfirmationPending = false;
+        resetCancelButton.gameObject.SetActive(false);
+        RunCommand(
+            "Reset all progress",
+            DeveloperCheatCommands.ResetAllProgress);
+    }
+
+    private void CancelResetProgressConfirmation()
+    {
+        resetConfirmationPending = false;
+        resetCancelButton.gameObject.SetActive(false);
+        localFailureReason = null;
+        RefreshPanel();
+    }
+
     private void CancelClearBoardConfirmation()
     {
         clearConfirmationPending = false;
@@ -602,6 +676,9 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         Func<DeveloperCheatCommandResult> command)
     {
         clearConfirmationPending = false;
+        resetConfirmationPending = false;
+        clearCancelButton?.gameObject.SetActive(false);
+        resetCancelButton?.gameObject.SetActive(false);
         localFailureReason = null;
         lastCommandName = commandName;
         lastResult = command();
@@ -683,6 +760,10 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         }
         if (clearBoardButton != null)
             clearBoardButton.interactable = ready;
+        if (resetProgressButton != null)
+            resetProgressButton.interactable = ready;
+        if (refreshOrdersButton != null)
+            refreshOrdersButton.interactable = ready;
 
         RefreshSelectionLabels();
 
@@ -759,6 +840,18 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             clearButtonText.text = clearConfirmationPending
                 ? "CONFIRM CLEAR BOARD"
                 : "CLEAR BOARD DESSERTS";
+        }
+
+        if (resetProgressButton != null)
+        {
+            TextMeshProUGUI label =
+                resetProgressButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+            {
+                label.text = resetConfirmationPending
+                    ? "CONFIRM RESET ALL PROGRESS"
+                    : "Reset All Progress";
+            }
         }
     }
 

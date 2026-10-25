@@ -1192,6 +1192,10 @@ public class DataFoundationTests
             AssertOrderRequirementsWithinTierCap(
                 original,
                 (int)GetPropertyValue(fixture.Progression, "MaxUnlockedDessertTier"));
+            object unrelatedPlateDessert = fixture.Slots[0].GetType()
+                .GetProperty("CurrentDessert")
+                .GetValue(fixture.Slots[0]);
+            Assert.IsNotNull(unrelatedPlateDessert);
 
             MethodInfo deterministicGenerate = fixture.Orders.GetType().GetMethod(
                 "TryGenerateProceduralOrder",
@@ -1328,10 +1332,19 @@ public class DataFoundationTests
                 "Requirements")).Cast<object>().ToList();
             int requiredDesserts = requirements.Sum(
                 row => (int)GetPropertyValue(row, "Amount"));
+            List<object> availablePlateSlots = fixture.Slots
+                .Where(slot =>
+                    (bool)GetPropertyValue(slot, "IsEmpty"))
+                .ToList();
             Assert.LessOrEqual(
                 requiredDesserts,
                 fixture.Cells.Count - 1,
                 "The test board must fit the generated order.");
+            Assert.LessOrEqual(
+                requiredDesserts,
+                availablePlateSlots.Count,
+                "The test fixture must provide enough empty plates.");
+            var orderDesserts = new List<object>();
             int cellIndex = 1;
             foreach (object requirement in requirements)
             {
@@ -1359,17 +1372,12 @@ public class DataFoundationTests
                         .Invoke(
                             fixture.Cells[cellIndex],
                             new[] { dessert, (object)true });
+                    orderDesserts.Add(dessert);
                     cellIndex++;
                 }
             }
 
             int completedOrderId = (int)GetPropertyValue(reloaded, "OrderId");
-            for (int i = 0; i < requiredDesserts; i++)
-            {
-                LogAssert.Expect(
-                    LogType.Error,
-                    new Regex("Destroy may not be called from edit mode"));
-            }
             economy.GetType().GetMethod(
                     "ResolveReferences",
                     BindingFlags.Instance | BindingFlags.NonPublic)
@@ -1379,6 +1387,41 @@ public class DataFoundationTests
                     BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(economy, null);
             int cashBeforeCompletion = (int)GetPropertyValue(economy, "CurrentCash");
+            Assert.IsFalse((bool)fixture.Orders.GetType()
+                .GetMethod("TryFulfillOrderAtIndex")
+                .Invoke(fixture.Orders, new object[] { 0 }),
+                "Board-only desserts must not satisfy an order.");
+            Assert.AreEqual(cashBeforeCompletion, GetPropertyValue(economy, "CurrentCash"));
+            Assert.AreSame(
+                unrelatedPlateDessert,
+                fixture.Slots[0].GetType()
+                    .GetProperty("CurrentDessert").GetValue(fixture.Slots[0]),
+                "A rejected order must not consume an unrelated plate dessert.");
+            for (int i = 0; i < orderDesserts.Count; i++)
+            {
+                object cell = fixture.Cells[i + 1];
+                cell.GetType().GetMethod("RemoveDessert")
+                    .Invoke(cell, new[] { orderDesserts[i] });
+                object slot = availablePlateSlots[i];
+                slot.GetType().GetMethod("SetUnlocked")
+                    .Invoke(slot, new object[] { true });
+                bool stored = (bool)slot.GetType().GetMethod("TryStoreDessert")
+                    .Invoke(slot, new[] { orderDesserts[i], (object)true });
+                Assert.IsTrue(
+                    stored,
+                    "Plate " + i +
+                    " rejected a dessert after unlocking it. Unlocked=" +
+                    GetPropertyValue(slot, "IsUnlocked") +
+                    ", Empty=" + GetPropertyValue(slot, "IsEmpty") +
+                    ", DessertLocation=" +
+                    GetPropertyValue(orderDesserts[i], "LocationType"));
+            }
+            for (int i = 0; i < requiredDesserts; i++)
+            {
+                LogAssert.Expect(
+                    LogType.Error,
+                    new Regex("Destroy may not be called from edit mode"));
+            }
             Assert.IsTrue((bool)fixture.Orders.GetType()
                 .GetMethod("TryFulfillOrderAtIndex")
                 .Invoke(fixture.Orders, new object[] { 0 }));
@@ -1386,12 +1429,151 @@ public class DataFoundationTests
                 cashBeforeCompletion + expectedPaidReward,
                 GetPropertyValue(economy, "CurrentCash"),
                 "Order completion must pay the rounded multiplied reward exactly once.");
+            Assert.AreSame(
+                unrelatedPlateDessert,
+                fixture.Slots[0].GetType()
+                    .GetProperty("CurrentDessert").GetValue(fixture.Slots[0]),
+                "Completing an order must leave unrelated plate desserts untouched.");
+            foreach (object slot in availablePlateSlots)
+                Assert.IsTrue(
+                    (bool)GetPropertyValue(slot, "IsEmpty"),
+                    "A required plate dessert must be consumed exactly once.");
             object replacement = ((Array)GetActiveOrders(fixture.Orders)).GetValue(0);
             Assert.Greater((int)GetPropertyValue(replacement, "OrderId"), completedOrderId);
             Assert.IsTrue((bool)GetPropertyValue(replacement, "IsValid"));
             AssertOrderRequirementsWithinTierCap(
                 replacement,
                 (int)GetPropertyValue(fixture.Progression, "MaxUnlockedDessertTier"));
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    public void FreshRuntimeStartsWithTwoPlatesAndNeverCreatesAFourthTable()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            Assert.AreEqual(
+                2,
+                GetPropertyValue(fixture.Progression, "ShelfCapacity"));
+            Assert.AreEqual(
+                1,
+                GetPropertyValue(fixture.Orders, "ActiveCustomerCount"));
+
+            SetPrivateField(fixture.Progression, "customerLevel", 3);
+            fixture.Orders.GetType().GetMethod(
+                    "RefreshCustomerSlots",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(fixture.Orders, null);
+
+            Assert.AreEqual(
+                3,
+                GetPropertyValue(fixture.Orders, "ActiveCustomerCount"));
+            Assert.IsFalse((bool)fixture.Orders.GetType()
+                .GetMethod("IsCustomerUnlocked")
+                .Invoke(fixture.Orders, new object[] { 3 }));
+            Assert.IsNull(fixture.Orders.GetType()
+                .GetMethod("GetOrderForCustomer")
+                .Invoke(fixture.Orders, new object[] { 3 }));
+            Assert.AreEqual(
+                3,
+                ((IEnumerable)GetPropertyValue(
+                    fixture.Orders,
+                    "CustomerOrders")).Cast<object>().Count());
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    public void ProceduralOrderGenerationUsesProgressionServingPlateCapacity()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            SetPrivateField(fixture.Progression, "ovenLevel", 1);
+            MethodInfo generate = fixture.Orders.GetType().GetMethod(
+                "TryGenerateProceduralOrder",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(generate);
+
+            for (int level = 1; level <= 4; level++)
+            {
+                SetPrivateField(fixture.Progression, "shelfLevel", level);
+                int capacity = (int)GetPropertyValue(
+                    fixture.Progression,
+                    "ShelfCapacity");
+                Assert.AreEqual(level + 1, capacity);
+
+                for (int seed = 1; seed <= 25; seed++)
+                {
+                    object[] args =
+                    {
+                        100 + seed,
+                        new System.Random(seed),
+                        null
+                    };
+                    Assert.IsTrue(
+                        (bool)generate.Invoke(fixture.Orders, args),
+                        $"Order generation failed at plate level {level}, seed {seed}.");
+                    int totalQuantity = ((IEnumerable)GetPropertyValue(
+                            args[2],
+                            "Requirements"))
+                        .Cast<object>()
+                        .Sum(requirement =>
+                            (int)GetPropertyValue(requirement, "Amount"));
+                    Assert.LessOrEqual(
+                        totalQuantity,
+                        capacity,
+                        "OrderManager must supply the authoritative progression capacity.");
+                }
+            }
+        }
+        finally
+        {
+            DestroyReplacementFixture(fixture);
+        }
+    }
+
+    [Test]
+    public void VerifiedStartupMigrationCanCaptureWhileRestoreMethodIsFinishing()
+    {
+        ReplacementFixture fixture = CreateReplacementFixture();
+        try
+        {
+            SetPrivateField(fixture.Controller, "restorationInProgress", true);
+            MethodInfo captureLiveGameplay = fixture.SaveManager.GetType()
+                .GetMethod(
+                    "CaptureLiveMergeGameplayIfAvailable",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo saveMigration = fixture.Controller.GetType()
+                .GetMethod(
+                    "TrySaveCompatibilityMigration",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+            var captureCallback = new Func<bool>(
+                () => (bool)captureLiveGameplay.Invoke(
+                    fixture.SaveManager,
+                    null));
+            Assert.IsTrue(
+                (bool)saveMigration.Invoke(
+                    fixture.Controller,
+                    new object[] { captureCallback }),
+                "Save V2 migration must capture the verified live session before startup restoration returns.");
+            Assert.IsFalse((bool)fixture.Controller.GetType()
+                .GetField(
+                    "allowVerifiedMigrationCapture",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(fixture.Controller));
+            Assert.IsTrue(
+                (bool)GetPropertyValue(
+                    fixture.SessionManager,
+                    "HasSession"));
         }
         finally
         {
@@ -1623,6 +1805,28 @@ public class DataFoundationTests
                 }
             }
 
+            List<object> availablePlateSlots = fixture.Slots
+                .Where(slot =>
+                    (bool)GetPropertyValue(slot, "IsEmpty"))
+                .ToList();
+            Assert.GreaterOrEqual(
+                availablePlateSlots.Count,
+                requiredDesserts,
+                "The test fixture must provide enough empty plates.");
+            for (int i = 0; i < requiredDesserts; i++)
+            {
+                object dessert = fixture.Cells[i + 1].GetType()
+                    .GetProperty("CurrentDessert")
+                    .GetValue(fixture.Cells[i + 1]);
+                fixture.Cells[i + 1].GetType().GetMethod("RemoveDessert")
+                    .Invoke(fixture.Cells[i + 1], new[] { dessert });
+                object slot = availablePlateSlots[i];
+                slot.GetType().GetMethod("SetUnlocked")
+                    .Invoke(slot, new object[] { true });
+                Assert.IsTrue((bool)slot.GetType().GetMethod("TryStoreDessert")
+                    .Invoke(slot, new[] { dessert, (object)true }));
+            }
+
             object economy = FindSingleton("EconomyManager");
             economy.GetType().GetMethod(
                     "ResolveReferences",
@@ -1796,14 +2000,14 @@ public class DataFoundationTests
             new[] { 0, 100, 350, 900, 2500, 7000, 18000 });
         AssertUpgradeTable(
             "Assets/_Game/Data/Upgrades/Upgrade_Shelf.asset",
-            new[] { 1, 2, 3, 4, 5 },
-            new[] { 0f, 0f, 0f, 0f, 0f },
-            new[] { 0, 120, 450, 1500, 5000 });
+            new[] { 2, 3, 4, 5 },
+            new[] { 0f, 0f, 0f, 0f },
+            new[] { 0, 450, 1500, 5000 });
         AssertUpgradeTable(
             "Assets/_Game/Data/Upgrades/Upgrade_Customer.asset",
-            new[] { 1, 2, 3, 4 },
-            new[] { 0f, 0f, 0f, 0f },
-            new[] { 0, 250, 1500, 8000 });
+            new[] { 1, 2, 3 },
+            new[] { 0f, 0f, 0f },
+            new[] { 0, 250, 1500 });
         AssertUpgradeTable(
             "Assets/_Game/Data/Upgrades/Upgrade_MoneyMultiplier.asset",
             new[] { 0, 0, 0, 0 },
@@ -2129,19 +2333,17 @@ public class DataFoundationTests
             var gates = new (string type, int level, int rebirthCount)[]
             {
                 ("BoardSpace", 2, 2),
-                ("Shelf", 2, 2),
+                ("Shelf", 2, 5),
                 ("Customer", 2, 2),
                 ("MoneyMultiplier", 2, 2),
                 ("BoardSpace", 3, 5),
-                ("Shelf", 3, 5),
+                ("Shelf", 3, 7),
                 ("Customer", 3, 5),
                 ("MoneyMultiplier", 3, 5),
                 ("BoardSpace", 4, 7),
-                ("Shelf", 4, 7),
-                ("Customer", 4, 7),
+                ("Shelf", 4, 9),
                 ("MoneyMultiplier", 4, 7),
                 ("BoardSpace", 5, 9),
-                ("Shelf", 5, 9),
                 ("BoardSpace", 6, 10),
                 ("BoardSpace", 7, 10)
             };
@@ -6531,7 +6733,7 @@ public class DataFoundationTests
             SetPrivateField(shelf, "progressionManager", progression);
             Array slots = Array.CreateInstance(
                 FindPlayerType("ShelfSlot"),
-                shelfCapacity + 1);
+                5);
             for (int i = 0; i < slots.Length; i++)
             {
                 object slot = AddRuntimeComponent(fixture, "ShelfSlot");
@@ -6547,6 +6749,7 @@ public class DataFoundationTests
             object orders = AddRuntimeComponent(fixture, "OrderManager", false);
             SetPrivateField(orders, "progressionManager", progression);
             SetPrivateField(orders, "gridManager", grid);
+            SetPrivateField(orders, "shelfManager", shelf);
             SetPrivateField(orders, "orderPool", LoadOrderDefinitions());
             ((UnityEngine.Component)orders).gameObject.SetActive(true);
             InvokeLifecycle(orders, "Awake");

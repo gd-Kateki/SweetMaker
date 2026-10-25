@@ -12,6 +12,9 @@ public class OrderDetailsUI : MonoBehaviour
     private GridManager gridManager;
 
     [SerializeField]
+    private ShelfManager shelfManager;
+
+    [SerializeField]
     private EconomyManager economyManager;
 
     [SerializeField]
@@ -129,6 +132,11 @@ public class OrderDetailsUI : MonoBehaviour
             gridManager =
                 FindAnyObjectByType<
                     GridManager>();
+        }
+        if (shelfManager == null)
+        {
+            shelfManager =
+                FindAnyObjectByType<ShelfManager>();
         }
 
         if (economyManager == null)
@@ -412,7 +420,7 @@ public class OrderDetailsUI : MonoBehaviour
             requirementRows[i].Show(
                 requirements[i],
                 order,
-                gridManager
+                shelfManager
             );
         }
 

@@ -12,12 +12,12 @@ public class OrderRequirementRowUI : MonoBehaviour
     public void Show(
         OrderRequirement requirement,
         CustomerOrder order,
-        GridManager gridManager)
+        ShelfManager shelfManager)
     {
         if (requirement == null ||
             requirement.Dessert == null ||
             order == null ||
-            gridManager == null)
+            shelfManager == null)
         {
             Hide();
             return;
@@ -51,7 +51,7 @@ public class OrderRequirementRowUI : MonoBehaviour
 
         int available =
             order.GetAvailableAmount(
-                gridManager,
+                shelfManager,
                 dessert
             );
 

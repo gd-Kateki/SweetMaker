@@ -13,25 +13,21 @@ MonoBehaviour:
   m_Name: Upgrade_Shelf
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeType: 2
-  displayName: Shelf
+  displayName: Serving Plates
   levels:
   - level: 1
-    intValue: 1
+    intValue: 2
     floatValue: 0
     upgradeCost: 0
   - level: 2
-    intValue: 2
-    floatValue: 0
-    upgradeCost: 120
-  - level: 3
     intValue: 3
     floatValue: 0
     upgradeCost: 450
-  - level: 4
+  - level: 3
     intValue: 4
     floatValue: 0
     upgradeCost: 1500
-  - level: 5
+  - level: 4
     intValue: 5
     floatValue: 0
     upgradeCost: 5000

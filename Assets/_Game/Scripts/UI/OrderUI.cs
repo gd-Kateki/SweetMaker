@@ -12,6 +12,9 @@ public class OrderUI : MonoBehaviour
     [SerializeField]
     private GridManager gridManager;
 
+    [SerializeField]
+    private ShelfManager shelfManager;
+
     [Header("UI")]
     [SerializeField]
     private TMP_Text orderNameText;
@@ -47,6 +50,11 @@ public class OrderUI : MonoBehaviour
             );
 
             return;
+        }
+        if (shelfManager == null)
+        {
+            shelfManager =
+                FindAnyObjectByType<ShelfManager>();
         }
 
         orderManager.ActiveOrderChanged +=
@@ -120,7 +128,7 @@ public class OrderUI : MonoBehaviour
     private void Refresh()
     {
         if (orderManager == null ||
-            gridManager == null)
+            shelfManager == null)
         {
             return;
         }
@@ -180,7 +188,7 @@ public class OrderUI : MonoBehaviour
 
             int available =
                 order.GetAvailableAmount(
-                    gridManager,
+                    shelfManager,
                     requirement.Dessert
                 );
 

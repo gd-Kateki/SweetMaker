@@ -33,6 +33,9 @@ public class CustomerButtonUI : MonoBehaviour
     [SerializeField]
     private GridManager gridManager;
 
+    [SerializeField]
+    private ShelfManager shelfManager;
+
     [Header("Visibility")]
     [SerializeField]
     private CanvasGroup canvasGroup;
@@ -129,6 +132,11 @@ public class CustomerButtonUI : MonoBehaviour
         {
             gridManager =
                 FindAnyObjectByType<GridManager>();
+        }
+        if (shelfManager == null)
+        {
+            shelfManager =
+                FindAnyObjectByType<ShelfManager>();
         }
     }
 
@@ -451,7 +459,7 @@ public class CustomerButtonUI : MonoBehaviour
 
             int available = Mathf.Min(
                 order.GetAvailableAmount(
-                    gridManager,
+                    shelfManager,
                     requirement.Dessert
                 ),
                 requirement.Amount

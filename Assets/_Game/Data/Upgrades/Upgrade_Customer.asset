@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_Customer
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeDefinition
   upgradeType: 3
-  displayName: Customers
+  displayName: Tables
   levels:
   - level: 1
     intValue: 1
@@ -27,7 +27,3 @@ MonoBehaviour:
     intValue: 3
     floatValue: 0
     upgradeCost: 1500
-  - level: 4
-    intValue: 4
-    floatValue: 0
-    upgradeCost: 8000

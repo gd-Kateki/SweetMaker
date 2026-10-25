@@ -640,10 +640,10 @@ public class UpgradeCardUI : MonoBehaviour
                 return "Board Capacity";
 
             case UpgradeType.Shelf:
-                return "Shelf Capacity";
+                return "Serving Plate Capacity";
 
             case UpgradeType.Customer:
-                return "Active Customers";
+                return "Tables";
 
             case UpgradeType.MoneyMultiplier:
                 return "Money Multiplier";
@@ -685,16 +685,16 @@ public class UpgradeCardUI : MonoBehaviour
                 return
                     FormatCount(
                         levelData.IntValue,
-                        "Slot",
-                        "Slots"
+                        "Plate",
+                        "Plates"
                     );
 
             case UpgradeType.Customer:
                 return
                     FormatCount(
                         levelData.IntValue,
-                        "Customer",
-                        "Customers"
+                        "Table",
+                        "Tables"
                     );
 
             case UpgradeType.MoneyMultiplier:

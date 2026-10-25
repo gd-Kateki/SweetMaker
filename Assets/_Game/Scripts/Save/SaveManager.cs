@@ -1,5 +1,7 @@
 using System;
 
+using System.Collections.Generic;
+
 using System.IO;
 
 using System.Text;
@@ -23,6 +25,7 @@ public class SaveManager : MonoBehaviour
         public int mergeSessionCustomerCapacity;
         public string selectedSpawnPoolId;
         public int luckLevel;
+        public int servingPlateProgressionVersion;
 
     }
 
@@ -39,6 +42,7 @@ public class SaveManager : MonoBehaviour
     private string sessionSelectedSpawnPoolId;
     private int loadedLuckLevel = 1;
     private int sessionLuckLevel = 1;
+    private int loadedServingPlateProgressionVersion;
 
     public void RecordSessionCustomerCapacity(
         MergeSessionData data,
@@ -110,7 +114,11 @@ public class SaveManager : MonoBehaviour
 
             capacity = currentCapacity;
 
-        return capacity >= 1 && capacity <= currentCapacity;
+        return capacity >= 1 &&
+               (capacity <= currentCapacity ||
+                (compatibilityMigrationPending &&
+                 loadedCustomerCapacity == 4 &&
+                 capacity == 4));
 
     }
 
@@ -164,6 +172,28 @@ public class SaveManager : MonoBehaviour
                "}";
     }
 
+    private static string SerializeWithServingPlateVersion(
+        PlayerSaveData data,
+        int capacity,
+        string selectedPoolId,
+        int luckLevel,
+        int servingPlateVersion)
+    {
+        string json = SerializeWithLuck(
+            data,
+            capacity,
+            selectedPoolId,
+            luckLevel);
+        if (servingPlateVersion <= 0)
+            return json;
+
+        return json.Substring(0, json.Length - 1) +
+               ",\"servingPlateProgressionVersion\":" +
+               servingPlateVersion.ToString(
+                   System.Globalization.CultureInfo.InvariantCulture) +
+               "}";
+    }
+
     private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
     {
         DessertSpawner spawner = FindAnyObjectByType<DessertSpawner>();
@@ -174,7 +204,12 @@ public class SaveManager : MonoBehaviour
         int luckLevel = progression != null
             ? progression.LuckLevel
             : sessionLuckLevel;
-        return SerializeWithLuck(data, capacity, selectedPool, luckLevel);
+        return SerializeWithServingPlateVersion(
+            data,
+            capacity,
+            selectedPool,
+            luckLevel,
+            CurrentServingPlateProgressionVersion);
     }
 
     internal bool TryPrepareDetachedSnapshot(
@@ -267,6 +302,8 @@ public class SaveManager : MonoBehaviour
         "player_save_v2.json";
 
     private const int CurrentSaveVersion = 2;
+    private const int CurrentServingPlateProgressionVersion = 1;
+    private bool compatibilityMigrationPending;
 
     // Main-thread APIs. The guard covers capture, serialization, IO and logging.
 
@@ -283,6 +320,8 @@ public class SaveManager : MonoBehaviour
     private static readonly UTF8Encoding SaveEncoding = new UTF8Encoding(false, true);
 
     public bool IsLifecycleSavingReady => lifecycleSavingReady;
+    internal bool HasPendingCompatibilityMigration =>
+        compatibilityMigrationPending;
 
     private bool CanWriteCurrentState()
 
@@ -338,6 +377,129 @@ public class SaveManager : MonoBehaviour
 
     }
 
+    private static bool TryMigrateLegacyProgression(
+        PlayerSaveData saveData,
+        int migrationVersion,
+        int savedCustomerCapacity,
+        out int migratedCustomerCapacity,
+        out string reason)
+    {
+        migratedCustomerCapacity = savedCustomerCapacity;
+        reason = null;
+
+        if (migrationVersion == CurrentServingPlateProgressionVersion)
+            return true;
+        if (migrationVersion != 0)
+        {
+            reason = "The Serving Plate progression marker is unsupported.";
+            return false;
+        }
+        if (saveData == null ||
+            saveData.progression == null ||
+            saveData.mergeGameplay == null)
+        {
+            reason = "Progression or merge-session data is missing.";
+            return false;
+        }
+
+        ProgressionSaveData progression = saveData.progression;
+        if (progression.shelfLevel < 1 ||
+            progression.shelfLevel > 5 ||
+            progression.customerLevel < 1 ||
+            progression.customerLevel > 4)
+        {
+            reason = "Legacy Shelf or Customer upgrade level is out of range.";
+            return false;
+        }
+
+        MergeGameplaySaveData gameplay = saveData.mergeGameplay;
+        int legacyShelfCapacity = progression.shelfLevel;
+        if (gameplay.shelfDesserts == null)
+        {
+            reason = "Legacy Serving Plate contents are missing.";
+            return false;
+        }
+
+        var shelfSlots = new System.Collections.Generic.HashSet<int>();
+        foreach (ShelfDessertSaveData dessert in gameplay.shelfDesserts)
+        {
+            if (dessert == null ||
+                dessert.slotIndex < 0 ||
+                dessert.slotIndex >= legacyShelfCapacity ||
+                dessert.dessertTier <= 0 ||
+                !shelfSlots.Add(dessert.slotIndex))
+            {
+                reason = "Legacy Shelf contents are invalid for the saved capacity.";
+                return false;
+            }
+        }
+
+        if (!gameplay.hasSession)
+        {
+            if (savedCustomerCapacity != 0 ||
+                gameplay.customerOrders == null ||
+                gameplay.customerOrders.Count != 0)
+            {
+                reason = "A no-session save contains customer-order session data.";
+                return false;
+            }
+        }
+        else
+        {
+            if (savedCustomerCapacity < 1 ||
+                savedCustomerCapacity > 4 ||
+                gameplay.customerOrders == null ||
+                gameplay.customerOrders.Count != savedCustomerCapacity ||
+                gameplay.nextOrderId <= 0)
+            {
+                reason = "Legacy customer capacity or order count is invalid.";
+                return false;
+            }
+
+            var customerIndices =
+                new System.Collections.Generic.HashSet<int>();
+            var orderIds =
+                new System.Collections.Generic.HashSet<int>();
+            foreach (CustomerOrderSaveData order in gameplay.customerOrders)
+            {
+                if (order == null ||
+                    order.customerIndex < 0 ||
+                    order.customerIndex >= savedCustomerCapacity ||
+                    !customerIndices.Add(order.customerIndex) ||
+                    order.orderId <= 0 ||
+                    order.orderId >= gameplay.nextOrderId ||
+                    !orderIds.Add(order.orderId) ||
+                    string.IsNullOrWhiteSpace(order.definitionId))
+                {
+                    reason = "Legacy customer-order rows are invalid or duplicated.";
+                    return false;
+                }
+            }
+
+        }
+
+        switch (progression.shelfLevel)
+        {
+            case 1:
+            case 2:
+                progression.shelfLevel = 1;
+                break;
+            case 3:
+                progression.shelfLevel = 2;
+                break;
+            case 4:
+                progression.shelfLevel = 3;
+                break;
+            case 5:
+                progression.shelfLevel = 4;
+                break;
+        }
+        progression.customerLevel =
+            Mathf.Min(progression.customerLevel, 3);
+
+        return true;
+    }
+
     private bool CanSaveFromLifecycle()
 
     {
@@ -389,6 +551,141 @@ public class SaveManager : MonoBehaviour
             SaveDirectory,
             "player_save.json"
         );
+
+    public bool TryResetDevelopmentProfileFiles(out string message)
+    {
+        message = null;
+        if (!SavePathPolicy.IsDevelopmentSaveIsolationEnabled ||
+            saveInProgress || loadInProgress ||
+            lifecycleCallbackInProgress || !CanWriteCurrentState() ||
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Game")
+        {
+            message =
+                "Development profile reset is unavailable outside a ready, isolated Game session.";
+            return false;
+        }
+
+        string expectedDirectory;
+        string activeDirectory;
+        try
+        {
+            expectedDirectory =
+                Path.GetFullPath(SavePathPolicy.GetSaveDirectory());
+            activeDirectory = Path.GetFullPath(SaveDirectory);
+        }
+        catch (Exception exception)
+        {
+            message = "Development save directory could not be verified.";
+            Debug.LogError("SAVE RESET | " + message + "\n" + exception);
+            return false;
+        }
+
+        if (!string.Equals(
+                expectedDirectory,
+                activeDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            message =
+                "Active save directory is not the development-isolated profile.";
+            return false;
+        }
+
+        var profileFiles = new List<string>
+        {
+            SaveFilePath,
+            SaveFilePath + ".bak",
+            SaveFilePath + ".tmp",
+            SaveFilePath + ".bak.tmp",
+            SaveFilePath + ".recover.tmp",
+            LegacyV1SaveFilePath,
+            LegacyV1SaveFilePath + ".bak",
+            LegacyV1SaveFilePath + ".tmp"
+        };
+
+        string resetToken = Guid.NewGuid().ToString("N");
+        var quarantined = new List<KeyValuePair<string, string>>();
+        try
+        {
+            if (Directory.Exists(activeDirectory))
+            {
+                profileFiles.AddRange(Directory.GetFiles(
+                    activeDirectory,
+                    Path.GetFileName(SaveFilePath) + ".corrupt.*",
+                    SearchOption.TopDirectoryOnly));
+            }
+
+            foreach (string source in profileFiles)
+            {
+                if (!File.Exists(source))
+                    continue;
+
+                string quarantine = source + ".reset-" + resetToken;
+                File.Move(source, quarantine);
+                quarantined.Add(
+                    new KeyValuePair<string, string>(source, quarantine));
+            }
+        }
+        catch (Exception exception)
+        {
+            bool rollbackSucceeded = true;
+            for (int i = quarantined.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    File.Move(
+                        quarantined[i].Value,
+                        quarantined[i].Key);
+                }
+                catch (Exception rollbackException)
+                {
+                    rollbackSucceeded = false;
+                    Debug.LogError(
+                        "SAVE RESET | Could not restore quarantined development profile file '" +
+                        quarantined[i].Key + "'.\n" + rollbackException);
+                }
+            }
+
+            message = rollbackSucceeded
+                ? "Development profile files could not be reset; the original files were restored."
+                : "Development profile reset failed and file rollback was incomplete. Check the development save directory.";
+            Debug.LogError("SAVE RESET | " + message + "\n" + exception);
+            return false;
+        }
+
+        bool cleanupSucceeded = true;
+        foreach (KeyValuePair<string, string> entry in quarantined)
+        {
+            try
+            {
+                File.Delete(entry.Value);
+            }
+            catch (Exception exception)
+            {
+                cleanupSucceeded = false;
+                Debug.LogWarning(
+                    "SAVE RESET | Old development data remains quarantined under '" +
+                    entry.Value + "' and cannot participate in recovery.\n" +
+                    exception);
+            }
+        }
+
+        capacityLoadedData = null;
+        loadedCustomerCapacity = 0;
+        capacitySession = null;
+        capacityFingerprint = null;
+        sessionCustomerCapacity = 0;
+        loadedSelectedSpawnPoolId = null;
+        sessionSelectedSpawnPoolId = null;
+        loadedLuckLevel = 1;
+        sessionLuckLevel = 1;
+        loadedServingPlateProgressionVersion = 0;
+        compatibilityMigrationPending = false;
+
+        message = cleanupSucceeded
+            ? "Development profile and recognized recovery files were removed."
+            : "Development profile reset; old files remain quarantined and cannot be restored automatically.";
+        return true;
+    }
 
     // ==================================================
 
@@ -1380,8 +1677,11 @@ public class SaveManager : MonoBehaviour
         }
 
         if (saveSucceeded)
+        {
+            compatibilityMigrationPending = false;
             PlayerProgressionManager.Instance?
                 .MarkCampaignCompletionSaved();
+        }
 
         return saveSucceeded;
 
@@ -1715,7 +2015,6 @@ public class SaveManager : MonoBehaviour
     {
 
         if (!TryLoad(
-
                 out PlayerSaveData saveData))
 
         {
@@ -1729,7 +2028,27 @@ public class SaveManager : MonoBehaviour
             );
 
             return false;
+        }
 
+        if (!TryMigrateLegacyProgression(
+                saveData,
+                loadedServingPlateProgressionVersion,
+                loadedCustomerCapacity,
+                out int migratedCustomerCapacity,
+                out string migrationFailure))
+        {
+            Debug.LogError(
+                "LOAD MIGRATION | Compatibility migration failed. " +
+                "The original save was not modified. " + migrationFailure);
+            return false;
+        }
+        if (loadedServingPlateProgressionVersion == 0)
+        {
+            loadedServingPlateProgressionVersion =
+                CurrentServingPlateProgressionVersion;
+            loadedCustomerCapacity =
+                migratedCustomerCapacity;
+            compatibilityMigrationPending = true;
         }
 
         // ----------------------------------------------
@@ -2171,7 +2490,10 @@ public class SaveManager : MonoBehaviour
             var metadata = JsonUtility.FromJson<CustomerCapacityMetadata>(json);
 
             if (metadata == null)
-
+                return false;
+            if (metadata.servingPlateProgressionVersion < 0 ||
+                metadata.servingPlateProgressionVersion >
+                    CurrentServingPlateProgressionVersion)
                 return false;
 
             var gameplay = data.mergeGameplay;
@@ -2184,7 +2506,9 @@ public class SaveManager : MonoBehaviour
 
                     gameplay.shelfDesserts.Count == 0 && gameplay.customerOrders.Count == 0;
 
-            if (capacity < 1 || capacity > 4 || gameplay.customerOrders.Count != capacity)
+            if (capacity < 1 || capacity > 4 ||
+                (metadata.servingPlateProgressionVersion > 0 && capacity > 3) ||
+                gameplay.customerOrders.Count != capacity)
 
                 return false;
 
@@ -2366,20 +2690,32 @@ public class SaveManager : MonoBehaviour
             (!string.IsNullOrEmpty(metadata.selectedSpawnPoolId) &&
              !DessertSpawner.IsValidSpawnPoolId(metadata.selectedSpawnPoolId)) ||
             metadata.luckLevel < 0 ||
-            metadata.luckLevel > 4)
+            metadata.luckLevel > 4 ||
+            metadata.servingPlateProgressionVersion < 0 ||
+            metadata.servingPlateProgressionVersion >
+                CurrentServingPlateProgressionVersion)
             return false;
         int capacity = metadata.mergeSessionCustomerCapacity;
 
-        if (check.mergeGameplay.hasSession && (capacity < 1 || capacity > 4)) return false;
+        if (check.mergeGameplay.hasSession &&
+            (capacity < 1 || capacity > 4 ||
+             (metadata.servingPlateProgressionVersion > 0 && capacity > 3)))
+            return false;
+        if (metadata.servingPlateProgressionVersion > 0 &&
+            (check.progression.shelfLevel < 1 ||
+             check.progression.shelfLevel > 4 ||
+             check.progression.customerLevel < 1 ||
+             check.progression.customerLevel > 3))
+            return false;
 
-        if (!string.Equals(
-                json,
-                SerializeWithLuck(
-                    check,
-                    capacity,
-                    metadata.selectedSpawnPoolId,
-                    metadata.luckLevel),
-                StringComparison.Ordinal))
+        string canonicalJson =
+            SerializeWithServingPlateVersion(
+                check,
+                capacity,
+                metadata.selectedSpawnPoolId,
+                metadata.luckLevel,
+                metadata.servingPlateProgressionVersion);
+        if (!string.Equals(json, canonicalJson, StringComparison.Ordinal))
 
             return false;
 
@@ -2387,11 +2723,12 @@ public class SaveManager : MonoBehaviour
 
         return string.Equals(
             json,
-            SerializeWithLuck(
+            SerializeWithServingPlateVersion(
                 check,
                 capacity,
                 metadata.selectedSpawnPoolId,
-                metadata.luckLevel),
+                metadata.luckLevel,
+                metadata.servingPlateProgressionVersion),
             StringComparison.Ordinal);
 
     }
@@ -2680,6 +3017,9 @@ public class SaveManager : MonoBehaviour
             loadedLuckLevel = metadata.luckLevel > 0
                 ? metadata.luckLevel
                 : 1;
+            loadedServingPlateProgressionVersion =
+                metadata.servingPlateProgressionVersion;
+            compatibilityMigrationPending = false;
             sessionLuckLevel = loadedLuckLevel;
             data = parsed;
             Debug.Log("LOAD | Successfully read validated save file.\nPath: " + sourcePath);

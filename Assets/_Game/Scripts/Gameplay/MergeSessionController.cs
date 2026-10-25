@@ -22,6 +22,7 @@ public class MergeSessionController : MonoBehaviour
     private OrderManager orderManager;
     private bool hasRestoredAutomatically;
     private bool restorationInProgress;
+    private bool allowVerifiedMigrationCapture;
     private bool replacementSessionPreparedForCommit;
     private bool departurePrepared;
     public bool IsRestorationVerified { get; private set; }
@@ -172,7 +173,8 @@ public class MergeSessionController : MonoBehaviour
     /// </summary>
     public bool TryCaptureSession()
     {
-        if (restorationInProgress || !IsRestorationVerified ||
+        if ((restorationInProgress && !allowVerifiedMigrationCapture) ||
+            !IsRestorationVerified ||
             GameStartupCoordinator.Instance == null ||
             !GameStartupCoordinator.Instance.IsStartupComplete)
             return false;
@@ -740,6 +742,14 @@ public class MergeSessionController : MonoBehaviour
                     !SaveManager.Instance.TryGetSessionCustomerCapacity(data, orderManager.ActiveCustomerCount,
                         out int savedCapacity))
                     return FailRestoration("Saved customer capacity is unknown. Migrate the legacy save using its verified backup capacity.");
+                if (SaveManager.Instance.HasPendingCompatibilityMigration &&
+                    savedCapacity == 4)
+                {
+                    data = CopySession(data);
+                    if (!TryRetireLegacyFourthTable(data, out reason))
+                        return FailRestoration(reason);
+                    savedCapacity = 3;
+                }
                 if (!orderManager.ValidateSavedOrders(data.customerOrders, data.nextOrderId, savedCapacity, out reason))
                     return FailRestoration(reason);
                 data = CopySession(data);
@@ -808,6 +818,18 @@ public class MergeSessionController : MonoBehaviour
                     orderManager.ActiveCustomerCount,
                     dessertSpawner.SelectedSpawnPoolId);
             }
+            if (SaveManager.Instance != null &&
+                SaveManager.Instance.HasPendingCompatibilityMigration)
+            {
+                bool migrationSaveSucceeded =
+                    TrySaveCompatibilityMigration(
+                        SaveManager.Instance.SaveCurrentGame);
+                if (!migrationSaveSucceeded)
+                {
+                    return FailRestoration(
+                        "The migrated Save V2 snapshot could not be persisted through the validated save path.");
+                }
+            }
             hasRestoredAutomatically = true;
             Debug.Log("MERGE SESSION VERIFIED | Board, shelf, orders and next dessert are ready.");
             return true;
@@ -818,6 +840,23 @@ public class MergeSessionController : MonoBehaviour
         }
         finally { restorationInProgress = false; }
     }
+
+    private bool TrySaveCompatibilityMigration(Func<bool> saveMigration)
+    {
+        if (saveMigration == null)
+            throw new ArgumentNullException(nameof(saveMigration));
+
+        allowVerifiedMigrationCapture = true;
+        try
+        {
+            return saveMigration();
+        }
+        finally
+        {
+            allowVerifiedMigrationCapture = false;
+        }
+    }
+
     private static MergeSessionData CopySession(MergeSessionData source)
     {
         var copy = new MergeSessionData();
@@ -830,6 +869,57 @@ public class MergeSessionController : MonoBehaviour
         copy.nextOrderId = source.nextOrderId;
         copy.nextDessertTier = source.nextDessertTier;
         return copy;
+    }
+
+    private bool TryRetireLegacyFourthTable(
+        MergeSessionData data,
+        out string reason)
+    {
+        reason = null;
+        if (data == null ||
+            data.customerOrders == null ||
+            data.customerOrders.Count != 4 ||
+            data.nextOrderId <= 0)
+        {
+            reason = "Legacy four-Table session is incomplete.";
+            return false;
+        }
+
+        var indices = new HashSet<int>();
+        var orderIds = new HashSet<int>();
+        foreach (CustomerOrderState state in data.customerOrders)
+        {
+            if (state == null ||
+                state.customerIndex < 0 ||
+                state.customerIndex >= 4 ||
+                !indices.Add(state.customerIndex) ||
+                state.orderId <= 0 ||
+                state.orderId >= data.nextOrderId ||
+                !orderIds.Add(state.orderId))
+            {
+                reason = "Legacy four-Table order identities are invalid.";
+                return false;
+            }
+
+            CustomerOrder order =
+                state.CreateOrder(dessertSpawner);
+            if (order == null || !order.IsValid ||
+                order.OrderId != state.orderId)
+            {
+                reason = "Legacy four-Table session contains an invalid order.";
+                return false;
+            }
+        }
+
+        data.customerOrders.RemoveAll(
+            state => state.customerIndex == 3);
+        if (data.customerOrders.Count != 3)
+        {
+            reason = "Legacy fourth Table could not be retired safely.";
+            return false;
+        }
+
+        return true;
     }
 
     private bool ValidateExpectedState(MergeSessionData data, out string reason)
@@ -898,7 +988,7 @@ public class MergeSessionController : MonoBehaviour
         }
         var orderIds = new HashSet<int>();
         int expectedOrders = restoredCapacity < 0 ? progression.ActiveCustomerOrders : restoredCapacity;
-        if (orderManager.CustomerOrders.Count != 4)
+        if (orderManager.CustomerOrders.Count != 3)
         { reason = "Order slot layout is invalid."; return false; }
         for (int i = 0; i < orderManager.CustomerOrders.Count; i++)
         {

@@ -2,6 +2,10 @@ using System.Collections.Generic;
 
 public class CustomerOrder
 {
+    private const int MaximumGeneratedDessertTypes = 2;
+    private const int MaximumGeneratedCopiesPerType = 3;
+    private const int MaximumGeneratedTotal = 5;
+
     private readonly int orderId;
     private readonly CustomerOrderDefinition definition;
     private readonly string generatedDisplayName;
@@ -82,6 +86,10 @@ public class CustomerOrder
         }
 
         var usedDesserts = new HashSet<DessertDefinition>();
+        int totalAmount = 0;
+        if (generatedRequirements.Count > MaximumGeneratedDessertTypes)
+            return false;
+
         foreach (OrderRequirement requirement in generatedRequirements)
         {
             if (requirement == null ||
@@ -89,13 +97,28 @@ public class CustomerOrder
                 requirement.Dessert.Tier < 1 ||
                 requirement.Dessert.Tier > 30 ||
                 requirement.Amount <= 0 ||
+                requirement.Amount > MaximumGeneratedCopiesPerType ||
                 !usedDesserts.Add(requirement.Dessert))
             {
                 return false;
             }
+
+            totalAmount += requirement.Amount;
         }
 
-        return true;
+        return totalAmount <= MaximumGeneratedTotal;
+    }
+
+    internal bool IsValidForServingPlateCapacity(int capacity)
+    {
+        if (!IsValid || capacity < 1 || capacity > MaximumGeneratedTotal)
+            return false;
+
+        int totalAmount = 0;
+        foreach (OrderRequirement requirement in Requirements)
+            totalAmount += requirement.Amount;
+
+        return totalAmount <= capacity;
     }
 
     // --------------------------------------------------
@@ -103,12 +126,12 @@ public class CustomerOrder
     // --------------------------------------------------
 
     public bool CanFulfill(
-        GridManager gridManager)
+        ShelfManager shelfManager)
     {
         if (!IsValid)
             return false;
 
-        if (gridManager == null)
+        if (shelfManager == null)
             return false;
 
         foreach (
@@ -116,8 +139,8 @@ public class CustomerOrder
             in Requirements)
         {
             int availableAmount =
-                CountDessertOnBoard(
-                    gridManager,
+                CountDessertOnServingPlates(
+                    shelfManager,
                     requirement.Dessert
                 );
 
@@ -132,24 +155,24 @@ public class CustomerOrder
     }
 
     public int GetAvailableAmount(
-        GridManager gridManager,
+        ShelfManager shelfManager,
         DessertDefinition dessertDefinition)
     {
-        return CountDessertOnBoard(
-            gridManager,
+        return CountDessertOnServingPlates(
+            shelfManager,
             dessertDefinition
         );
     }
 
     public bool TryGetDessertsForFulfillment(
-        GridManager gridManager,
+        ShelfManager shelfManager,
         out List<Dessert> desserts)
     {
         desserts =
             new List<Dessert>();
 
         if (!CanFulfill(
-                gridManager))
+                shelfManager))
         {
             return false;
         }
@@ -162,21 +185,21 @@ public class CustomerOrder
                 requirement.Amount;
 
             foreach (
-                GridCell cell
-                in gridManager.Cells)
+                ShelfSlot slot
+                in shelfManager.Slots)
             {
                 if (remaining <= 0)
                     break;
 
-                if (cell == null ||
-                    !cell.IsUnlocked ||
-                    cell.IsEmpty)
+                if (slot == null ||
+                    !slot.IsUnlocked ||
+                    slot.IsEmpty)
                 {
                     continue;
                 }
 
                 Dessert dessert =
-                    cell.CurrentDessert;
+                    slot.CurrentDessert;
 
                 if (dessert == null)
                     continue;
@@ -211,14 +234,14 @@ public class CustomerOrder
     }
 
     // --------------------------------------------------
-    // BOARD INVENTORY
+    // SERVING PLATE INVENTORY
     // --------------------------------------------------
 
-    private int CountDessertOnBoard(
-        GridManager gridManager,
+    private int CountDessertOnServingPlates(
+        ShelfManager shelfManager,
         DessertDefinition dessertDefinition)
     {
-        if (gridManager == null ||
+        if (shelfManager == null ||
             dessertDefinition == null)
         {
             return 0;
@@ -227,18 +250,18 @@ public class CustomerOrder
         int count = 0;
 
         foreach (
-            GridCell cell
-            in gridManager.Cells)
+            ShelfSlot slot
+            in shelfManager.Slots)
         {
-            if (cell == null ||
-                !cell.IsUnlocked ||
-                cell.IsEmpty)
+            if (slot == null ||
+                !slot.IsUnlocked ||
+                slot.IsEmpty)
             {
                 continue;
             }
 
             Dessert dessert =
-                cell.CurrentDessert;
+                slot.CurrentDessert;
 
             if (dessert == null)
                 continue;

@@ -99,6 +99,21 @@ public class GameStartupCoordinator : MonoBehaviour
         reloadLiveGameplay = false;
     }
 
+    internal bool BeginFreshDevelopmentGame()
+    {
+        if (!SavePathPolicy.IsDevelopmentSaveIsolationEnabled)
+            return false;
+
+        startupAttempted = true;
+        reloadLiveGameplay = false;
+        verifiedController = null;
+        verifiedSnapshotAvailable = false;
+        LastFailureReason = null;
+        Status = StartupStatus.NewGame;
+        SaveManager.Instance?.SuspendLifecycleSaving();
+        return true;
+    }
+
     private IEnumerator RestoreLiveAfterReload()
     {
         yield return null;

@@ -13,10 +13,12 @@ public class OrderManager : MonoBehaviour
         internal bool IsFulfilling;
     }
 
-    private const int MaxCustomerSlots = 4;
+    private const int MaxCustomerSlots = 3;
     [Header("References")]
     [SerializeField]
     private GridManager gridManager;
+    [SerializeField]
+    private ShelfManager shelfManager;
     [SerializeField]
     private PlayerProgressionManager
         progressionManager;
@@ -29,12 +31,11 @@ public class OrderManager : MonoBehaviour
     // RUNTIME STATE
     // --------------------------------------------------
     // IMPORTANT:
-    // This list always contains exactly four entries.
+    // This list always contains exactly three entries.
     //
-    // Index 0 = Customer 1
-    // Index 1 = Customer 2
-    // Index 2 = Customer 3
-    // Index 3 = Customer 4
+    // Index 0 = Table 1
+    // Index 1 = Table 2
+    // Index 2 = Table 3
     //
     // Locked / inactive slots contain null.
     private readonly List<CustomerOrder>
@@ -161,8 +162,18 @@ public class OrderManager : MonoBehaviour
             );
             yield break;
         }
+        if (shelfManager == null)
+        {
+            Debug.LogError(
+                "OrderManager: ShelfManager " +
+                "could not be found."
+            );
+            yield break;
+        }
         gridManager.BoardChanged +=
             HandleBoardChanged;
+        shelfManager.ShelfChanged +=
+            HandleShelfChanged;
         progressionManager
             .UpgradeLevelChanged +=
                 HandleUpgradeLevelChanged;
@@ -177,6 +188,8 @@ public class OrderManager : MonoBehaviour
             gridManager.BoardChanged -=
                 HandleBoardChanged;
         }
+        if (shelfManager != null)
+            shelfManager.ShelfChanged -= HandleShelfChanged;
         if (progressionManager != null)
         {
             progressionManager
@@ -191,6 +204,12 @@ public class OrderManager : MonoBehaviour
         gridManager =
             FindAnyObjectByType<
                 GridManager>();
+    }
+    if (shelfManager == null)
+    {
+        shelfManager =
+            FindAnyObjectByType<
+                ShelfManager>();
     }
     /*
      * Always prefer the persistent progression
@@ -309,11 +328,31 @@ public bool ValidateSavedOrders(IReadOnlyList<CustomerOrderState> savedOrders,
     var ids = new HashSet<int>();
     foreach (var state in savedOrders)
     {
-        if (state == null || state.customerIndex < 0 || state.customerIndex >= savedCapacity ||
-        !slots.Add(state.customerIndex) ||
-        state.CreateOrder(dessertSpawner) == null ||
-        state.orderId <= 0 || !ids.Add(state.orderId) || state.orderId >= savedNextOrderId)
-    { reason = "Saved order has an invalid definition, slot, identity or counter."; return false; }
+        if (state == null ||
+            state.customerIndex < 0 ||
+            state.customerIndex >= savedCapacity ||
+            !slots.Add(state.customerIndex) ||
+            state.orderId <= 0 ||
+            !ids.Add(state.orderId) ||
+            state.orderId >= savedNextOrderId)
+        {
+            reason =
+                "Saved order has an invalid slot, identity, or counter.";
+            return false;
+        }
+
+        CustomerOrder order = state.CreateOrder(dessertSpawner);
+        if (order == null ||
+            !order.IsValid ||
+            (order.Definition == null &&
+             !order.IsValidForServingPlateCapacity(
+                 progressionManager.ShelfCapacity)))
+        {
+            reason =
+                $"Saved order for Table {state.customerIndex + 1} " +
+                "has invalid procedural data or exceeds current Serving Plate capacity.";
+            return false;
+        }
     }
     // Count plus unique indices in [0, savedCapacity) proves a complete prefix.
     return true;
@@ -401,6 +440,114 @@ internal bool TryPrepareFreshSessionOrders(
     pendingFreshSessionOrders = preparedOrders;
     pendingFreshSessionNextOrderId = preparedNextOrderId;
     return true;
+}
+
+internal bool TryPrepareOrderRefresh(
+    out CustomerOrderState[] preparedOrders,
+    out int preparedNextOrderId,
+    out string reason)
+{
+    ResolveReferences();
+    preparedOrders = null;
+    preparedNextOrderId = nextOrderId;
+    reason = null;
+    int capacity = ActiveCustomerCount;
+    if (isFulfilling || progressionManager == null ||
+        capacity < 1 || nextOrderId <= 0 ||
+        (long)nextOrderId + capacity > int.MaxValue)
+    {
+        reason = "Order refresh is unavailable or the order ID sequence is exhausted.";
+        return false;
+    }
+
+    for (int i = 0; i < MaxCustomerSlots; i++)
+    {
+        CustomerOrder existing = customerOrders[i];
+        if (!IsCustomerUnlocked(i) && existing != null)
+        {
+            reason =
+                $"Locked Table {i + 1} unexpectedly contains an order.";
+            return false;
+        }
+        if (existing != null && existing.OrderId >= nextOrderId)
+        {
+            reason = "An active order conflicts with the next order ID.";
+            return false;
+        }
+    }
+
+    var replacement = new CustomerOrderState[capacity];
+    for (int customerIndex = 0; customerIndex < capacity; customerIndex++)
+    {
+        int orderId = nextOrderId + customerIndex;
+        if (!TryGenerateProceduralOrder(
+                orderId,
+                CreateOrderRandom(),
+                out CustomerOrder generatedOrder))
+        {
+            reason =
+                $"A replacement order could not be generated for Table {customerIndex + 1}.";
+            return false;
+        }
+
+        replacement[customerIndex] =
+            new CustomerOrderState(customerIndex, generatedOrder);
+    }
+
+    preparedOrders = replacement;
+    preparedNextOrderId = nextOrderId + capacity;
+    return true;
+}
+
+internal bool ApplyPreparedOrderRefresh(
+    CustomerOrderState[] preparedOrders,
+    int preparedNextOrderId)
+{
+    if (preparedOrders == null ||
+        preparedOrders.Length != ActiveCustomerCount ||
+        preparedNextOrderId != nextOrderId + preparedOrders.Length ||
+        preparedNextOrderId <= nextOrderId ||
+        isFulfilling)
+        return false;
+
+    var replacement = new CustomerOrder[MaxCustomerSlots];
+    var occupiedSlots = new bool[preparedOrders.Length];
+    foreach (CustomerOrderState state in preparedOrders)
+    {
+        if (state == null ||
+            state.customerIndex < 0 ||
+            state.customerIndex >= preparedOrders.Length ||
+            occupiedSlots[state.customerIndex] ||
+            state.orderId != nextOrderId + state.customerIndex)
+            return false;
+
+        CustomerOrder order = state.CreateOrder(dessertSpawner);
+        if (order == null || !order.IsValid)
+            return false;
+
+        occupiedSlots[state.customerIndex] = true;
+        replacement[state.customerIndex] = order;
+    }
+
+    for (int i = 0; i < occupiedSlots.Length; i++)
+        if (!occupiedSlots[i])
+            return false;
+
+    for (int i = 0; i < MaxCustomerSlots; i++)
+        customerOrders[i] = replacement[i];
+
+    nextOrderId = preparedNextOrderId;
+    recentOrderDefinitions.Clear();
+    for (int i = 0; i < preparedOrders.Length; i++)
+        TrackRecentDefinition(replacement[i].Definition);
+    return true;
+}
+
+internal void PublishOrderRefresh()
+{
+    for (int i = 0; i < ActiveCustomerCount; i++)
+        CustomerOrderChanged?.Invoke(i, customerOrders[i]);
+    NotifyOrderCollectionsChanged();
 }
 
 internal SessionReplacementState CaptureSessionReplacementState()
@@ -552,10 +699,11 @@ internal void PublishPreparedFreshSessionOrders()
             return false;
         }
 
-        if (!ProceduralCustomerOrderGenerator.TryGenerate(
+        if (!ProceduralCustomerOrderGenerator.TryGenerateForPlateCapacity(
                 dessertSpawner.DessertDefinitions,
                 progressionManager.OvenLevel,
                 progressionManager.MaxUnlockedDessertTier,
+                progressionManager.ShelfCapacity,
                 random,
                 out GeneratedCustomerOrder generated))
         {
@@ -563,7 +711,8 @@ internal void PublishPreparedFreshSessionOrders()
         }
 
         order = new CustomerOrder(orderId, generated);
-        return order.IsValid;
+        return order.IsValidForServingPlateCapacity(
+            progressionManager.ShelfCapacity);
     }
 
     private static System.Random CreateOrderRandom()
@@ -802,7 +951,7 @@ internal void PublishPreparedFreshSessionOrders()
     {
         if (isFulfilling)
             return false;
-        if (gridManager == null)
+        if (shelfManager == null)
             return false;
         if (!IsCustomerUnlocked(
                 customerIndex))
@@ -819,7 +968,7 @@ internal void PublishPreparedFreshSessionOrders()
             return false;
         }
         return order.CanFulfill(
-            gridManager
+            shelfManager
         );
     }
     public bool TryFulfillActiveOrder()
@@ -840,6 +989,14 @@ internal void PublishPreparedFreshSessionOrders()
         {
             Debug.LogError(
                 "OrderManager: GridManager " +
+                "is missing."
+            );
+            return false;
+        }
+        if (shelfManager == null)
+        {
+            Debug.LogError(
+                "OrderManager: ShelfManager " +
                 "is missing."
             );
             return false;
@@ -865,7 +1022,7 @@ internal void PublishPreparedFreshSessionOrders()
         }
         if (!orderToComplete
                 .TryGetDessertsForFulfillment(
-                    gridManager,
+                    shelfManager,
                     out List<Dessert>
                         dessertsToConsume))
         {
@@ -883,7 +1040,7 @@ internal void PublishPreparedFreshSessionOrders()
             orderToComplete
         );
         // ----------------------------------------------
-        // CONSUME BOARD INVENTORY
+        // CONSUME SERVING PLATE INVENTORY
         // ----------------------------------------------
         foreach (
             Dessert dessert
@@ -891,11 +1048,11 @@ internal void PublishPreparedFreshSessionOrders()
         {
             if (dessert == null)
                 continue;
-            GridCell cell =
-                dessert.CurrentCell;
-            if (cell != null)
+            ShelfSlot slot =
+                dessert.CurrentShelfSlot;
+            if (slot != null)
             {
-                cell.RemoveDessert(
+                slot.RemoveDessert(
                     dessert
                 );
             }
@@ -924,6 +1081,7 @@ internal void PublishPreparedFreshSessionOrders()
         );
         gridManager
             .NotifyBoardChanged();
+        shelfManager.NotifyShelfChanged();
         Debug.Log(
             $"ORDER COMPLETED | " +
             $"Customer {customerIndex + 1} | " +
@@ -953,6 +1111,10 @@ internal void PublishPreparedFreshSessionOrders()
     {
         EvaluateOrders();
     }
+    private void HandleShelfChanged()
+    {
+        EvaluateOrders();
+    }
     private void EvaluateOrders()
     {
         if (isFulfilling)
@@ -969,7 +1131,7 @@ internal void PublishPreparedFreshSessionOrders()
                 continue;
             bool canFulfill =
                 order.CanFulfill(
-                    gridManager
+                    shelfManager
                 );
             Debug.Log(
                 $"ORDER STATE | " +
