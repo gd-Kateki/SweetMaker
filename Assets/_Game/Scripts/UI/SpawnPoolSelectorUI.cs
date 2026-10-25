@@ -39,6 +39,17 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
     private bool hasEvaluatedLayout;
     private bool hasObservedScreenLayout;
     private bool hasLoggedPlacementFailure;
+    private bool controlsVisible = true;
+
+    public bool ControlsVisible => controlsVisible;
+
+    public void SetControlsVisible(bool visible)
+    {
+        controlsVisible = visible;
+
+        if (panel != null)
+            panel.gameObject.SetActive(visible);
+    }
 
     private void OnEnable()
     {
@@ -160,6 +171,7 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
         poolRect.pivot = new Vector2(0.5f, 0.5f);
         poolRect.anchoredPosition = Vector2.zero;
         poolRect.sizeDelta = new Vector2(156f, 46f);
+        panel.gameObject.SetActive(controlsVisible);
     }
 
     private static Button CreateButton(Transform parent, string objectName, string label)

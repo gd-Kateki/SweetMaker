@@ -271,6 +271,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         scrollRect.content = contentRect;
 
         BuildCashSection(content.transform);
+        BuildEnergySection(content.transform);
         BuildRebirthSection(content.transform);
         BuildDessertSection(content.transform);
         BuildProfileSection(content.transform);
@@ -308,6 +309,37 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             new Color(0.18f, 0.34f, 0.25f),
             AddCustomCash,
             true);
+    }
+
+    private void BuildEnergySection(Transform content)
+    {
+        AddSection(content, "ENERGY");
+        CreateRow(
+            content,
+            row => CreateButton(
+                "SET 0",
+                row,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero,
+                new Color(0.28f, 0.22f, 0.4f),
+                () => RunCommand(
+                    "Set Energy to 0",
+                    DeveloperCheatCommands.SetEnergyToZero),
+                true),
+            row => CreateButton(
+                "REFILL 30",
+                row,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero,
+                new Color(0.2f, 0.36f, 0.3f),
+                () => RunCommand(
+                    "Refill Energy",
+                    DeveloperCheatCommands.RefillEnergy),
+                true));
     }
 
     private void BuildRebirthSection(Transform content)
@@ -795,6 +827,9 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         diagnosticsText.text =
             "Controls: " + state + "\n" +
             "Cash: " + (economy != null ? "$" + economy.CurrentCash : "Unavailable") + "\n" +
+            "Energy: " + (progression != null
+                ? progression.CurrentEnergy + "/" + progression.MaximumEnergy
+                : "Unavailable") + "\n" +
             "Rebirth: " + (progression != null ? "R" + progression.CurrentRebirthCount : "Unavailable") + "\n" +
             "Oven: " + (progression != null ? "L" + progression.OvenLevel : "Unavailable") + "\n" +
             "Merge cap: " + (progression != null ? "T" + progression.MaxUnlockedDessertTier : "Unavailable") + "\n" +

@@ -47,27 +47,66 @@ public class OvenManager : MonoBehaviour
             return;
         }
 
+        PlayerProgressionManager progression =
+            PlayerProgressionManager.Instance;
+        if (progression == null)
+        {
+            Debug.LogError(
+                "OvenManager: PlayerProgressionManager is unavailable; " +
+                "player spawning is blocked."
+            );
+            return;
+        }
+
+        if (progression.CurrentEnergy <= 0)
+        {
+            Debug.Log("OVEN | Spawn request rejected: no Energy.");
+            return;
+        }
+
         isProcessingRequest = true;
-
-        bool spawned =
-            dessertSpawner.TrySpawnRandomDessert(
+        bool spawned;
+        try
+        {
+            spawned = dessertSpawner.TrySpawnRandomDessert(
                 out bool failedForNoBoardSpace);
-        LastRequestFailedForNoBoardSpace =
-            failedForNoBoardSpace;
+            LastRequestFailedForNoBoardSpace =
+                failedForNoBoardSpace;
 
-        isProcessingRequest = false;
+            if (spawned)
+            {
+                if (!progression.TryConsumeEnergy())
+                {
+                    Debug.LogError(
+                        "OVEN | Dessert spawned, but Energy could not be " +
+                        "deducted after the successful request."
+                    );
+                }
+                else if (SaveManager.Instance == null)
+                {
+                    Debug.LogError(
+                        "OVEN | Energy was deducted, but SaveManager is " +
+                        "unavailable; the Energy state was not persisted."
+                    );
+                }
+                else if (!SaveManager.Instance.SaveCurrentGame())
+                {
+                    Debug.LogError(
+                        "OVEN | Energy was deducted, but saving the Energy " +
+                        "state failed."
+                    );
+                }
+            }
+        }
+        finally
+        {
+            isProcessingRequest = false;
+        }
 
-        if (spawned)
-{
-    Debug.Log(
-        "OVEN | Spawn request successful."
-    );
-}
-else
-{
-    Debug.Log(
-        "OVEN | Spawn request failed."
-    );
-}
+        Debug.Log(
+            spawned
+                ? "OVEN | Spawn request successful."
+                : "OVEN | Spawn request failed."
+        );
     }
 }

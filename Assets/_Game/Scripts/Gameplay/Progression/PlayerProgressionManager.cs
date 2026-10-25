@@ -10,6 +10,9 @@ public enum CampaignCompletionPersistenceState
 
 public class PlayerProgressionManager : MonoBehaviour
 {
+    private const int MaximumEnergyValue = 30;
+    private const double EnergyRegenerationIntervalSeconds = 60d;
+
     public static PlayerProgressionManager Instance
     {
         get;
@@ -64,6 +67,14 @@ public class PlayerProgressionManager : MonoBehaviour
     [SerializeField]
     private int luckLevel = 1;
 
+    private int currentEnergy = MaximumEnergyValue;
+
+    private double secondsUntilNextEnergy;
+    private double lastEnergyRealtimeSeconds;
+    private bool energyClockPaused;
+    private long energyPauseUtcTicks;
+    private long energyUtcAnchorTicks;
+
     [Header("Rebirth Progression")]
     [SerializeField]
     private RebirthProgressionState rebirthProgression =
@@ -82,6 +93,8 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public event Action<UpgradeType, int>
         UpgradeLevelChanged;
+
+    public event Action EnergyChanged;
 
     public event Action
         RebirthProgressionChanged;
@@ -110,6 +123,27 @@ public class PlayerProgressionManager : MonoBehaviour
 
     public int LuckLevel =>
         luckLevel;
+
+    public int CurrentEnergy
+    {
+        get
+        {
+            AdvanceEnergyClock();
+            return currentEnergy;
+        }
+    }
+
+    public int MaximumEnergy =>
+        MaximumEnergyValue;
+
+    public float SecondsUntilNextEnergy
+    {
+        get
+        {
+            AdvanceEnergyClock();
+            return (float)secondsUntilNextEnergy;
+        }
+    }
 
     public int CurrentRebirthCount =>
         RebirthProgression.CurrentRebirthCount;
@@ -200,6 +234,53 @@ public class PlayerProgressionManager : MonoBehaviour
 
         ValidateDefinitions();
         ClampRuntimeLevels();
+        currentEnergy = MaximumEnergyValue;
+        secondsUntilNextEnergy = 0d;
+        lastEnergyRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
+        energyUtcAnchorTicks = DateTime.UtcNow.Ticks;
+    }
+
+    private void Update()
+    {
+        AdvanceEnergyClock();
+    }
+
+    private void OnApplicationPause(bool isPaused)
+    {
+        if (Instance != this)
+            return;
+
+        if (isPaused)
+        {
+            if (!energyClockPaused)
+            {
+                AdvanceEnergyClock();
+                energyPauseUtcTicks = Math.Max(
+                    energyUtcAnchorTicks,
+                    DateTime.UtcNow.Ticks);
+                energyClockPaused = true;
+            }
+
+            return;
+        }
+
+        if (!energyClockPaused)
+            return;
+
+        long nowUtcTicks = DateTime.UtcNow.Ticks;
+        if (nowUtcTicks > energyPauseUtcTicks)
+        {
+            double elapsedSeconds =
+                (nowUtcTicks - energyPauseUtcTicks) /
+                (double)TimeSpan.TicksPerSecond;
+            AdvanceEnergyBy(elapsedSeconds);
+        }
+
+        energyUtcAnchorTicks = Math.Max(
+            energyPauseUtcTicks,
+            nowUtcTicks);
+        energyClockPaused = false;
+        lastEnergyRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
     }
 
     private void OnEnable()
@@ -223,6 +304,166 @@ public class PlayerProgressionManager : MonoBehaviour
             HandleCreatedDessert;
         GameplayEvents.DessertMerged -=
             HandleCreatedDessert;
+    }
+
+    public bool TryConsumeEnergy()
+    {
+        AdvanceEnergyClock();
+        if (currentEnergy <= 0)
+            return false;
+
+        bool wasAtCapacity = currentEnergy == MaximumEnergyValue;
+        currentEnergy--;
+        if (wasAtCapacity)
+            secondsUntilNextEnergy = EnergyRegenerationIntervalSeconds;
+
+        EnergyChanged?.Invoke();
+        return true;
+    }
+
+    public void ResetEnergy()
+    {
+        currentEnergy = MaximumEnergyValue;
+        secondsUntilNextEnergy = 0d;
+        energyClockPaused = false;
+        energyPauseUtcTicks = 0;
+        lastEnergyRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
+        energyUtcAnchorTicks = DateTime.UtcNow.Ticks;
+        EnergyChanged?.Invoke();
+    }
+
+    internal bool SetEnergyForDevelopment(int energy)
+    {
+        if (energy < 0 || energy > MaximumEnergyValue)
+            return false;
+
+        currentEnergy = energy;
+        secondsUntilNextEnergy = energy < MaximumEnergyValue
+            ? EnergyRegenerationIntervalSeconds
+            : 0d;
+        energyClockPaused = false;
+        energyPauseUtcTicks = 0;
+        lastEnergyRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
+        energyUtcAnchorTicks = DateTime.UtcNow.Ticks;
+        EnergyChanged?.Invoke();
+        return true;
+    }
+
+    internal bool RestoreEnergy(
+        int restoredEnergy,
+        int millisecondsUntilNextEnergy,
+        long savedUtcTicks)
+    {
+        if (restoredEnergy < 0 ||
+            restoredEnergy > MaximumEnergyValue ||
+            savedUtcTicks <= 0 ||
+            savedUtcTicks > DateTime.MaxValue.Ticks ||
+            (restoredEnergy == MaximumEnergyValue &&
+             millisecondsUntilNextEnergy != 0) ||
+            (restoredEnergy < MaximumEnergyValue &&
+             (millisecondsUntilNextEnergy < 1 ||
+              millisecondsUntilNextEnergy > 60000)))
+        {
+            return false;
+        }
+
+        currentEnergy = restoredEnergy;
+        secondsUntilNextEnergy =
+            millisecondsUntilNextEnergy / 1000d;
+        energyClockPaused = false;
+
+        long nowUtcTicks = DateTime.UtcNow.Ticks;
+        if (nowUtcTicks > savedUtcTicks)
+        {
+            double elapsedSeconds =
+                (nowUtcTicks - savedUtcTicks) /
+                (double)TimeSpan.TicksPerSecond;
+            AdvanceEnergyBy(elapsedSeconds);
+        }
+
+        energyUtcAnchorTicks = Math.Max(savedUtcTicks, nowUtcTicks);
+        lastEnergyRealtimeSeconds = Time.realtimeSinceStartupAsDouble;
+        EnergyChanged?.Invoke();
+        return true;
+    }
+
+    internal void CaptureEnergySaveState(
+        out int energy,
+        out int millisecondsUntilNextEnergy,
+        out long savedUtcTicks)
+    {
+        AdvanceEnergyClock();
+        energy = currentEnergy;
+        millisecondsUntilNextEnergy = currentEnergy == MaximumEnergyValue
+            ? 0
+            : Mathf.Clamp(
+                (int)Math.Ceiling(secondsUntilNextEnergy * 1000d),
+                1,
+                60000);
+        long nowUtcTicks = energyClockPaused
+            ? energyPauseUtcTicks
+            : DateTime.UtcNow.Ticks;
+        energyUtcAnchorTicks = Math.Max(energyUtcAnchorTicks, nowUtcTicks);
+        savedUtcTicks = energyUtcAnchorTicks;
+    }
+
+    private void AdvanceEnergyClock()
+    {
+        double now = Time.realtimeSinceStartupAsDouble;
+        if (energyClockPaused)
+        {
+            lastEnergyRealtimeSeconds = now;
+            return;
+        }
+
+        double elapsedSeconds = now - lastEnergyRealtimeSeconds;
+        lastEnergyRealtimeSeconds = now;
+        if (elapsedSeconds > 0d)
+            AdvanceEnergyBy(elapsedSeconds);
+    }
+
+    private void AdvanceEnergyBy(double elapsedSeconds)
+    {
+        if (currentEnergy >= MaximumEnergyValue)
+        {
+            currentEnergy = MaximumEnergyValue;
+            secondsUntilNextEnergy = 0d;
+            return;
+        }
+
+        if (elapsedSeconds <= 0d)
+            return;
+
+        int previousEnergy = currentEnergy;
+        double timeToCapacity =
+            secondsUntilNextEnergy +
+            (MaximumEnergyValue - currentEnergy - 1) *
+            EnergyRegenerationIntervalSeconds;
+        if (elapsedSeconds >= timeToCapacity)
+        {
+            currentEnergy = MaximumEnergyValue;
+            secondsUntilNextEnergy = 0d;
+        }
+        else if (elapsedSeconds >= secondsUntilNextEnergy)
+        {
+            double elapsedAfterFirstPoint =
+                elapsedSeconds - secondsUntilNextEnergy;
+            int regeneratedPoints =
+                1 + (int)(elapsedAfterFirstPoint /
+                          EnergyRegenerationIntervalSeconds);
+            currentEnergy += regeneratedPoints;
+            secondsUntilNextEnergy =
+                EnergyRegenerationIntervalSeconds -
+                (elapsedAfterFirstPoint %
+                 EnergyRegenerationIntervalSeconds);
+        }
+        else
+        {
+            secondsUntilNextEnergy -= elapsedSeconds;
+        }
+
+        if (currentEnergy > previousEnergy)
+            EnergyChanged?.Invoke();
     }
 
     private RebirthProgressionState RebirthProgression

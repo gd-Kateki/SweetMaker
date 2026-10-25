@@ -13,6 +13,12 @@ public class UpgradeScreenUI : MonoBehaviour
     [SerializeField]
     private Button closeButton;
 
+    [SerializeField]
+    private SpawnPoolSelectorUI spawnPoolSelector;
+
+    private bool selectorVisibilityOverridden;
+    private bool selectorWasVisible;
+
     private void Awake()
     {
         if (openButton != null)
@@ -34,6 +40,8 @@ public class UpgradeScreenUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        RestoreSpawnPoolSelector();
+
         if (openButton != null)
         {
             openButton.onClick.RemoveListener(
@@ -46,6 +54,20 @@ public class UpgradeScreenUI : MonoBehaviour
             closeButton.onClick.RemoveListener(
                 HandleCloseClicked
             );
+        }
+    }
+
+    private void OnDisable()
+    {
+        RestoreSpawnPoolSelector();
+    }
+
+    private void LateUpdate()
+    {
+        if (selectorVisibilityOverridden &&
+            (upgradeScreen == null || !upgradeScreen.activeInHierarchy))
+        {
+            RestoreSpawnPoolSelector();
         }
     }
 
@@ -72,6 +94,7 @@ public class UpgradeScreenUI : MonoBehaviour
         if (upgradeScreen == null)
             return;
 
+        HideSpawnPoolSelector();
         upgradeScreen.SetActive(
             true
         );
@@ -83,15 +106,38 @@ public class UpgradeScreenUI : MonoBehaviour
 
     public void Close()
     {
-        if (upgradeScreen == null)
-            return;
+        if (upgradeScreen != null)
+            upgradeScreen.SetActive(false);
 
-        upgradeScreen.SetActive(
-            false
-        );
+        RestoreSpawnPoolSelector();
 
         Debug.Log(
             "UPGRADE SCREEN | Closed"
         );
+    }
+
+    private void HideSpawnPoolSelector()
+    {
+        if (spawnPoolSelector == null)
+            return;
+
+        if (!selectorVisibilityOverridden)
+        {
+            selectorWasVisible = spawnPoolSelector.ControlsVisible;
+            selectorVisibilityOverridden = true;
+        }
+
+        spawnPoolSelector.SetControlsVisible(false);
+    }
+
+    private void RestoreSpawnPoolSelector()
+    {
+        if (!selectorVisibilityOverridden)
+            return;
+
+        if (spawnPoolSelector != null)
+            spawnPoolSelector.SetControlsVisible(selectorWasVisible);
+
+        selectorVisibilityOverridden = false;
     }
 }

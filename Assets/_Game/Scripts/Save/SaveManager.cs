@@ -29,6 +29,14 @@ public class SaveManager : MonoBehaviour
 
     }
 
+    [Serializable]
+    private class EnergySaveMetadata
+    {
+        public int currentEnergy;
+        public int energyMillisecondsUntilNextPoint;
+        public long energySavedUtcTicks;
+    }
+
     private PlayerSaveData capacityLoadedData;
 
     private int loadedCustomerCapacity;
@@ -43,6 +51,7 @@ public class SaveManager : MonoBehaviour
     private int loadedLuckLevel = 1;
     private int sessionLuckLevel = 1;
     private int loadedServingPlateProgressionVersion;
+    private EnergySaveMetadata loadedEnergyMetadata;
 
     public void RecordSessionCustomerCapacity(
         MergeSessionData data,
@@ -194,22 +203,118 @@ public class SaveManager : MonoBehaviour
                "}";
     }
 
+    private static string SerializeWithEnergy(
+        string json,
+        EnergySaveMetadata energy)
+    {
+        if (energy == null)
+            throw new ArgumentNullException(nameof(energy));
+
+        return json.Substring(0, json.Length - 1) +
+               ",\"currentEnergy\":" +
+               energy.currentEnergy.ToString(
+                   System.Globalization.CultureInfo.InvariantCulture) +
+               ",\"energyMillisecondsUntilNextPoint\":" +
+               energy.energyMillisecondsUntilNextPoint.ToString(
+                   System.Globalization.CultureInfo.InvariantCulture) +
+               ",\"energySavedUtcTicks\":" +
+               energy.energySavedUtcTicks.ToString(
+                   System.Globalization.CultureInfo.InvariantCulture) +
+               "}";
+    }
+
+    private static bool TryParseEnergyMetadata(
+        string json,
+        out EnergySaveMetadata energy,
+        out bool metadataPresent)
+    {
+        energy = null;
+        metadataPresent = false;
+        if (string.IsNullOrEmpty(json))
+            return false;
+
+        int currentEnergyCount = CountJsonProperty(json, "currentEnergy");
+        int remainingTimeCount = CountJsonProperty(
+            json,
+            "energyMillisecondsUntilNextPoint");
+        int savedTimeCount = CountJsonProperty(json, "energySavedUtcTicks");
+        int propertyCount =
+            currentEnergyCount + remainingTimeCount + savedTimeCount;
+        if (propertyCount == 0)
+            return true;
+
+        metadataPresent = true;
+        if (currentEnergyCount != 1 ||
+            remainingTimeCount != 1 ||
+            savedTimeCount != 1)
+        {
+            return false;
+        }
+
+        energy = JsonUtility.FromJson<EnergySaveMetadata>(json);
+        return energy != null &&
+               energy.currentEnergy >= 0 &&
+               energy.currentEnergy <= 30 &&
+               energy.energySavedUtcTicks > 0 &&
+               energy.energySavedUtcTicks <= DateTime.MaxValue.Ticks &&
+               (energy.currentEnergy == 30
+                   ? energy.energyMillisecondsUntilNextPoint == 0
+                   : energy.energyMillisecondsUntilNextPoint >= 1 &&
+                     energy.energyMillisecondsUntilNextPoint <= 60000);
+    }
+
+    private static int CountJsonProperty(string json, string propertyName)
+    {
+        string property = "\"" + propertyName + "\":";
+        int count = 0;
+        int searchIndex = 0;
+        while ((searchIndex = json.IndexOf(
+                    property,
+                    searchIndex,
+                    StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            searchIndex += property.Length;
+        }
+
+        return count;
+    }
+
     private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
     {
         DessertSpawner spawner = FindAnyObjectByType<DessertSpawner>();
         PlayerProgressionManager progression = PlayerProgressionManager.Instance;
+        if (progression == null)
+        {
+            throw new InvalidOperationException(
+                "PlayerProgressionManager is unavailable for Energy serialization.");
+        }
+
         string selectedPool = spawner != null
             ? spawner.SelectedSpawnPoolId
             : sessionSelectedSpawnPoolId;
         int luckLevel = progression != null
             ? progression.LuckLevel
             : sessionLuckLevel;
-        return SerializeWithServingPlateVersion(
+        string json = SerializeWithServingPlateVersion(
             data,
             capacity,
             selectedPool,
             luckLevel,
             CurrentServingPlateProgressionVersion);
+        progression.CaptureEnergySaveState(
+            out int currentEnergy,
+            out int millisecondsUntilNextPoint,
+            out long savedUtcTicks);
+        return SerializeWithEnergy(
+            json,
+            new EnergySaveMetadata
+            {
+                currentEnergy = currentEnergy,
+                energyMillisecondsUntilNextPoint =
+                    millisecondsUntilNextPoint,
+                energySavedUtcTicks = savedUtcTicks
+            });
     }
 
     internal bool TryPrepareDetachedSnapshot(
@@ -679,6 +784,7 @@ public class SaveManager : MonoBehaviour
         loadedLuckLevel = 1;
         sessionLuckLevel = 1;
         loadedServingPlateProgressionVersion = 0;
+        loadedEnergyMetadata = null;
         compatibilityMigrationPending = false;
 
         message = cleanupSucceeded
@@ -1498,6 +1604,16 @@ public class SaveManager : MonoBehaviour
             if (progressionManager.GetLevel(types[i]) != Mathf.Clamp(expectedLevels[i], 1,
 
                     progressionManager.GetMaxLevel(types[i]))) return false;
+
+        if (loadedEnergyMetadata == null ||
+            !progressionManager.RestoreEnergy(
+                loadedEnergyMetadata.currentEnergy,
+                loadedEnergyMetadata.energyMillisecondsUntilNextPoint,
+                loadedEnergyMetadata.energySavedUtcTicks))
+        {
+            Debug.LogError("LOAD | Energy state could not be restored.");
+            return false;
+        }
 
         Debug.Log(
 
@@ -2695,6 +2811,13 @@ public class SaveManager : MonoBehaviour
             metadata.servingPlateProgressionVersion >
                 CurrentServingPlateProgressionVersion)
             return false;
+        if (!TryParseEnergyMetadata(
+                json,
+                out EnergySaveMetadata energy,
+                out bool hasEnergyMetadata))
+        {
+            return false;
+        }
         int capacity = metadata.mergeSessionCustomerCapacity;
 
         if (check.mergeGameplay.hasSession &&
@@ -2715,21 +2838,24 @@ public class SaveManager : MonoBehaviour
                 metadata.selectedSpawnPoolId,
                 metadata.luckLevel,
                 metadata.servingPlateProgressionVersion);
+        if (hasEnergyMetadata)
+            canonicalJson = SerializeWithEnergy(canonicalJson, energy);
         if (!string.Equals(json, canonicalJson, StringComparison.Ordinal))
 
             return false;
 
         SanitizeSaveData(check);
 
-        return string.Equals(
-            json,
+        canonicalJson =
             SerializeWithServingPlateVersion(
                 check,
                 capacity,
                 metadata.selectedSpawnPoolId,
                 metadata.luckLevel,
-                metadata.servingPlateProgressionVersion),
-            StringComparison.Ordinal);
+                metadata.servingPlateProgressionVersion);
+        if (hasEnergyMetadata)
+            canonicalJson = SerializeWithEnergy(canonicalJson, energy);
+        return string.Equals(json, canonicalJson, StringComparison.Ordinal);
 
     }
 
@@ -3005,8 +3131,28 @@ public class SaveManager : MonoBehaviour
             string json = SaveEncoding.GetString(bytes);
             PlayerSaveData parsed = JsonUtility.FromJson<PlayerSaveData>(json);
             CustomerCapacityMetadata metadata = JsonUtility.FromJson<CustomerCapacityMetadata>(json);
-            if (parsed == null || metadata == null)
+            if (parsed == null ||
+                metadata == null ||
+                !TryParseEnergyMetadata(
+                    json,
+                    out EnergySaveMetadata energyMetadata,
+                    out bool hasEnergyMetadata))
+            {
                 return false;
+            }
+
+            if (!hasEnergyMetadata)
+            {
+                energyMetadata = new EnergySaveMetadata
+                {
+                    currentEnergy = 30,
+                    energyMillisecondsUntilNextPoint = 0,
+                    energySavedUtcTicks = DateTime.UtcNow.Ticks
+                };
+                Debug.Log(
+                    "LOAD | Legacy Save V2 profile has no Energy metadata; " +
+                    "Energy initialized to 30/30.");
+            }
 
             // No mutation is necessary: the exact serialized bytes passed strict
             // canonical, structural and non-destructive sanitation validation.
@@ -3019,6 +3165,7 @@ public class SaveManager : MonoBehaviour
                 : 1;
             loadedServingPlateProgressionVersion =
                 metadata.servingPlateProgressionVersion;
+            loadedEnergyMetadata = energyMetadata;
             compatibilityMigrationPending = false;
             sessionLuckLevel = loadedLuckLevel;
             data = parsed;

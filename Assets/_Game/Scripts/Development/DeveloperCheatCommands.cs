@@ -46,6 +46,42 @@ internal static class DeveloperCheatCommands
         return AppliedAndSaved(save, "Cash added.");
     }
 
+    internal static DeveloperCheatCommandResult SetEnergyToZero()
+    {
+        if (!TryGetReadyManagers(
+                out PlayerProgressionManager progression,
+                out _,
+                out SaveManager save,
+                out _,
+                out _,
+                out string unavailableReason))
+        {
+            return Failure(unavailableReason);
+        }
+
+        if (!progression.SetEnergyForDevelopment(0))
+            return Failure("Energy rejected the requested zero value.");
+
+        return AppliedAndSaved(save, "Energy set to 0/30.");
+    }
+
+    internal static DeveloperCheatCommandResult RefillEnergy()
+    {
+        if (!TryGetReadyManagers(
+                out PlayerProgressionManager progression,
+                out _,
+                out SaveManager save,
+                out _,
+                out _,
+                out string unavailableReason))
+        {
+            return Failure(unavailableReason);
+        }
+
+        progression.ResetEnergy();
+        return AppliedAndSaved(save, "Energy refilled to 30/30.");
+    }
+
     internal static DeveloperCheatCommandResult SetRebirth(int rebirthCount)
     {
         if (!TryGetReadyManagers(
@@ -183,6 +219,7 @@ internal static class DeveloperCheatCommands
             return Failure("Progression rejected the fresh-game reset.");
 
         progression.RestoreProgression(1, 1, 1, 1, 1, 1);
+        progression.ResetEnergy();
         economy.RestoreCash(0);
         MergeSessionManager.Instance.ClearSession();
         SessionManager.Instance?.ResetSession();
