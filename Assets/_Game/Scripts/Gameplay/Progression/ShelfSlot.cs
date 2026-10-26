@@ -13,11 +13,14 @@ public class ShelfSlot : MonoBehaviour
     [SerializeField]
     private Color lockedColor =
         new Color(
-            0.25f,
-            0.25f,
-            0.25f,
+            0.38f,
+            0.29f,
+            0.22f,
             1f
         );
+
+    private static readonly Color OccupiedColor =
+        new Color32(255, 213, 139, 255);
 
     [SerializeField]
     private Color validColor =
@@ -182,9 +185,9 @@ public class ShelfSlot : MonoBehaviour
     {
         if (isUnlocked)
         {
-            SetColor(
-                unlockedColor
-            );
+            SetColor(currentDessert != null
+                ? OccupiedColor
+                : unlockedColor);
         }
         else
         {

@@ -2052,6 +2052,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CashDisplayUI
   cashText: {fileID: 1079880967}
+  cashBackground: {fileID: 2101845837}
 --- !u!1001 &1187551936
 PrefabInstance:
   m_ObjectHideFlags: 0

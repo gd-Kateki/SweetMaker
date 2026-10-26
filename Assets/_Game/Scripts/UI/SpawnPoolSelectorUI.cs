@@ -1,64 +1,94 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public sealed class SpawnPoolSelectorUI : MonoBehaviour
 {
-    private const float PanelWidth = 260f;
-    private const float PanelHeight = 64f;
-    private const float PreviewGap = 12f;
-    private const float LayoutTolerance = 0.05f;
+    private const int PoolCount = 6;
 
     [SerializeField]
-    private Transform previewAnchor;
+    private Button selectorButtonReference;
+
+    [SerializeField]
+    private TMP_Text selectorTextReference;
+
+    [Header("Serialized Selection Panel")]
+    [SerializeField]
+    private RectTransform selectionPanelRect;
+
+    [SerializeField]
+    private Image selectionPanelBackground;
+
+    [SerializeField]
+    private TMP_Text selectionPanelTitle;
+
+    [SerializeField]
+    private Button closeButton;
+
+    [SerializeField]
+    private Image closeButtonBackground;
+
+    [SerializeField]
+    private TMP_Text closeButtonLabel;
+
+    [SerializeField]
+    private Button[] tierButtons = new Button[PoolCount];
+
+    [SerializeField]
+    private Image[] tierCardBackgrounds = new Image[PoolCount];
+
+    [SerializeField]
+    private TMP_Text[] tierCardLabels = new TMP_Text[PoolCount];
 
     private DessertSpawner dessertSpawner;
+    private OrderDetailsUI orderDetailsUI;
     private Canvas gameplayCanvas;
     private RectTransform canvasRect;
-    private RectTransform panel;
-    private SpriteRenderer previewRenderer;
-    private Button previousButton;
-    private Button nextButton;
-    private TMP_Text poolText;
+    private RectTransform selectorButtonRect;
+    private Button selectorButton;
+    private TMP_Text selectorText;
     private IReadOnlyList<string> unlockedPoolIds;
-    private Rect lastPreviewBounds;
-    private Rect lastUsableBounds;
-    private Vector2 lastPanelSize;
-    private Camera lastObservedCamera;
-    private Rect lastObservedCameraPixelRect;
-    private Rect lastObservedCanvasRect;
+    private UnityAction[] tierButtonListeners;
+    private Vector3 authoredPanelScale;
+    private bool hasCapturedPanelScale;
     private Rect lastObservedSafeArea;
-    private Vector3 lastObservedCameraPosition;
-    private Quaternion lastObservedCameraRotation;
-    private float lastObservedOrthographicSize;
-    private float lastObservedCameraAspect;
+    private Vector2 lastObservedCanvasSize;
     private int lastObservedScreenWidth;
     private int lastObservedScreenHeight;
-    private bool hasEvaluatedLayout;
     private bool hasObservedScreenLayout;
-    private bool hasLoggedPlacementFailure;
     private bool controlsVisible = true;
+    private bool selectionPanelOpen;
+    private bool tableModalOpen;
 
     public bool ControlsVisible => controlsVisible;
 
     public void SetControlsVisible(bool visible)
     {
         controlsVisible = visible;
-
-        if (panel != null)
-            panel.gameObject.SetActive(visible);
+        selectionPanelOpen = false;
+        RestorePanelScale();
+        ApplyVisibility();
     }
 
     private void OnEnable()
     {
-        GameplayEvents.NextDessertChanged += HandleNextDessertChanged;
+        if (dessertSpawner != null)
+        {
+            dessertSpawner.SpawnPoolChanged += HandleSpawnPoolChanged;
+            if (selectorButtonRect != null)
+                Refresh();
+        }
+        ApplyVisibility();
     }
 
     private void Start()
     {
         dessertSpawner = FindAnyObjectByType<DessertSpawner>();
+        orderDetailsUI = FindAnyObjectByType<OrderDetailsUI>();
+        tableModalOpen = orderDetailsUI != null && orderDetailsUI.IsOpen;
         gameplayCanvas = FindAnyObjectByType<Canvas>();
         if (dessertSpawner == null || gameplayCanvas == null)
         {
@@ -79,30 +109,156 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             return;
         }
 
-        if (previewAnchor != null)
-            previewRenderer = previewAnchor.GetComponentInChildren<SpriteRenderer>(true);
+        if (selectorButtonReference == null)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | Serialized Oven Tier selector button is missing.",
+                this);
+            enabled = false;
+            return;
+        }
 
-        CreateControls();
+        selectorButton = selectorButtonReference;
+        selectorButtonRect = selectorButton.transform as RectTransform;
+        if (selectorButtonRect == null ||
+            selectorButton.transform.parent != gameplayCanvas.transform)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | Oven Tier selector button must be a RectTransform child of GameplayCanvas.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        selectorText = selectorTextReference;
+        if (selectorText == null ||
+            selectionPanelRect == null ||
+            selectionPanelRect.parent != gameplayCanvas.transform ||
+            selectionPanelBackground == null ||
+            selectionPanelBackground.transform != selectionPanelRect ||
+            selectionPanelTitle == null ||
+            closeButton == null ||
+            closeButtonBackground == null ||
+            closeButtonBackground.transform != closeButton.transform ||
+            closeButtonLabel == null ||
+            tierButtons == null ||
+            tierButtons.Length != PoolCount ||
+            tierCardBackgrounds == null ||
+            tierCardBackgrounds.Length != PoolCount ||
+            tierCardLabels == null ||
+            tierCardLabels.Length != PoolCount)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | Serialized selection panel references are incomplete.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        if (closeButtonLabel.transform.parent != closeButton.transform)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | Close label must be a child of the Close button.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        if (closeButton.transform.parent != selectionPanelRect ||
+            selectionPanelTitle.transform.parent != selectionPanelRect)
+        {
+            Debug.LogError(
+                "SPAWN POOL UI | Close button and title must be children of the selection panel.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        for (int i = 0; i < PoolCount; i++)
+        {
+            if (tierButtons[i] == null ||
+                tierCardBackgrounds[i] == null ||
+                tierButtons[i].transform.parent != selectionPanelRect ||
+                tierCardBackgrounds[i].transform != tierButtons[i].transform ||
+                tierCardLabels[i] == null ||
+                tierCardLabels[i].transform.parent != tierButtons[i].transform)
+            {
+                Debug.LogError(
+                    $"SPAWN POOL UI | Serialized pool card {i + 1} references are incomplete.",
+                    this);
+                enabled = false;
+                return;
+            }
+        }
+
+        selectionPanelTitle.text = "Select Oven Tier";
+        closeButtonLabel.text = "X";
+        authoredPanelScale = selectionPanelRect.localScale;
+        hasCapturedPanelScale = true;
+        CaptureScreenLayout();
+        selectionPanelOpen = false;
+        ApplyVisibility();
+        selectorButton.onClick.RemoveListener(OpenSelectionPanel);
+        selectorButton.onClick.AddListener(OpenSelectionPanel);
+        closeButton.onClick.RemoveListener(CloseSelectionPanel);
         dessertSpawner.SpawnPoolChanged += HandleSpawnPoolChanged;
+        closeButton.onClick.AddListener(CloseSelectionPanel);
+        tierButtonListeners = new UnityAction[PoolCount];
+        for (int i = 0; i < PoolCount; i++)
+        {
+            int poolIndex = i;
+            tierButtonListeners[i] = () => SelectPool(poolIndex);
+            tierButtons[i].onClick.RemoveListener(tierButtonListeners[i]);
+            tierButtons[i].onClick.AddListener(tierButtonListeners[i]);
+        }
         Refresh();
     }
 
     private void OnDestroy()
     {
+        if (selectorButton != null)
+            selectorButton.onClick.RemoveListener(OpenSelectionPanel);
+        if (closeButton != null)
+            closeButton.onClick.RemoveListener(CloseSelectionPanel);
+        if (tierButtons != null && tierButtonListeners != null)
+        {
+            for (int i = 0; i < tierButtons.Length &&
+                            i < tierButtonListeners.Length; i++)
+            {
+                if (tierButtons[i] != null)
+                    tierButtons[i].onClick.RemoveListener(
+                        tierButtonListeners[i]);
+            }
+        }
         if (dessertSpawner != null)
             dessertSpawner.SpawnPoolChanged -= HandleSpawnPoolChanged;
     }
 
     private void OnDisable()
     {
-        GameplayEvents.NextDessertChanged -= HandleNextDessertChanged;
-        StopAllCoroutines();
+        if (dessertSpawner != null)
+            dessertSpawner.SpawnPoolChanged -= HandleSpawnPoolChanged;
+        selectionPanelOpen = false;
+        RestorePanelScale();
+        ApplyVisibility();
     }
 
     private void Update()
     {
-        if (HasScreenLayoutChanged())
-            UpdatePosition();
+        bool modalOpen = orderDetailsUI != null && orderDetailsUI.IsOpen;
+        if (modalOpen != tableModalOpen)
+        {
+            tableModalOpen = modalOpen;
+            if (tableModalOpen)
+            {
+                selectionPanelOpen = false;
+                RestorePanelScale();
+            }
+            ApplyVisibility();
+        }
+
+        if (HasScreenLayoutChanged() && selectionPanelOpen)
+            ClampPanelToSafeArea();
     }
 
     private void HandleSpawnPoolChanged(string poolId, int firstTier, int highestTier)
@@ -110,205 +266,172 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
         Refresh();
     }
 
-    private void HandleNextDessertChanged(DessertDefinition definition)
-    {
-        StartCoroutine(UpdatePositionAfterPreviewRefresh());
-    }
-
-    private IEnumerator UpdatePositionAfterPreviewRefresh()
-    {
-        yield return null;
-        UpdatePosition();
-    }
-
     private void OnApplicationFocus(bool hasFocus)
     {
-        if (hasFocus)
-            UpdatePosition();
+        if (hasFocus && selectionPanelOpen)
+            ClampPanelToSafeArea();
     }
 
     private void OnApplicationPause(bool isPaused)
     {
-        if (!isPaused)
-            UpdatePosition();
-    }
-
-    private void CreateControls()
-    {
-        GameObject panelObject = new GameObject(
-            "SpawnPoolSelector",
-            typeof(RectTransform),
-            typeof(Image));
-        panel = panelObject.GetComponent<RectTransform>();
-        panel.SetParent(gameplayCanvas.transform, false);
-        panel.anchorMin = panel.anchorMax = new Vector2(0.5f, 0.5f);
-        panel.pivot = new Vector2(0.5f, 0.5f);
-        panel.sizeDelta = new Vector2(PanelWidth, PanelHeight);
-        Image panelImage = panelObject.GetComponent<Image>();
-        panelImage.raycastTarget = false;
-        panelImage.color =
-            new Color(0.16f, 0.12f, 0.2f, 0.9f);
-
-        previousButton = CreateButton(panel, "PreviousPoolButton", "<");
-        RectTransform previousRect = previousButton.GetComponent<RectTransform>();
-        previousRect.anchorMin = previousRect.anchorMax = new Vector2(0, 0.5f);
-        previousRect.pivot = new Vector2(0, 0.5f);
-        previousRect.anchoredPosition = new Vector2(5f, 0);
-        previousRect.sizeDelta = new Vector2(44f, 52f);
-        previousButton.onClick.AddListener(SelectPreviousPool);
-
-        nextButton = CreateButton(panel, "NextPoolButton", ">");
-        RectTransform nextRect = nextButton.GetComponent<RectTransform>();
-        nextRect.anchorMin = nextRect.anchorMax = new Vector2(1, 0.5f);
-        nextRect.pivot = new Vector2(1, 0.5f);
-        nextRect.anchoredPosition = new Vector2(-5f, 0);
-        nextRect.sizeDelta = new Vector2(44f, 52f);
-        nextButton.onClick.AddListener(SelectNextPool);
-
-        poolText = CreateText(panel, "SelectedPoolLabel", 20f);
-        RectTransform poolRect = poolText.rectTransform;
-        poolRect.anchorMin = poolRect.anchorMax = new Vector2(0.5f, 0.5f);
-        poolRect.pivot = new Vector2(0.5f, 0.5f);
-        poolRect.anchoredPosition = Vector2.zero;
-        poolRect.sizeDelta = new Vector2(156f, 46f);
-        panel.gameObject.SetActive(controlsVisible);
-    }
-
-    private static Button CreateButton(Transform parent, string objectName, string label)
-    {
-        GameObject buttonObject = new GameObject(
-            objectName,
-            typeof(RectTransform),
-            typeof(Image),
-            typeof(Button));
-        buttonObject.transform.SetParent(parent, false);
-        Image image = buttonObject.GetComponent<Image>();
-        image.color = new Color(0.43f, 0.27f, 0.48f, 1f);
-        Button button = buttonObject.GetComponent<Button>();
-        button.targetGraphic = image;
-
-        TMP_Text text = CreateText(buttonObject.transform, "Label", 23f);
-        text.text = label;
-        RectTransform textRect = text.rectTransform;
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
-        return button;
-    }
-
-    private static TMP_Text CreateText(Transform parent, string objectName, float fontSize)
-    {
-        GameObject textObject = new GameObject(objectName, typeof(RectTransform));
-        textObject.transform.SetParent(parent, false);
-        TMP_Text text = textObject.AddComponent<TextMeshProUGUI>();
-        text.font = TMP_Settings.defaultFontAsset;
-        text.fontSize = fontSize;
-        text.alignment = TextAlignmentOptions.Center;
-        text.color = Color.white;
-        text.raycastTarget = false;
-        return text;
+        if (!isPaused && selectionPanelOpen)
+            ClampPanelToSafeArea();
     }
 
     private void Refresh()
     {
-        if (dessertSpawner == null || panel == null)
+        if (dessertSpawner == null || selectorButtonRect == null)
             return;
 
         unlockedPoolIds = dessertSpawner.UnlockedSpawnPoolIds;
         string selectedPoolId = dessertSpawner.SelectedSpawnPoolId;
-        poolText.text =
-            $"{selectedPoolId} | T{DessertSpawner.GetSpawnPoolFirstTier(selectedPoolId)}" +
-            $"-T{DessertSpawner.GetSpawnPoolHighestTier(selectedPoolId)}";
-        int selectedIndex = IndexOfSelectedPool();
-        previousButton.interactable = unlockedPoolIds.Count > 1;
-        nextButton.interactable = unlockedPoolIds.Count > 1;
-        UpdatePosition();
-    }
+        int selectedIndex = IndexOfPool(selectedPoolId);
+        selectorText.text = $"OVEN TIER {selectedIndex + 1}  v";
 
-    private int IndexOfSelectedPool()
-    {
-        for (int i = 0; i < unlockedPoolIds.Count; i++)
-            if (unlockedPoolIds[i] == dessertSpawner.SelectedSpawnPoolId)
-                return i;
-        return -1;
-    }
-
-    private void SelectPreviousPool()
-    {
-        if (unlockedPoolIds == null || unlockedPoolIds.Count < 2)
-            return;
-
-        int targetIndex = (IndexOfSelectedPool() - 1 + unlockedPoolIds.Count) %
-                          unlockedPoolIds.Count;
-        if (targetIndex >= 0 &&
-            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]))
+        for (int i = 0; i < PoolCount; i++)
         {
-            UiClickSfx.TryPlay(previousButton);
+            string poolId = $"P{i + 1}";
+            int firstTier = DessertSpawner.GetSpawnPoolFirstTier(poolId);
+            int highestTier = DessertSpawner.GetSpawnPoolHighestTier(poolId);
+            bool isSelected = poolId == selectedPoolId;
+            bool isUnlocked = unlockedPoolIds.Contains(poolId);
+            tierButtons[i].interactable = isUnlocked &&
+                                          CanInteractWithSelector();
+            tierCardLabels[i].text =
+                $"Oven Tier {i + 1}\n" +
+                $"Dessert T{firstTier}-T{highestTier}\n" +
+                (isSelected ? "Selected" : isUnlocked ? "Available" : "Locked");
+            tierCardLabels[i].color = isSelected
+                ? new Color(0.24f, 0.14f, 0.08f, 1f)
+                : Color.white;
+            tierCardBackgrounds[i].color = isSelected
+                ? new Color(0.94f, 0.69f, 0.31f, 1f)
+                : isUnlocked
+                    ? new Color(0.59f, 0.36f, 0.20f, 1f)
+                    : new Color(0.32f, 0.29f, 0.27f, 1f);
         }
     }
 
-    private void SelectNextPool()
+    private static int IndexOfPool(string poolId)
     {
-        if (unlockedPoolIds == null || unlockedPoolIds.Count < 2)
+        return int.TryParse(poolId != null && poolId.Length > 1
+                ? poolId.Substring(1)
+                : string.Empty,
+            out int tier)
+            ? tier - 1
+            : 0;
+    }
+
+    private bool CanInteractWithSelector()
+    {
+        return isActiveAndEnabled &&
+               controlsVisible &&
+               !tableModalOpen &&
+               (orderDetailsUI == null || !orderDetailsUI.IsOpen) &&
+               dessertSpawner != null;
+    }
+
+    private void OpenSelectionPanel()
+    {
+        if (!CanInteractWithSelector() || selectionPanelRect == null)
             return;
 
-        int targetIndex = (IndexOfSelectedPool() + 1) % unlockedPoolIds.Count;
-        if (targetIndex >= 0 &&
-            dessertSpawner.TrySelectSpawnPool(unlockedPoolIds[targetIndex]))
+        selectionPanelOpen = true;
+        ClampPanelToSafeArea();
+        ApplyVisibility();
+        UiClickSfx.TryPlay(selectorButton);
+    }
+
+    private void CloseSelectionPanel()
+    {
+        selectionPanelOpen = false;
+        RestorePanelScale();
+        ApplyVisibility();
+        UiClickSfx.TryPlay(closeButton);
+    }
+
+    private void SelectPool(int index)
+    {
+        if (!CanInteractWithSelector() ||
+            unlockedPoolIds == null ||
+            index < 0 ||
+            index >= PoolCount)
+            return;
+
+        string poolId = $"P{index + 1}";
+        if (!unlockedPoolIds.Contains(poolId))
+            return;
+
+        if (poolId != dessertSpawner.SelectedSpawnPoolId &&
+            dessertSpawner.TrySelectSpawnPool(poolId))
+            UiClickSfx.TryPlay(tierButtons[index]);
+
+        selectionPanelOpen = false;
+        RestorePanelScale();
+        ApplyVisibility();
+    }
+
+    private void ApplyVisibility()
+    {
+        bool visible = controlsVisible && !tableModalOpen &&
+                       isActiveAndEnabled;
+        if (selectorButtonRect != null)
+            selectorButtonRect.gameObject.SetActive(visible);
+        if (selectionPanelRect != null)
+            selectionPanelRect.gameObject.SetActive(visible && selectionPanelOpen);
+    }
+
+    private void ClampPanelToSafeArea()
+    {
+        if (selectionPanelRect == null ||
+            canvasRect == null)
+            return;
+
+        if (!TryGetCanvasLocalRect(Screen.safeArea, out Rect usableBounds))
+            return;
+
+        Vector3[] corners = new Vector3[4];
+        selectionPanelRect.localScale = authoredPanelScale;
+        selectionPanelRect.GetWorldCorners(corners);
+        Vector2 bottomLeft = canvasRect.InverseTransformPoint(corners[0]);
+        Vector2 topRight = canvasRect.InverseTransformPoint(corners[2]);
+        Vector2 panelSize = topRight - bottomLeft;
+        if (panelSize.x <= 0f || panelSize.y <= 0f)
+            return;
+
+        float fitScale = Mathf.Min(
+            1f,
+            usableBounds.width / panelSize.x,
+            usableBounds.height / panelSize.y);
+        selectionPanelRect.localScale = authoredPanelScale * fitScale;
+        selectionPanelRect.GetWorldCorners(corners);
+        bottomLeft = canvasRect.InverseTransformPoint(corners[0]);
+        topRight = canvasRect.InverseTransformPoint(corners[2]);
+        Vector2 offset = Vector2.zero;
+
+        if (bottomLeft.x < usableBounds.xMin)
+            offset.x = usableBounds.xMin - bottomLeft.x;
+        else if (topRight.x > usableBounds.xMax)
+            offset.x = usableBounds.xMax - topRight.x;
+
+        if (bottomLeft.y < usableBounds.yMin)
+            offset.y = usableBounds.yMin - bottomLeft.y;
+        else if (topRight.y > usableBounds.yMax)
+            offset.y = usableBounds.yMax - topRight.y;
+
+        if (bottomLeft.x < usableBounds.xMin ||
+            topRight.x > usableBounds.xMax ||
+            bottomLeft.y < usableBounds.yMin ||
+            topRight.y > usableBounds.yMax)
         {
-            UiClickSfx.TryPlay(nextButton);
+            selectionPanelRect.position += canvasRect.TransformVector(offset);
         }
     }
 
-    private void UpdatePosition()
+    private void RestorePanelScale()
     {
-        if (panel == null || canvasRect == null)
-            return;
-
-        Camera gameCamera = Camera.main;
-        if (gameCamera == null)
-            return;
-
-        if (!TryGetPreviewCanvasBounds(gameCamera, out Rect previewBounds) ||
-            !TryGetCanvasLocalRect(Screen.safeArea, out Rect usableBounds))
-            return;
-
-        CaptureScreenLayout(gameCamera);
-
-        Vector2 panelSize = panel.rect.size;
-        if (hasEvaluatedLayout &&
-            Approximately(previewBounds, lastPreviewBounds) &&
-            Approximately(usableBounds, lastUsableBounds) &&
-            Approximately(panelSize, lastPanelSize))
-            return;
-
-        lastPreviewBounds = previewBounds;
-        lastUsableBounds = usableBounds;
-        lastPanelSize = panelSize;
-        hasEvaluatedLayout = true;
-
-        if (!TryCalculateSelectorBounds(
-                previewBounds,
-                usableBounds,
-                panelSize,
-                PreviewGap,
-                out Rect selectorBounds))
-        {
-            panel.gameObject.SetActive(false);
-            if (!hasLoggedPlacementFailure)
-            {
-                Debug.LogError(
-                    "SPAWN POOL UI | Selector cannot fit below the preview inside the safe area.",
-                    this);
-                hasLoggedPlacementFailure = true;
-            }
-            return;
-        }
-
-        panel.anchoredPosition = selectorBounds.center;
-        panel.gameObject.SetActive(true);
-        hasLoggedPlacementFailure = false;
+        if (selectionPanelRect != null && hasCapturedPanelScale)
+            selectionPanelRect.localScale = authoredPanelScale;
     }
 
     public static bool TryCalculateSelectorBounds(
@@ -345,99 +468,23 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
 
     private bool HasScreenLayoutChanged()
     {
-        if (!hasObservedScreenLayout ||
-            canvasRect == null)
-            return true;
-
-        Camera gameCamera = Camera.main;
-        return Screen.width != lastObservedScreenWidth ||
-               Screen.height != lastObservedScreenHeight ||
-               Screen.safeArea != lastObservedSafeArea ||
-               canvasRect.rect != lastObservedCanvasRect ||
-               gameCamera != lastObservedCamera ||
-               (gameCamera != null &&
-                (gameCamera.pixelRect != lastObservedCameraPixelRect ||
-                 gameCamera.transform.position != lastObservedCameraPosition ||
-                 gameCamera.transform.rotation != lastObservedCameraRotation ||
-                 !Mathf.Approximately(
-                     gameCamera.aspect,
-                     lastObservedCameraAspect) ||
-                 !Mathf.Approximately(
-                     gameCamera.orthographicSize,
-                     lastObservedOrthographicSize)));
+        bool changed = !hasObservedScreenLayout ||
+                       Screen.width != lastObservedScreenWidth ||
+                       Screen.height != lastObservedScreenHeight ||
+                       Screen.safeArea != lastObservedSafeArea ||
+                       canvasRect.rect.size != lastObservedCanvasSize;
+        if (changed)
+            CaptureScreenLayout();
+        return changed;
     }
 
-    private void CaptureScreenLayout(Camera gameCamera)
+    private void CaptureScreenLayout()
     {
         lastObservedScreenWidth = Screen.width;
         lastObservedScreenHeight = Screen.height;
         lastObservedSafeArea = Screen.safeArea;
-        lastObservedCanvasRect = canvasRect.rect;
-        lastObservedCamera = gameCamera;
-        lastObservedCameraPixelRect = gameCamera.pixelRect;
-        lastObservedCameraPosition = gameCamera.transform.position;
-        lastObservedCameraRotation = gameCamera.transform.rotation;
-        lastObservedOrthographicSize = gameCamera.orthographicSize;
-        lastObservedCameraAspect = gameCamera.aspect;
+        lastObservedCanvasSize = canvasRect.rect.size;
         hasObservedScreenLayout = true;
-    }
-
-    private bool TryGetPreviewCanvasBounds(
-        Camera gameCamera,
-        out Rect localBounds)
-    {
-        Transform anchor = previewAnchor != null ? previewAnchor : transform;
-        Bounds worldBounds = previewRenderer != null
-            ? previewRenderer.bounds
-            : new Bounds(anchor.position, Vector3.zero);
-
-        Vector3 min = worldBounds.min;
-        Vector3 max = worldBounds.max;
-        Vector2 firstPoint = default;
-        float minX = float.PositiveInfinity;
-        float minY = float.PositiveInfinity;
-        float maxX = float.NegativeInfinity;
-        float maxY = float.NegativeInfinity;
-
-        for (int x = 0; x < 2; x++)
-        {
-            for (int y = 0; y < 2; y++)
-            {
-                for (int z = 0; z < 2; z++)
-                {
-                    Vector3 worldPoint = new Vector3(
-                        x == 0 ? min.x : max.x,
-                        y == 0 ? min.y : max.y,
-                        z == 0 ? min.z : max.z);
-                    Vector2 screenPoint = gameCamera.WorldToScreenPoint(worldPoint);
-                    if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                            canvasRect,
-                            screenPoint,
-                            null,
-                            out Vector2 localPoint))
-                    {
-                        localBounds = default;
-                        return false;
-                    }
-
-                    if (float.IsPositiveInfinity(minX))
-                        firstPoint = localPoint;
-                    minX = Mathf.Min(minX, localPoint.x);
-                    minY = Mathf.Min(minY, localPoint.y);
-                    maxX = Mathf.Max(maxX, localPoint.x);
-                    maxY = Mathf.Max(maxY, localPoint.y);
-                }
-            }
-        }
-
-        if (worldBounds.size == Vector3.zero)
-        {
-            minX = maxX = firstPoint.x;
-            minY = maxY = firstPoint.y;
-        }
-
-        localBounds = Rect.MinMaxRect(minX, minY, maxX, maxY);
-        return true;
     }
 
     private bool TryGetCanvasLocalRect(
@@ -461,17 +508,5 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             Mathf.Max(localMin.x, localMax.x),
             Mathf.Max(localMin.y, localMax.y));
         return true;
-    }
-
-    private static bool Approximately(Rect first, Rect second)
-    {
-        return Approximately(first.position, second.position) &&
-               Approximately(first.size, second.size);
-    }
-
-    private static bool Approximately(Vector2 first, Vector2 second)
-    {
-        return Mathf.Abs(first.x - second.x) <= LayoutTolerance &&
-               Mathf.Abs(first.y - second.y) <= LayoutTolerance;
     }
 }

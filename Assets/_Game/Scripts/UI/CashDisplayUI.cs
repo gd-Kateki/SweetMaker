@@ -1,12 +1,46 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class CashDisplayUI : MonoBehaviour
 {
     [SerializeField]
     private TMP_Text cashText;
 
+    [SerializeField]
+    private Graphic cashBackground;
+
     private EconomyManager economyManager;
+
+    private void Awake()
+    {
+        if (!(transform is RectTransform) ||
+            !(transform.parent is RectTransform))
+        {
+            Debug.LogError(
+                "CashDisplayUI: CashDisplay must be a RectTransform child of the gameplay Canvas.");
+            enabled = false;
+            return;
+        }
+
+        if (cashText == null)
+        {
+            Debug.LogError(
+                "CashDisplayUI: Serialized cashText reference is missing.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        if (cashBackground == null)
+        {
+            Debug.LogError(
+                "CashDisplayUI: Serialized cashBackground reference is missing.",
+                this);
+            enabled = false;
+            return;
+        }
+    }
 
     private void Start()
     {
@@ -18,12 +52,6 @@ public class CashDisplayUI : MonoBehaviour
             economyManager =
                 FindAnyObjectByType<
                     EconomyManager>();
-        }
-
-        if (cashText == null)
-        {
-            cashText =
-                GetComponent<TMP_Text>();
         }
 
         if (economyManager == null)

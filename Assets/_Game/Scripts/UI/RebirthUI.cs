@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public sealed class RebirthUI : MonoBehaviour
 {
     private const string AvailableNotification =
-        "Rebirth Available! Tap Rebirth to continue!";
+        "Prestige Available! Tap Prestige to continue!";
 
     private const string FinalObjectiveText =
         "Final Objective: Create Tier 30 — Eternal Dragon's Dessert";
@@ -241,7 +241,7 @@ public sealed class RebirthUI : MonoBehaviour
 
             SetButtonState(false, "COMPLETE");
             SetReadyIndicator(false);
-            SetEntryButtonState("REBIRTH COMPLETE");
+            SetEntryButtonState("PRESTIGE COMPLETE");
             UpdateEligibilityState(false);
             return;
         }
@@ -266,7 +266,7 @@ public sealed class RebirthUI : MonoBehaviour
                         progressionManager.IsEligibleForNextRebirth;
         UpdateEligibilityState(eligible);
         SetReadyIndicator(eligible);
-        SetEntryButtonState("REBIRTH");
+        SetEntryButtonState("PRESTIGE");
 
         if (requirementsText != null)
         {
@@ -373,6 +373,6 @@ public sealed class RebirthUI : MonoBehaviour
             requirementsText.text = "Rebirth unavailable";
         SetButtonState(false, "REBIRTH");
         SetReadyIndicator(false);
-        SetEntryButtonState("REBIRTH");
+        SetEntryButtonState("PRESTIGE");
     }
 }

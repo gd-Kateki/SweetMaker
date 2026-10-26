@@ -40,12 +40,22 @@ public class CustomerButtonUI : MonoBehaviour
     [SerializeField]
     private CanvasGroup canvasGroup;
 
+    [Header("Serialized Preview UI")]
+    [SerializeField]
     private TMP_Text customerLabel;
+
+    [SerializeField]
     private TMP_Text readinessLabel;
-    private readonly Image[] requirementIcons =
+
+    [SerializeField]
+    private Image[] requirementIcons =
         new Image[MaxPreviewIcons];
-    private readonly TMP_Text[] requirementLabels =
+
+    [SerializeField]
+    private TMP_Text[] requirementLabels =
         new TMP_Text[MaxPreviewIcons];
+
+    private Image cardBackground;
 
     public int CustomerIndex =>
         customerIndex;
@@ -62,19 +72,38 @@ public class CustomerButtonUI : MonoBehaviour
         {
             canvasGroup =
                 GetComponent<CanvasGroup>();
-
-            if (canvasGroup == null)
-            {
-                canvasGroup =
-                    gameObject.AddComponent<
-                        CanvasGroup>();
-            }
         }
 
-        customerLabel =
-            GetComponentInChildren<TMP_Text>(true);
-        ConfigureCustomerLabel();
-        CreateRequirementIcons();
+        cardBackground = GetComponent<Image>();
+        if (button == null ||
+            canvasGroup == null ||
+            cardBackground == null ||
+            customerLabel == null ||
+            readinessLabel == null ||
+            requirementIcons == null ||
+            requirementIcons.Length != MaxPreviewIcons ||
+            requirementLabels == null ||
+            requirementLabels.Length != MaxPreviewIcons)
+        {
+            Debug.LogError(
+                $"{name}: Serialized Table preview references are incomplete.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        for (int i = 0; i < MaxPreviewIcons; i++)
+        {
+            if (requirementIcons[i] == null ||
+                requirementLabels[i] == null)
+            {
+                Debug.LogError(
+                    $"{name}: Serialized requirement preview slot {i + 1} is incomplete.",
+                    this);
+                enabled = false;
+                return;
+            }
+        }
     }
 
     private void Start()
@@ -239,13 +268,14 @@ public class CustomerButtonUI : MonoBehaviour
                 customerIndex
             );
 
-        SetVisible(
-            unlocked
-        );
+        SetVisible(true);
+        SetCardState(unlocked);
 
         if (!unlocked)
         {
             ClearPreview("LOCKED");
+            if (button != null)
+                button.interactable = false;
             return;
         }
 
@@ -259,175 +289,7 @@ public class CustomerButtonUI : MonoBehaviour
         if (button != null)
         {
             button.interactable =
-                order != null;
-        }
-    }
-
-    private void ConfigureCustomerLabel()
-    {
-        if (customerLabel == null)
-            return;
-
-        ConfigureText(
-            customerLabel,
-            new Vector2(0f, 43f),
-            new Vector2(220f, 22f),
-            18f,
-            TextAlignmentOptions.Center
-        );
-        customerLabel.fontStyle = FontStyles.Bold;
-        customerLabel.color =
-            new Color32(50, 50, 50, 255);
-        customerLabel.text =
-            $"TABLE {customerIndex + 1}";
-        readinessLabel =
-            CreateText(
-                "OrderPreviewReadiness",
-                new Vector2(0f, -44f),
-                new Vector2(220f, 20f),
-                15f,
-                TextAlignmentOptions.Center
-            );
-        readinessLabel.fontStyle = FontStyles.Bold;
-        readinessLabel.color =
-            new Color32(154, 58, 51, 255);
-    }
-
-    private TMP_Text CreateText(
-        string objectName,
-        Vector2 position,
-        Vector2 size,
-        float fontSize,
-        TextAlignmentOptions alignment)
-    {
-        Transform existing =
-            transform.Find(objectName);
-        TMP_Text text =
-            existing != null
-                ? existing.GetComponent<TMP_Text>()
-                : null;
-
-        if (text == null)
-        {
-            GameObject textObject =
-                new GameObject(
-                    objectName,
-                    typeof(RectTransform),
-                    typeof(CanvasRenderer),
-                    typeof(TextMeshProUGUI)
-                );
-            textObject.transform.SetParent(
-                transform,
-                false
-            );
-            text =
-                textObject.GetComponent<TMP_Text>();
-        }
-
-        ConfigureText(
-            text,
-            position,
-            size,
-            fontSize,
-            alignment
-        );
-        return text;
-    }
-
-    private static void ConfigureText(
-        TMP_Text text,
-        Vector2 position,
-        Vector2 size,
-        float fontSize,
-        TextAlignmentOptions alignment)
-    {
-        RectTransform textRect =
-            text.rectTransform;
-        textRect.anchorMin =
-            new Vector2(0.5f, 0.5f);
-        textRect.anchorMax =
-            new Vector2(0.5f, 0.5f);
-        textRect.pivot =
-            new Vector2(0.5f, 0.5f);
-        textRect.anchoredPosition =
-            position;
-        textRect.sizeDelta =
-            size;
-
-        text.fontSize = fontSize;
-        text.enableAutoSizing = false;
-        text.alignment = alignment;
-        text.margin = Vector4.zero;
-        text.textWrappingMode =
-            TextWrappingModes.NoWrap;
-        text.overflowMode =
-            TextOverflowModes.Ellipsis;
-        text.raycastTarget = false;
-    }
-
-    private void CreateRequirementIcons()
-    {
-        for (int i = 0; i < requirementIcons.Length; i++)
-        {
-            string iconName =
-                $"OrderPreviewIcon_{i + 1}";
-            Transform existingIcon =
-                transform.Find(iconName);
-
-            if (existingIcon != null)
-            {
-                requirementIcons[i] =
-                    existingIcon.GetComponent<Image>();
-            }
-            else
-            {
-                GameObject iconObject =
-                    new GameObject(
-                        iconName,
-                        typeof(RectTransform),
-                        typeof(CanvasRenderer),
-                        typeof(Image)
-                    );
-                iconObject.transform.SetParent(
-                    transform,
-                    false
-                );
-                requirementIcons[i] =
-                    iconObject.GetComponent<Image>();
-            }
-
-            Image icon = requirementIcons[i];
-            if (icon == null)
-                continue;
-
-            RectTransform iconRect =
-                icon.rectTransform;
-            iconRect.anchorMin =
-                new Vector2(0.5f, 0.5f);
-            iconRect.anchorMax =
-                new Vector2(0.5f, 0.5f);
-            iconRect.pivot =
-                new Vector2(0.5f, 0.5f);
-            iconRect.anchoredPosition =
-                new Vector2(-96f, i == 0 ? 16f : -11f);
-            iconRect.sizeDelta =
-                new Vector2(18f, 18f);
-            icon.raycastTarget = false;
-            icon.preserveAspect = true;
-            icon.enabled = false;
-
-            requirementLabels[i] =
-                CreateText(
-                    $"OrderPreviewRequirement_{i + 1}",
-                    new Vector2(15f, i == 0 ? 16f : -11f),
-                    new Vector2(190f, 22f),
-                    16f,
-                    TextAlignmentOptions.MidlineLeft
-                );
-            requirementLabels[i].color =
-                new Color32(50, 50, 50, 255);
-            requirementLabels[i].text = string.Empty;
-            requirementLabels[i].gameObject.SetActive(false);
+                unlocked && order != null;
         }
     }
 
@@ -496,10 +358,6 @@ public class CustomerButtonUI : MonoBehaviour
             ready
                 ? "READY"
                 : "NEED DESSERTS";
-        readinessLabel.color =
-            ready
-                ? new Color32(37, 140, 55, 255)
-                : new Color32(154, 58, 51, 255);
     }
 
     private void SetRequirementIcon(
@@ -525,8 +383,6 @@ public class CustomerButtonUI : MonoBehaviour
         if (readinessLabel != null)
         {
             readinessLabel.text = status;
-            readinessLabel.color =
-                new Color32(154, 58, 51, 255);
         }
 
         for (int i = 0; i < requirementIcons.Length; i++)
@@ -558,6 +414,16 @@ public class CustomerButtonUI : MonoBehaviour
 
         canvasGroup.blocksRaycasts =
             visible;
+    }
+
+    private void SetCardState(bool unlocked)
+    {
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = unlocked ? 1f : 0.72f;
+            canvasGroup.interactable = unlocked;
+            canvasGroup.blocksRaycasts = unlocked;
+        }
     }
 
     // ==================================================
