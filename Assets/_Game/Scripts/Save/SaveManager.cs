@@ -280,6 +280,45 @@ public class SaveManager : MonoBehaviour
         return count;
     }
 
+    private static bool TryRemoveZeroStatisticProperty(
+        string json,
+        string propertyName,
+        out string result)
+    {
+        result = null;
+        string property = ",\"" + propertyName + "\":0";
+        int index = json.IndexOf(property, StringComparison.Ordinal);
+        if (index < 0 ||
+            json.LastIndexOf(property, StringComparison.Ordinal) != index)
+        {
+            return false;
+        }
+
+        result = json.Remove(index, property.Length);
+        return true;
+    }
+
+    private static bool TryCreateLegacyV2CanonicalJson(
+        string currentCanonicalJson,
+        out string legacyCanonicalJson)
+    {
+        legacyCanonicalJson = null;
+        if (!TryRemoveZeroStatisticProperty(
+                currentCanonicalJson,
+                "totalOrdersCompleted",
+                out string withoutOrders) ||
+            !TryRemoveZeroStatisticProperty(
+                withoutOrders,
+                "totalMoneyEarned",
+                out legacyCanonicalJson))
+        {
+            legacyCanonicalJson = null;
+            return false;
+        }
+
+        return true;
+    }
+
     private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
     {
         DessertSpawner spawner = FindAnyObjectByType<DessertSpawner>();
@@ -670,6 +709,13 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
+        EconomyManager economyManager = EconomyManager.Instance;
+        if (economyManager == null)
+        {
+            message = "EconomyManager is unavailable; development statistics were not reset.";
+            return false;
+        }
+
         string expectedDirectory;
         string activeDirectory;
         try
@@ -786,6 +832,7 @@ public class SaveManager : MonoBehaviour
         loadedServingPlateProgressionVersion = 0;
         loadedEnergyMetadata = null;
         compatibilityMigrationPending = false;
+        economyManager.RestoreLifetimeStatistics(0, 0);
 
         message = cleanupSucceeded
             ? "Development profile and recognized recovery files were removed."
@@ -1031,6 +1078,10 @@ public class SaveManager : MonoBehaviour
 
             CurrentSaveVersion;
 
+        saveData.economy.totalOrdersCompleted = 0;
+
+        saveData.economy.totalMoneyEarned = 0;
+
         return saveData;
 
     }
@@ -1092,8 +1143,13 @@ public class SaveManager : MonoBehaviour
         }
 
         saveData.economy.cash =
-
             economyManager.CurrentCash;
+
+        saveData.economy.totalOrdersCompleted =
+            economyManager.TotalOrdersCompleted;
+
+        saveData.economy.totalMoneyEarned =
+            economyManager.TotalMoneyEarned;
 
         Debug.Log(
 
@@ -1471,12 +1527,15 @@ public class SaveManager : MonoBehaviour
         }
 
         economyManager.RestoreCash(
-
             saveData.economy.cash
-
         );
 
         if (economyManager.CurrentCash != saveData.economy.cash) return false;
+
+        economyManager.RestoreLifetimeStatistics(
+            saveData.economy.totalOrdersCompleted,
+            saveData.economy.totalMoneyEarned
+        );
 
         Debug.Log(
 
@@ -2775,7 +2834,6 @@ public class SaveManager : MonoBehaviour
         PlayerSaveData check = JsonUtility.FromJson<PlayerSaveData>(json);
 
         if (check == null || !IsSupportedVersion(check.saveVersion) ||
-
             check.economy == null || check.progression == null ||
 
             check.mergeGameplay == null ||
@@ -2790,6 +2848,12 @@ public class SaveManager : MonoBehaviour
 
             return false;
 
+        }
+
+        if (check.economy.totalOrdersCompleted < 0 ||
+            check.economy.totalMoneyEarned < 0)
+        {
+            return false;
         }
 
         if (!IsValidRebirthSaveState(
@@ -2840,8 +2904,24 @@ public class SaveManager : MonoBehaviour
                 metadata.servingPlateProgressionVersion);
         if (hasEnergyMetadata)
             canonicalJson = SerializeWithEnergy(canonicalJson, energy);
-        if (!string.Equals(json, canonicalJson, StringComparison.Ordinal))
-
+        bool canonicalMatch =
+            string.Equals(json, canonicalJson, StringComparison.Ordinal);
+        bool legacyCanonicalMatch = false;
+        string legacyCanonicalJson;
+        if (!canonicalMatch &&
+            check.economy.totalOrdersCompleted == 0 &&
+            check.economy.totalMoneyEarned == 0 &&
+            TryCreateLegacyV2CanonicalJson(
+                canonicalJson,
+                out legacyCanonicalJson))
+        {
+            legacyCanonicalMatch =
+                string.Equals(
+                    json,
+                    legacyCanonicalJson,
+                    StringComparison.Ordinal);
+        }
+        if (!canonicalMatch && !legacyCanonicalMatch)
             return false;
 
         SanitizeSaveData(check);
@@ -2855,7 +2935,20 @@ public class SaveManager : MonoBehaviour
                 metadata.servingPlateProgressionVersion);
         if (hasEnergyMetadata)
             canonicalJson = SerializeWithEnergy(canonicalJson, energy);
-        return string.Equals(json, canonicalJson, StringComparison.Ordinal);
+        canonicalMatch =
+            string.Equals(json, canonicalJson, StringComparison.Ordinal);
+        if (!canonicalMatch && legacyCanonicalMatch &&
+            TryCreateLegacyV2CanonicalJson(
+                canonicalJson,
+                out legacyCanonicalJson))
+        {
+            legacyCanonicalMatch =
+                string.Equals(
+                    json,
+                    legacyCanonicalJson,
+                    StringComparison.Ordinal);
+        }
+        return canonicalMatch || legacyCanonicalMatch;
 
     }
 

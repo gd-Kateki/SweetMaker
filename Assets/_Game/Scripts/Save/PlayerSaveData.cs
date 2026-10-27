@@ -44,6 +44,10 @@ public class EconomySaveData
 {
     public int cash = 0;
 
+    public long totalOrdersCompleted = 0;
+
+    public long totalMoneyEarned = 0;
+
     public EconomySaveData()
     {
     }

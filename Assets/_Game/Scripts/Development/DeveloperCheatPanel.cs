@@ -25,6 +25,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     private TextMeshProUGUI tierSelectionText;
     private TextMeshProUGUI clearButtonText;
     private TextMeshProUGUI diagnosticsText;
+    private TextMeshProUGUI lifetimeStatisticsText;
     private TMP_InputField customCashInput;
     private Button clearBoardButton;
     private Button clearCancelButton;
@@ -271,6 +272,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         scrollRect.content = contentRect;
 
         BuildCashSection(content.transform);
+        BuildLifetimeStatisticsSection(content.transform);
         BuildEnergySection(content.transform);
         BuildRebirthSection(content.transform);
         BuildDessertSection(content.transform);
@@ -309,6 +311,19 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             new Color(0.18f, 0.34f, 0.25f),
             AddCustomCash,
             true);
+    }
+
+    private void BuildLifetimeStatisticsSection(Transform content)
+    {
+        AddSection(content, "LIFETIME STATISTICS");
+        lifetimeStatisticsText = CreateText(
+            string.Empty,
+            content,
+            19f,
+            TextAlignmentOptions.TopLeft,
+            Color.white);
+        lifetimeStatisticsText.textWrappingMode = TextWrappingModes.Normal;
+        SetLayoutHeight(lifetimeStatisticsText.gameObject, 58f);
     }
 
     private void BuildEnergySection(Transform content)
@@ -798,6 +813,16 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             refreshOrdersButton.interactable = ready;
 
         RefreshSelectionLabels();
+
+        if (lifetimeStatisticsText != null)
+        {
+            lifetimeStatisticsText.text = economy == null
+                ? "Total Orders Completed: Unavailable\nTotal Money Earned: Unavailable"
+                : "Total Orders Completed: " +
+                  economy.TotalOrdersCompleted.ToString("N0", CultureInfo.InvariantCulture) +
+                  "\nTotal Money Earned: $" +
+                  economy.TotalMoneyEarned.ToString("N0", CultureInfo.InvariantCulture);
+        }
 
         if (diagnosticsText == null)
             return;

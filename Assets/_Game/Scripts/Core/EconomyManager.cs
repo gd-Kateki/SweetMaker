@@ -25,12 +25,22 @@ public class EconomyManager : MonoBehaviour
 
     private int currentCash;
 
+    private long totalOrdersCompleted;
+
+    private long totalMoneyEarned;
+
     private bool initialized;
 
     public event Action<int> CashChanged;
 
     public int CurrentCash =>
         currentCash;
+
+    public long TotalOrdersCompleted =>
+        totalOrdersCompleted;
+
+    public long TotalMoneyEarned =>
+        totalMoneyEarned;
 
     public float CurrentMoneyMultiplier =>
         progressionManager != null
@@ -233,14 +243,21 @@ public class EconomyManager : MonoBehaviour
         if (order == null)
             return;
 
+        totalOrdersCompleted =
+            SaturatingAdd(totalOrdersCompleted, 1);
+
         int finalReward =
             CalculateOrderReward(
                 order
             );
 
-        AddCash(
-            finalReward
-        );
+        if (finalReward > 0)
+        {
+            TryAddGameplayEarnings(
+                finalReward,
+                out _
+            );
+        }
 
         Debug.Log(
             $"ORDER REWARD | " +
@@ -264,6 +281,46 @@ public class EconomyManager : MonoBehaviour
 
         currentCash += amount;
 
+        NotifyCashAdded(amount);
+    }
+
+    public bool TryAddGameplayEarnings(
+        int amount,
+        out int creditedAmount)
+    {
+        creditedAmount = 0;
+        if (amount <= 0)
+            return false;
+
+        if (currentCash < 0)
+        {
+            Debug.LogError(
+                "GAMEPLAY EARNINGS REJECTED | " +
+                "Cash balance is negative and cannot accept a gameplay reward."
+            );
+            return false;
+        }
+
+        if (currentCash > int.MaxValue - amount)
+        {
+            Debug.LogError(
+                $"GAMEPLAY EARNINGS REJECTED | " +
+                $"Cash credit +${amount} would overflow the Cash balance."
+            );
+            return false;
+        }
+
+        currentCash += amount;
+        creditedAmount = amount;
+        totalMoneyEarned =
+            SaturatingAdd(totalMoneyEarned, creditedAmount);
+
+        NotifyCashAdded(creditedAmount);
+        return true;
+    }
+
+    private void NotifyCashAdded(int amount)
+    {
         CashChanged?.Invoke(
             currentCash
         );
@@ -273,6 +330,28 @@ public class EconomyManager : MonoBehaviour
             $"+${amount} | " +
             $"Total: ${currentCash}"
         );
+    }
+
+    internal void RestoreLifetimeStatistics(
+        long restoredOrdersCompleted,
+        long restoredMoneyEarned)
+    {
+        totalOrdersCompleted =
+            Math.Max(0L, restoredOrdersCompleted);
+        totalMoneyEarned =
+            Math.Max(0L, restoredMoneyEarned);
+    }
+
+    private static long SaturatingAdd(
+        long total,
+        long amount)
+    {
+        if (amount <= 0)
+            return total;
+
+        return total > long.MaxValue - amount
+            ? long.MaxValue
+            : total + amount;
     }
 
     public bool CanAfford(

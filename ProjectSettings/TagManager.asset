@@ -44,6 +44,9 @@ TagManager:
   - name: Board
     uniqueID: 1499063713
     locked: 0
+  - name: Serving Plates
+    uniqueID: 111179093
+    locked: 0
   - name: Desserts
     uniqueID: 4271470025
     locked: 0
