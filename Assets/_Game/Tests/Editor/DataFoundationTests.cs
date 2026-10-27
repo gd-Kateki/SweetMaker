@@ -25,6 +25,28 @@ public class ReplacementApplyFailureTrigger : MonoBehaviour
 
 public class DataFoundationTests
 {
+    private static readonly List<ScriptableObject> testCatalogs =
+        new List<ScriptableObject>();
+
+    [TearDown]
+    public void DestroyTestCatalogs()
+    {
+        foreach (ScriptableObject catalog in testCatalogs)
+            UnityEngine.Object.DestroyImmediate(catalog);
+        testCatalogs.Clear();
+    }
+
+    private static void SetSpawnerDefinitions(object spawner, Array definitions)
+    {
+        ScriptableObject source = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+            "Assets/_Game/Resources/DessertCatalog.asset");
+        Assert.IsNotNull(source, "The shared dessert catalog must exist.");
+        ScriptableObject catalog = UnityEngine.Object.Instantiate(source);
+        testCatalogs.Add(catalog);
+        SetPrivateField(catalog, "definitions", definitions);
+        SetPrivateField(spawner, "dessertCatalog", catalog);
+    }
+
     private sealed class ShelfSlotSceneData
     {
         public readonly Collider2D Collider;
@@ -116,9 +138,16 @@ public class DataFoundationTests
     {
         string scenePath = "Assets/_Game/Scenes/Game.unity";
         string sceneText = File.ReadAllText(scenePath);
-        Match spawnerData = Regex.Match(
+        Match catalogReference = Regex.Match(
             sceneText,
-            @"dessertDefinitions:\s*(?<items>[\s\S]*?)\r?\n\s*nextDessert:");
+            @"dessertCatalog: \{fileID: 11400000, guid: (?<guid>[0-9a-f]{32}), type: 2\}");
+        Assert.IsTrue(catalogReference.Success, "The spawner must reference its shared catalog.");
+        string catalogPath = AssetDatabase.GUIDToAssetPath(
+            catalogReference.Groups["guid"].Value);
+        Assert.AreEqual("Assets/_Game/Resources/DessertCatalog.asset", catalogPath);
+        Match spawnerData = Regex.Match(
+            File.ReadAllText(catalogPath),
+            @"definitions:(?<items>[\s\S]*)");
         Assert.IsTrue(spawnerData.Success, "Could not find serialized DessertSpawner catalog.");
 
         string[] referencedGuids = Regex.Matches(
@@ -152,10 +181,7 @@ public class DataFoundationTests
                     i);
             }
 
-            spawnerType.GetField(
-                    "dessertDefinitions",
-                    BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(spawner, definitions);
+            SetSpawnerDefinitions(spawner, definitions);
 
             MethodInfo lookup = spawnerType.GetMethod(
                 "GetDefinitionByTier",
@@ -560,6 +586,7 @@ public class DataFoundationTests
         GameObject orderManagerObject =
             new GameObject("Customer preview test orders");
         GameObject buttonObject = null;
+        Scene previewScene = default;
         try
         {
             Component orderManager =
@@ -572,29 +599,18 @@ public class DataFoundationTests
             slots[0] = singleOrder;
             slots[1] = mixedOrder;
 
-            buttonObject = new GameObject(
-                "Customer preview test button",
-                typeof(RectTransform),
-                typeof(CanvasRenderer));
-            Type imageType =
-                FindPlayerType("UnityEngine.UI.Image");
-            Type buttonType =
-                FindPlayerType("UnityEngine.UI.Button");
-            buttonObject.AddComponent(imageType);
-            buttonObject.AddComponent(buttonType);
-            GameObject labelObject = new GameObject(
-                "CustomerText",
-                typeof(RectTransform),
-                typeof(CanvasRenderer));
-            labelObject.AddComponent(
-                FindPlayerType("TMPro.TextMeshProUGUI"));
-            labelObject.transform.SetParent(
-                buttonObject.transform,
-                false);
-            Component customerButton =
-                buttonObject.AddComponent(
-                    FindPlayerType("CustomerButtonUI"));
+            previewScene = EditorSceneManager.OpenPreviewScene(
+                "Assets/_Game/Scenes/Game.unity");
+            Type customerButtonType = FindPlayerType("CustomerButtonUI");
+            Component customerButton = previewScene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren(customerButtonType, true))
+                .Single(component => (int)GetPropertyValue(component, "CustomerIndex") == 0);
+            buttonObject = customerButton.gameObject;
+            Type imageType = FindPlayerType("UnityEngine.UI.Image");
+            Type buttonType = FindPlayerType("UnityEngine.UI.Button");
             InvokeLifecycle(customerButton, "Awake");
+            Assert.IsTrue(((Behaviour)customerButton).enabled,
+                "The serialized Table preview must have complete references.");
             SetPrivateField(
                 customerButton,
                 "orderManager",
@@ -718,7 +734,10 @@ public class DataFoundationTests
         finally
         {
             if (buttonObject != null)
-                UnityEngine.Object.DestroyImmediate(buttonObject);
+                InvokeLifecycle(buttonObject.GetComponent(FindPlayerType("CustomerButtonUI")),
+                    "OnDestroy");
+            if (previewScene.IsValid())
+                EditorSceneManager.ClosePreviewScene(previewScene);
             UnityEngine.Object.DestroyImmediate(orderManagerObject);
         }
     }
@@ -1051,7 +1070,12 @@ public class DataFoundationTests
                 null
             };
             Assert.IsTrue((bool)FindPlayerType("ProceduralCustomerOrderSaveCodec")
-                .GetMethod("TryEncode")
+                .GetMethod("TryEncode", new[]
+                {
+                    typeof(string), typeof(int),
+                    typeof(IReadOnlyList<>).MakeGenericType(FindPlayerType("OrderRequirement")),
+                    typeof(string).MakeByRefType()
+                })
                 .Invoke(null, encodeArguments));
 
             Type definitionType = FindPlayerType("CustomerOrderDefinition");
@@ -1599,7 +1623,12 @@ public class DataFoundationTests
                 null
             };
             Assert.IsTrue((bool)FindPlayerType("ProceduralCustomerOrderSaveCodec")
-                .GetMethod("TryEncode")
+                .GetMethod("TryEncode", new[]
+                {
+                    typeof(string), typeof(int),
+                    typeof(IReadOnlyList<>).MakeGenericType(FindPlayerType("OrderRequirement")),
+                    typeof(string).MakeByRefType()
+                })
                 .Invoke(null, encodeArguments));
 
             object saveData = Activator.CreateInstance(
@@ -1841,12 +1870,12 @@ public class DataFoundationTests
                 .GetMethod("CalculateOrderReward")
                 .Invoke(economy, new[] { order });
 
-            Array savedDefinitions = (Array)GetPropertyValue(
+            Array savedDefinitions = ConvertArray(
+                ((IEnumerable)GetPropertyValue(fixture.Spawner, "DessertDefinitions"))
+                    .Cast<object>().ToArray(),
+                "DessertDefinition");
+            SetSpawnerDefinitions(
                 fixture.Spawner,
-                "DessertDefinitions");
-            SetPrivateField(
-                fixture.Spawner,
-                "dessertDefinitions",
                 Array.CreateInstance(savedDefinitions.GetType().GetElementType(), 0));
             for (int i = 0; i < requiredDesserts; i++)
             {
@@ -1877,9 +1906,8 @@ public class DataFoundationTests
             Assert.AreEqual(cashBeforeCompletion + expectedReward,
                 GetPropertyValue(economy, "CurrentCash"));
 
-            SetPrivateField(
+            SetSpawnerDefinitions(
                 fixture.Spawner,
-                "dessertDefinitions",
                 savedDefinitions);
             fixture.Orders.GetType().GetMethod(
                     "HandleUpgradeLevelChanged",
@@ -2080,7 +2108,7 @@ public class DataFoundationTests
                     $"{DessertFolder}/Dessert_{tier:00}.asset"),
                 tier - 1);
         }
-        SetPrivateField(spawner, "dessertDefinitions", dessertDefinitions);
+        SetSpawnerDefinitions(spawner, dessertDefinitions);
 
         try
         {
@@ -3173,13 +3201,13 @@ public class DataFoundationTests
             @"(?ms)^--- !u!114 &2117529020\r?\n(.*?)(?=^--- !u!|\z)");
         MatchCollection headerChildren = Regex.Matches(
             header.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
         MatchCollection scrollChildren = Regex.Matches(
             scrollView.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
         MatchCollection contentChildren = Regex.Matches(
             contentTransform.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
 
         Assert.IsTrue(upgradeScreen.Success);
         Assert.IsTrue(scrollView.Success);
@@ -3368,10 +3396,10 @@ public class DataFoundationTests
 
         MatchCollection rootChildren = Regex.Matches(
             upgradeScreen.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
         MatchCollection contentChildren = Regex.Matches(
             content.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
         Assert.AreEqual(2, rootChildren.Count);
         Assert.AreEqual("2290013143", rootChildren[0].Groups[1].Value,
             "The blocker must be the first child, behind the panel.");
@@ -3454,6 +3482,9 @@ public class DataFoundationTests
             progressionType,
             "Instance",
             setup.Progression);
+        Type economyType = setup.Economy.GetType();
+        object previousEconomy = economyType.GetProperty("Instance").GetValue(null);
+        SetPrivateStaticProperty(economyType, "Instance", setup.Economy);
         managerObject.SetActive(true);
 
         try
@@ -3467,6 +3498,12 @@ public class DataFoundationTests
                 .GetMethod("TryPurchaseUpgrade");
             object boardSpace = Enum.Parse(
                 FindPlayerType("UpgradeType"), "BoardSpace");
+            Assert.AreEqual(1, GetPropertyValue(setup.Progression, "BoardSpaceLevel"));
+            Assert.AreEqual(100, purchaseManager.GetType().GetMethod("GetNextUpgradeCost")
+                .Invoke(purchaseManager, new[] { boardSpace }));
+            Assert.AreSame(setup.Economy, purchaseManager.GetType().GetField(
+                "economyManager", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(purchaseManager));
             Assert.IsTrue((bool)purchase.Invoke(
                 purchaseManager, new[] { boardSpace }));
             Assert.AreEqual(
@@ -3495,6 +3532,7 @@ public class DataFoundationTests
                 progressionType,
                 "Instance",
                 previousInstance);
+            SetPrivateStaticProperty(economyType, "Instance", previousEconomy);
             DestroyProgressionPurchaseTestSetup(setup);
         }
     }
@@ -3735,6 +3773,17 @@ public class DataFoundationTests
     {
         RecycleFixture fixture = CreateRecycleFixture(false);
 
+        Type settingsType = FindPlayerType("SettingsManager");
+        object previousSettings = settingsType.GetProperty("Instance").GetValue(null);
+        var settingsObject = new GameObject("Direct recycle settings");
+        settingsObject.SetActive(false);
+        Component settings = settingsObject.AddComponent(settingsType);
+        object profile = Activator.CreateInstance(FindPlayerType("SettingsProfileData"));
+        SetField(profile, "confirmImportantActions", false);
+        SetPrivateField(settings, "currentSettings", profile);
+        SetPrivateField(settings, "persistenceStatus",
+            Enum.Parse(FindPlayerType("SettingsPersistenceStatus"), "Loaded"));
+        SetPrivateStaticProperty(settingsType, "Instance", settings);
         try
         {
             SetPrivateField(fixture.DragHandler, "isDragging", true);
@@ -3771,6 +3820,8 @@ public class DataFoundationTests
         finally
         {
             DestroyRecycleFixture(fixture);
+            UnityEngine.Object.DestroyImmediate(settingsObject);
+            SetPrivateStaticProperty(settingsType, "Instance", previousSettings);
         }
     }
 
@@ -4686,7 +4737,7 @@ public class DataFoundationTests
                     $"{DessertFolder}/Dessert_{tier:00}.asset"),
                 tier - 1);
         }
-        SetPrivateField(spawner, "dessertDefinitions", dessertDefinitions);
+        SetSpawnerDefinitions(spawner, dessertDefinitions);
 
         var uiObject = new GameObject("Rebirth UI state test");
         uiObject.SetActive(false);
@@ -4788,7 +4839,7 @@ public class DataFoundationTests
                 .GetProperty("text").GetValue(requirementText);
             StringAssert.Contains("Eligibility: READY", text);
             Assert.AreEqual(
-                "Rebirth Available! Tap Rebirth to continue!",
+                "Prestige Available! Tap Prestige to continue!",
                 notification.GetType().GetProperty("text")
                     .GetValue(notification));
             Assert.IsTrue(((UnityEngine.Component)notification)
@@ -4937,11 +4988,18 @@ public class DataFoundationTests
         StringAssert.Contains("m_Name: CampaignCompletionOverlay", scene);
         StringAssert.Contains("m_Name: CampaignCompletionPanel", scene);
         StringAssert.Contains("m_IsActive: 0", scene);
-        StringAssert.Contains("Campaign Complete!", scene);
-        StringAssert.Contains("Eternal Dragon's Dessert", scene);
+        Match messageText = Regex.Match(
+            scene,
+            @"(?ms)^--- !u!114 &1810000010\r?\n(.*?)(?=^--- !u!|\z)");
+        Assert.IsTrue(messageText.Success);
+        // Unity escapes apostrophes by doubling them in single-quoted YAML.
+        // Inspect the bound message component, not unrelated text elsewhere.
+        string message = messageText.Value.Replace("''", "'");
+        StringAssert.Contains("Campaign Complete!", message);
+        StringAssert.Contains("Eternal Dragon's Dessert", message);
         StringAssert.Contains(
             "Congratulations! You've completed the Sweet Merge campaign.",
-            scene);
+            message);
         StringAssert.Contains("m_text: Continue Playing", scene);
         StringAssert.Contains("messageText: {fileID: 1810000010}", scene);
         StringAssert.Contains(
@@ -5181,7 +5239,7 @@ public class DataFoundationTests
 
         MatchCollection canvasChildren = Regex.Matches(
             canvasTransform.Value,
-            @"(?m)^  - \{fileID: (-?\d+)\}$");
+            @"(?m)^  - \{fileID: (-?\d+)\}\r?$");
         Assert.GreaterOrEqual(canvasChildren.Count, 2);
         string[] canvasChildIds = canvasChildren.Cast<Match>()
             .Select(child => child.Groups[1].Value)
@@ -5225,13 +5283,13 @@ public class DataFoundationTests
             "256",
             Regex.Match(
                 titleText.Value,
-                @"(?m)^  m_VerticalAlignment: (\d+)$").Groups[1].Value,
+                @"(?m)^  m_VerticalAlignment: (\d+)\r?$").Groups[1].Value,
             "The order title uses vertically centered text.");
         Assert.AreEqual(
             "256",
             Regex.Match(
                 orderNumberText.Value,
-                @"(?m)^  m_VerticalAlignment: (\d+)$").Groups[1].Value,
+                @"(?m)^  m_VerticalAlignment: (\d+)\r?$").Groups[1].Value,
             "The order number uses vertically centered text.");
         string titleFontGuid = Regex.Match(
             titleText.Value,
@@ -5735,6 +5793,12 @@ public class DataFoundationTests
         SetField(save, "highestTierCreatedThisRun", 12);
         object economy = GetField(save, "economy");
         SetField(economy, "cash", 128);
+        SetField(economy, "totalOrdersCompleted", 37L);
+        SetField(economy, "totalMoneyEarned", 5000000000L);
+        object collection = GetField(save, "dessertCollection");
+        foreach (int tier in Enumerable.Range(1, 12))
+            ((IList)GetField(collection, "discoveredTierIds")).Add(tier);
+        ((IList)GetField(collection, "claimedMilestoneIds")).Add(1);
         object progression = GetField(save, "progression");
         SetField(progression, "ovenLevel", 1);
         SetField(progression, "boardSpaceLevel", 2);
@@ -5767,6 +5831,12 @@ public class DataFoundationTests
         Assert.AreEqual(12, GetField(restored, "highestTierCreatedThisRun"));
         Assert.IsFalse((bool)GetField(restored, "campaignComplete"));
         Assert.AreEqual(128, GetField(GetField(restored, "economy"), "cash"));
+        Assert.AreEqual(37L, GetField(GetField(restored, "economy"), "totalOrdersCompleted"));
+        Assert.AreEqual(5000000000L, GetField(GetField(restored, "economy"), "totalMoneyEarned"));
+        CollectionAssert.AreEqual(Enumerable.Range(1, 12),
+            (IEnumerable)GetField(GetField(restored, "dessertCollection"), "discoveredTierIds"));
+        CollectionAssert.AreEqual(new[] { 1 },
+            (IEnumerable)GetField(GetField(restored, "dessertCollection"), "claimedMilestoneIds"));
         object restoredGameplay = GetField(restored, "mergeGameplay");
         Assert.AreEqual(8, GetField(restoredGameplay, "nextOrderId"));
         Assert.AreEqual(3, GetField(restoredGameplay, "nextDessertTier"));
@@ -5801,7 +5871,7 @@ public class DataFoundationTests
         {
             "saveVersion", "completedRebirthCount",
             "highestTierCreatedThisRun", "campaignComplete",
-            "economy", "progression", "mergeGameplay"
+            "economy", "progression", "mergeGameplay", "dessertCollection"
         };
         CollectionAssert.AreEquivalent(
             rootFields,
@@ -5821,6 +5891,10 @@ public class DataFoundationTests
 
         Type managerType = FindPlayerType("SaveManager");
         var managerObject = new GameObject("Detached snapshot validation test");
+        var progressionSetup = CreateProgressionPurchaseTestSetup();
+        Type progressionType = FindPlayerType("PlayerProgressionManager");
+        object previousProgression = progressionType.GetProperty("Instance").GetValue(null);
+        SetPrivateStaticProperty(progressionType, "Instance", progressionSetup.Progression);
         try
         {
                 object manager = managerObject.AddComponent(managerType);
@@ -5882,6 +5956,8 @@ public class DataFoundationTests
         finally
         {
                 UnityEngine.Object.DestroyImmediate(managerObject);
+                SetPrivateStaticProperty(progressionType, "Instance", previousProgression);
+                DestroyProgressionPurchaseTestSetup(progressionSetup);
         }
     }
 
@@ -5895,6 +5971,10 @@ public class DataFoundationTests
 
         Type managerType = FindPlayerType("SaveManager");
         var managerObject = new GameObject("Invalid detached snapshot test");
+        var progressionSetup = CreateProgressionPurchaseTestSetup();
+        Type progressionType = FindPlayerType("PlayerProgressionManager");
+        object previousProgression = progressionType.GetProperty("Instance").GetValue(null);
+        SetPrivateStaticProperty(progressionType, "Instance", progressionSetup.Progression);
         try
         {
                 object manager = managerObject.AddComponent(managerType);
@@ -5921,6 +6001,8 @@ public class DataFoundationTests
         finally
         {
                 UnityEngine.Object.DestroyImmediate(managerObject);
+                SetPrivateStaticProperty(progressionType, "Instance", previousProgression);
+                DestroyProgressionPurchaseTestSetup(progressionSetup);
         }
     }
 
@@ -6352,7 +6434,7 @@ public class DataFoundationTests
                 AssetDatabase.LoadMainAssetAtPath(
                     $"{DessertFolder}/Dessert_{tier:00}.asset"),
                 tier - 1);
-        SetPrivateField(spawner, "dessertDefinitions", desserts);
+        SetSpawnerDefinitions(spawner, desserts);
         SetPrivateField(orders, "dessertSpawner", spawner);
 
         try
@@ -6758,7 +6840,7 @@ public class DataFoundationTests
             object spawner = AddRuntimeComponent(fixture, "DessertSpawner", false);
             SetPrivateField(spawner, "progressionManager", progression);
             SetPrivateField(spawner, "gridManager", grid);
-            SetPrivateField(spawner, "dessertDefinitions", LoadDessertDefinitions());
+            SetSpawnerDefinitions(spawner, LoadDessertDefinitions());
             ((UnityEngine.Component)spawner).gameObject.SetActive(true);
             SetPrivateField(orders, "dessertSpawner", spawner);
             SetPrivateField(sessionManager, "dessertSpawner", spawner);
@@ -7575,9 +7657,8 @@ public class DataFoundationTests
                 BindingFlags.Instance | BindingFlags.NonPublic)
             .Invoke(orderManager, null);
         SetPrivateField(dessertSpawner, "progressionManager", setup.Progression);
-        SetPrivateField(
+        SetSpawnerDefinitions(
             dessertSpawner,
-            "dessertDefinitions",
             ConvertArray(dessertDefinitions, "DessertDefinition"));
         SetPrivateField(orderManager, "dessertSpawner", dessertSpawner);
         SetPrivateField(setup.SessionManager, "dessertSpawner", dessertSpawner);

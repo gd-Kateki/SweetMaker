@@ -5,8 +5,19 @@ using System.Collections.Generic;
 using System.IO;
 
 using System.Text;
-
 using UnityEngine;
+
+public enum DessertCollectionClaimResult
+{
+    Success,
+    InvalidMilestone,
+    NotEligible,
+    AlreadyClaimed,
+    CashOverflow,
+    SaveFailure,
+    TransactionUnavailable,
+    CommitUncertain
+}
 
 public class SaveManager : MonoBehaviour
 
@@ -319,6 +330,80 @@ public class SaveManager : MonoBehaviour
         return true;
     }
 
+    private static bool TryRemoveEmptyDessertCollectionProperty(
+        string json,
+        out string result)
+    {
+        result = null;
+        const string property =
+            ",\"dessertCollection\":{\"discoveredTierIds\":[]," +
+            "\"claimedMilestoneIds\":[]}";
+        int index = json.IndexOf(property, StringComparison.Ordinal);
+        if (index < 0 ||
+            json.LastIndexOf(property, StringComparison.Ordinal) != index)
+        {
+            return false;
+        }
+
+        result = json.Remove(index, property.Length);
+        return true;
+    }
+
+    private static bool MatchesSupportedCanonicalShape(
+        string json,
+        string canonicalJson,
+        bool collectionSectionPresent,
+        bool statisticsAreZero)
+    {
+        if (string.Equals(
+                json,
+                canonicalJson,
+                StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        string withoutCollection = null;
+        bool hasWithoutCollection =
+            !collectionSectionPresent &&
+            TryRemoveEmptyDessertCollectionProperty(
+                canonicalJson,
+                out withoutCollection);
+        if (hasWithoutCollection &&
+            string.Equals(
+                json,
+                withoutCollection,
+                StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!statisticsAreZero ||
+            !TryCreateLegacyV2CanonicalJson(
+                canonicalJson,
+                out string withoutStatistics))
+        {
+            return false;
+        }
+
+        if (string.Equals(
+                json,
+                withoutStatistics,
+                StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return hasWithoutCollection &&
+               TryRemoveEmptyDessertCollectionProperty(
+                   withoutStatistics,
+                   out string withoutCollectionOrStatistics) &&
+               string.Equals(
+                   json,
+                   withoutCollectionOrStatistics,
+                   StringComparison.Ordinal);
+    }
+
     private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
     {
         DessertSpawner spawner = FindAnyObjectByType<DessertSpawner>();
@@ -448,6 +533,367 @@ public class SaveManager : MonoBehaviour
     private const int CurrentSaveVersion = 2;
     private const int CurrentServingPlateProgressionVersion = 1;
     private bool compatibilityMigrationPending;
+    private bool loadedCollectionSectionPresent;
+    private bool claimInProgress;
+    private bool claimPersistenceUncertain;
+    private readonly DessertCollectionState dessertCollection =
+        new DessertCollectionState();
+
+    public DessertCollectionState DessertCollection =>
+        dessertCollection;
+
+    public DessertDiscoveryRecordResult RecordDessertDiscovery(
+        int tierId)
+    {
+        DessertDiscoveryRecordResult result =
+            dessertCollection.RecordDiscovery(tierId);
+        if (result ==
+            DessertDiscoveryRecordResult.InvalidTier)
+        {
+            Debug.LogError(
+                "COLLECTION | Rejected discovery for invalid dessert tier " +
+                tierId +
+                ". Valid initial catalog tiers are 1-30.");
+        }
+
+        return result;
+    }
+
+    public DessertCollectionClaimResult TryClaimDessertCollectionReward(
+        int milestoneId)
+    {
+        if (milestoneId < 1 ||
+            milestoneId > DessertCollectionState.MilestoneCount)
+        {
+            return DessertCollectionClaimResult.InvalidMilestone;
+        }
+
+        if (claimInProgress ||
+            saveInProgress ||
+            loadInProgress)
+            return DessertCollectionClaimResult.TransactionUnavailable;
+        if (claimPersistenceUncertain)
+            return DessertCollectionClaimResult.CommitUncertain;
+
+        if (dessertCollection.IsMilestoneClaimed(milestoneId))
+            return DessertCollectionClaimResult.AlreadyClaimed;
+        if (!dessertCollection.IsMilestoneEligible(milestoneId))
+            return DessertCollectionClaimResult.NotEligible;
+        if (!CanWriteCurrentState())
+            return DessertCollectionClaimResult.TransactionUnavailable;
+
+        EconomyManager economy = EconomyManager.Instance;
+        if (economy == null || economy.CurrentCash < 0)
+            return DessertCollectionClaimResult.TransactionUnavailable;
+
+        int reward = dessertCollection.GetMilestoneCashAmount(
+            milestoneId);
+        int currentCash = economy.CurrentCash;
+        int candidateCash;
+        try
+        {
+            candidateCash = checked(currentCash + reward);
+        }
+        catch (OverflowException)
+        {
+            return DessertCollectionClaimResult.CashOverflow;
+        }
+
+        claimInProgress = true;
+        saveInProgress = true;
+        bool candidateSnapshotCommitted = false;
+        try
+        {
+            if (!TryCaptureClaimCandidate(
+                    milestoneId,
+                    candidateCash,
+                    out PlayerSaveData candidate,
+                    out int sessionCapacity,
+                    out string captureFailure))
+            {
+                Debug.LogError(
+                    "COLLECTION CLAIM | Candidate capture failed. " +
+                    captureFailure);
+                return DessertCollectionClaimResult.SaveFailure;
+            }
+
+            if (!TryPrepareDetachedSnapshot(
+                    candidate,
+                    sessionCapacity,
+                    out PlayerSaveData detached,
+                    out string validationFailure))
+            {
+                Debug.LogError(
+                    "COLLECTION CLAIM | Candidate snapshot failed validation. " +
+                    validationFailure);
+                return DessertCollectionClaimResult.SaveFailure;
+            }
+
+            string candidateJson =
+                SerializeCurrentWithCapacity(
+                    detached,
+                    sessionCapacity);
+            byte[] candidateBytes =
+                SaveEncoding.GetBytes(candidateJson);
+            if (!TryReadClaimPrimary(
+                    out bool originalPrimaryExists,
+                    out byte[] originalPrimaryBytes))
+            {
+                return DessertCollectionClaimResult.SaveFailure;
+            }
+
+            bool saved = false;
+            bool snapshotCommitted = false;
+            try
+            {
+                saved = TryWritePreparedSnapshot(
+                    candidateJson,
+                    SaveFilePath,
+                    out snapshotCommitted);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    "COLLECTION CLAIM | Snapshot write threw an exception.\n" +
+                    exception);
+            }
+
+            bool committed = saved && snapshotCommitted;
+            if (!committed)
+            {
+                ClaimDiskState diskState =
+                    ClassifyClaimDiskState(
+                        candidateBytes,
+                        originalPrimaryExists,
+                        originalPrimaryBytes);
+                if (diskState == ClaimDiskState.CandidateCommitted)
+                {
+                    committed = true;
+                    Debug.LogWarning(
+                        "COLLECTION CLAIM | Writer did not report success, " +
+                        "but the exact candidate snapshot is present.");
+                }
+                else if (diskState == ClaimDiskState.Unchanged)
+                {
+                    return DessertCollectionClaimResult.SaveFailure;
+                }
+                else
+                {
+                    claimPersistenceUncertain = true;
+                    Debug.LogError(
+                        "COLLECTION CLAIM | Commit status cannot be established. " +
+                        "Further saves and claims are blocked until a successful reload.");
+                    return DessertCollectionClaimResult.CommitUncertain;
+                }
+            }
+
+            candidateSnapshotCommitted = true;
+            if (!dessertCollection.TryMarkMilestoneClaimedAfterPayment(
+                    milestoneId))
+            {
+                claimPersistenceUncertain = true;
+                Debug.LogError(
+                    "COLLECTION CLAIM | Snapshot committed, but live claim state " +
+                    "could not be applied. Reload is required before further saves.");
+                return DessertCollectionClaimResult.CommitUncertain;
+            }
+
+            try
+            {
+                economy.RestoreCash(candidateCash);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    "COLLECTION CLAIM | Cash notification failed after commit.\n" +
+                    exception);
+            }
+
+            if (economy.CurrentCash != candidateCash ||
+                !dessertCollection.IsMilestoneClaimed(milestoneId))
+            {
+                claimPersistenceUncertain = true;
+                Debug.LogError(
+                    "COLLECTION CLAIM | Snapshot committed, but live Cash and claim " +
+                    "state are inconsistent. Reload is required before further saves.");
+                return DessertCollectionClaimResult.CommitUncertain;
+            }
+
+            loadedCollectionSectionPresent = true;
+            compatibilityMigrationPending = false;
+            try
+            {
+                PlayerProgressionManager.Instance?
+                    .MarkCampaignCompletionSaved();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    "COLLECTION CLAIM | The claim committed, but campaign-save " +
+                    "notification failed.\n" + exception);
+            }
+
+            Debug.Log(
+                $"COLLECTION CLAIM | Milestone {milestoneId} committed for " +
+                $"${reward}; Cash is now ${economy.CurrentCash}.");
+            return DessertCollectionClaimResult.Success;
+        }
+        catch (Exception exception)
+        {
+            if (candidateSnapshotCommitted)
+            {
+                claimPersistenceUncertain = true;
+                Debug.LogError(
+                    "COLLECTION CLAIM | The candidate snapshot committed, but " +
+                    "live state application did not complete. Reload is required.\n" +
+                    exception);
+                return DessertCollectionClaimResult.CommitUncertain;
+            }
+
+            Debug.LogError(
+                "COLLECTION CLAIM | Transaction failed before completion.\n" +
+                exception);
+            return DessertCollectionClaimResult.SaveFailure;
+        }
+        finally
+        {
+            saveInProgress = false;
+            claimInProgress = false;
+        }
+    }
+
+    private bool TryCaptureClaimCandidate(
+        int milestoneId,
+        int candidateCash,
+        out PlayerSaveData candidate,
+        out int sessionCapacity,
+        out string failureReason)
+    {
+        candidate = null;
+        sessionCapacity = 0;
+        failureReason = null;
+
+        if (!CaptureLiveMergeGameplayIfAvailable())
+        {
+            failureReason = "Live merge gameplay capture failed.";
+            return false;
+        }
+
+        candidate = CreateNewSaveData();
+        if (!CaptureEconomy(candidate) ||
+            !CaptureProgression(candidate) ||
+            !CaptureMergeSession(candidate))
+        {
+            failureReason =
+                "One or more current gameplay snapshots could not be captured.";
+            return false;
+        }
+
+        if (candidate.economy == null ||
+            candidate.dessertCollection == null ||
+            candidate.dessertCollection.claimedMilestoneIds == null ||
+            candidate.dessertCollection.claimedMilestoneIds.Contains(
+                milestoneId))
+        {
+            failureReason =
+                "Candidate collection data is missing or already contains the milestone.";
+            return false;
+        }
+
+        candidate.economy.cash = candidateCash;
+        candidate.dessertCollection.claimedMilestoneIds.Add(milestoneId);
+        candidate.dessertCollection.claimedMilestoneIds.Sort();
+
+        if (candidate.mergeGameplay == null)
+        {
+            failureReason = "Merge gameplay snapshot is missing.";
+            return false;
+        }
+
+        if (candidate.mergeGameplay.hasSession)
+        {
+            MergeSessionManager session = MergeSessionManager.Instance;
+            PlayerProgressionManager progression =
+                PlayerProgressionManager.Instance;
+            if (session == null ||
+                progression == null ||
+                !TryGetSessionCustomerCapacity(
+                    session.SessionData,
+                    progression.ActiveCustomerOrders,
+                    out sessionCapacity))
+            {
+                failureReason =
+                    "Saved customer capacity could not be verified.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private enum ClaimDiskState
+    {
+        CandidateCommitted,
+        Unchanged,
+        Uncertain
+    }
+
+    private bool TryReadClaimPrimary(
+        out bool exists,
+        out byte[] bytes)
+    {
+        exists = false;
+        bytes = null;
+        try
+        {
+            bytes = File.ReadAllBytes(SaveFilePath);
+            exists = true;
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return true;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError(
+                "COLLECTION CLAIM | Could not inspect the primary save.\n" +
+                exception);
+            return false;
+        }
+    }
+
+    private ClaimDiskState ClassifyClaimDiskState(
+        byte[] candidateBytes,
+        bool originalPrimaryExists,
+        byte[] originalPrimaryBytes)
+    {
+        if (!TryReadClaimPrimary(
+                out bool currentPrimaryExists,
+                out byte[] currentPrimaryBytes))
+        {
+            return ClaimDiskState.Uncertain;
+        }
+
+        if (currentPrimaryExists &&
+            BytesEqual(currentPrimaryBytes, candidateBytes))
+        {
+            return ClaimDiskState.CandidateCommitted;
+        }
+
+        bool unchanged =
+            originalPrimaryExists
+                ? currentPrimaryExists &&
+                  BytesEqual(currentPrimaryBytes, originalPrimaryBytes)
+                : !currentPrimaryExists;
+        return unchanged
+            ? ClaimDiskState.Unchanged
+            : ClaimDiskState.Uncertain;
+    }
 
     // Main-thread APIs. The guard covers capture, serialization, IO and logging.
 
@@ -473,7 +919,8 @@ public class SaveManager : MonoBehaviour
 
         var startup = GameStartupCoordinator.Instance;
 
-        return Instance == this && !restorationFailed && lifecycleSavingReady &&
+        return Instance == this && !restorationFailed &&
+            !claimPersistenceUncertain && lifecycleSavingReady &&
 
             startup != null && startup.IsStartupComplete && startup.IsGameplayReady;
 
@@ -832,6 +1279,9 @@ public class SaveManager : MonoBehaviour
         loadedServingPlateProgressionVersion = 0;
         loadedEnergyMetadata = null;
         compatibilityMigrationPending = false;
+        loadedCollectionSectionPresent = false;
+        claimPersistenceUncertain = false;
+        dessertCollection.Clear();
         economyManager.RestoreLifetimeStatistics(0, 0);
 
         message = cleanupSucceeded
@@ -1081,6 +1531,9 @@ public class SaveManager : MonoBehaviour
         saveData.economy.totalOrdersCompleted = 0;
 
         saveData.economy.totalMoneyEarned = 0;
+
+        dessertCollection.CaptureTo(
+            saveData.dessertCollection);
 
         return saveData;
 
@@ -2155,7 +2608,11 @@ public class SaveManager : MonoBehaviour
 
             restorationFailed = !success;
 
-            if (success) GameStartupCoordinator.Instance?.CompletePersistentReload();
+                if (success)
+                {
+                    claimPersistenceUncertain = false;
+                    GameStartupCoordinator.Instance?.CompletePersistentReload();
+                }
 
             else GameStartupCoordinator.Instance?.ReportGameplayRestorationFailure("Persistent restoration failed.");
 
@@ -2216,6 +2673,25 @@ public class SaveManager : MonoBehaviour
                 "LOAD MIGRATION | Compatibility migration failed. " +
                 "The original save was not modified. " + migrationFailure);
             return false;
+        }
+        bool needsCollectionBackfill =
+            !loadedCollectionSectionPresent;
+        if (needsCollectionBackfill)
+        {
+            if (!DessertCollectionState.TryCreateLegacyBackfill(
+                    saveData.mergeGameplay,
+                    out DessertCollectionSaveData migratedCollection,
+                    out string collectionMigrationFailure))
+            {
+                Debug.LogError(
+                    "LOAD MIGRATION | Collection backfill failed. " +
+                    "The original save was not modified. " +
+                    collectionMigrationFailure);
+                return false;
+            }
+
+            saveData.dessertCollection =
+                migratedCollection;
         }
         if (loadedServingPlateProgressionVersion == 0)
         {
@@ -2297,6 +2773,18 @@ public class SaveManager : MonoBehaviour
             return false;
 
         }
+
+        if (!dessertCollection.TryRestore(
+                saveData.dessertCollection,
+                out string collectionRestoreFailure))
+        {
+            Debug.LogError(
+                "LOAD | Dessert collection restore failed. " +
+                collectionRestoreFailure);
+            return false;
+        }
+        if (needsCollectionBackfill)
+            compatibilityMigrationPending = true;
 
         Debug.Log(
 
@@ -2435,8 +2923,19 @@ public class SaveManager : MonoBehaviour
         string path,
         out bool snapshotCommitted)
     {
-        snapshotCommitted = false;
         string json = SerializeCurrentWithCapacity(saveData, capacity);
+        return TryWritePreparedSnapshot(
+            json,
+            path,
+            out snapshotCommitted);
+    }
+
+    private bool TryWritePreparedSnapshot(
+        string json,
+        string path,
+        out bool snapshotCommitted)
+    {
+        snapshotCommitted = false;
         if (!IsValidSerializedSnapshot(json))
         {
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
@@ -2850,6 +3349,36 @@ public class SaveManager : MonoBehaviour
 
         }
 
+        int collectionSectionCount =
+            CountJsonProperty(json, "dessertCollection");
+        int discoveredTierListCount =
+            CountJsonProperty(json, "discoveredTierIds");
+        int claimedMilestoneListCount =
+            CountJsonProperty(json, "claimedMilestoneIds");
+        bool collectionSectionPresent =
+            collectionSectionCount == 1;
+        if (collectionSectionCount > 1)
+            return false;
+        if (!collectionSectionPresent)
+        {
+            if (discoveredTierListCount != 0 ||
+                claimedMilestoneListCount != 0)
+            {
+                return false;
+            }
+
+            check.dessertCollection =
+                new DessertCollectionSaveData();
+        }
+        else if (discoveredTierListCount != 1 ||
+                 claimedMilestoneListCount != 1 ||
+                 !DessertCollectionState.TryValidateSaveData(
+                     check.dessertCollection,
+                     out _))
+        {
+            return false;
+        }
+
         if (check.economy.totalOrdersCompleted < 0 ||
             check.economy.totalMoneyEarned < 0)
         {
@@ -2904,24 +3433,14 @@ public class SaveManager : MonoBehaviour
                 metadata.servingPlateProgressionVersion);
         if (hasEnergyMetadata)
             canonicalJson = SerializeWithEnergy(canonicalJson, energy);
-        bool canonicalMatch =
-            string.Equals(json, canonicalJson, StringComparison.Ordinal);
-        bool legacyCanonicalMatch = false;
-        string legacyCanonicalJson;
-        if (!canonicalMatch &&
+        bool statisticsAreZero =
             check.economy.totalOrdersCompleted == 0 &&
-            check.economy.totalMoneyEarned == 0 &&
-            TryCreateLegacyV2CanonicalJson(
+            check.economy.totalMoneyEarned == 0;
+        if (!MatchesSupportedCanonicalShape(
+                json,
                 canonicalJson,
-                out legacyCanonicalJson))
-        {
-            legacyCanonicalMatch =
-                string.Equals(
-                    json,
-                    legacyCanonicalJson,
-                    StringComparison.Ordinal);
-        }
-        if (!canonicalMatch && !legacyCanonicalMatch)
+                collectionSectionPresent,
+                statisticsAreZero))
             return false;
 
         SanitizeSaveData(check);
@@ -2935,20 +3454,11 @@ public class SaveManager : MonoBehaviour
                 metadata.servingPlateProgressionVersion);
         if (hasEnergyMetadata)
             canonicalJson = SerializeWithEnergy(canonicalJson, energy);
-        canonicalMatch =
-            string.Equals(json, canonicalJson, StringComparison.Ordinal);
-        if (!canonicalMatch && legacyCanonicalMatch &&
-            TryCreateLegacyV2CanonicalJson(
-                canonicalJson,
-                out legacyCanonicalJson))
-        {
-            legacyCanonicalMatch =
-                string.Equals(
-                    json,
-                    legacyCanonicalJson,
-                    StringComparison.Ordinal);
-        }
-        return canonicalMatch || legacyCanonicalMatch;
+        return MatchesSupportedCanonicalShape(
+            json,
+            canonicalJson,
+            collectionSectionPresent,
+            statisticsAreZero);
 
     }
 
@@ -3233,6 +3743,12 @@ public class SaveManager : MonoBehaviour
             {
                 return false;
             }
+
+            loadedCollectionSectionPresent =
+                CountJsonProperty(json, "dessertCollection") == 1;
+            if (!loadedCollectionSectionPresent)
+                parsed.dessertCollection =
+                    new DessertCollectionSaveData();
 
             if (!hasEnergyMetadata)
             {

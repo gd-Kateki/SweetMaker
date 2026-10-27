@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class OvenAnimator : MonoBehaviour
 {
@@ -19,6 +20,8 @@ public class OvenAnimator : MonoBehaviour
     private Coroutine animationCoroutine;
 
     private Vector3 baseScale;
+    private SettingsManager subscribedSettingsManager;
+    private bool reduceAnimations;
 
     private void Awake()
     {
@@ -31,60 +34,94 @@ public class OvenAnimator : MonoBehaviour
             visual.localScale;
     }
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        TryBindSettingsManager();
+    }
+
+    private void Start()
+    {
+        TryBindSettingsManager();
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        UnbindSettingsManager();
+        StopAnimation(true);
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        UnbindSettingsManager();
+        StopAnimation(false);
+    }
+
     public void PlayPress()
     {
+        TryBindSettingsManager();
         if (visual == null)
             return;
 
-        if (animationCoroutine != null)
+        StopAnimation(false);
+        visual.localScale = baseScale;
+        if (reduceAnimations)
         {
-            StopCoroutine(
-                animationCoroutine
-            );
+            return;
         }
 
-        visual.localScale =
-            baseScale;
+        if (pressDuration <= 0f &&
+            releaseDuration <= 0f)
+        {
+            return;
+        }
 
-        animationCoroutine =
-            StartCoroutine(
-                PressRoutine()
-            );
+        animationCoroutine = StartCoroutine(
+            PressRoutine(visual, baseScale));
     }
 
-    private IEnumerator PressRoutine()
+    private IEnumerator PressRoutine(
+        Transform animationVisual,
+        Vector3 animationBaseScale)
     {
         Vector3 pressedScale =
-            baseScale *
+            animationBaseScale *
             pressScaleMultiplier;
 
         yield return ScaleTo(
-            baseScale,
+            animationVisual,
+            animationBaseScale,
             pressedScale,
             pressDuration
         );
 
         yield return ScaleTo(
+            animationVisual,
             pressedScale,
-            baseScale,
+            animationBaseScale,
             releaseDuration
         );
 
-        visual.localScale =
-            baseScale;
+        if (IsCurrentVisual(animationVisual))
+            animationVisual.localScale = animationBaseScale;
 
         animationCoroutine = null;
     }
 
     private IEnumerator ScaleTo(
+        Transform animationVisual,
         Vector3 startScale,
         Vector3 targetScale,
         float duration)
     {
+        if (!IsCurrentVisual(animationVisual))
+            yield break;
+
         if (duration <= 0f)
         {
-            visual.localScale =
-                targetScale;
+            animationVisual.localScale = targetScale;
 
             yield break;
         }
@@ -93,6 +130,9 @@ public class OvenAnimator : MonoBehaviour
 
         while (elapsed < duration)
         {
+            if (!IsCurrentVisual(animationVisual))
+                yield break;
+
             elapsed += Time.deltaTime;
 
             float t =
@@ -107,17 +147,98 @@ public class OvenAnimator : MonoBehaviour
                     3f
                 );
 
-            visual.localScale =
-                Vector3.LerpUnclamped(
+            animationVisual.localScale = Vector3.LerpUnclamped(
                     startScale,
                     targetScale,
-                    easedT
-                );
+                    easedT);
 
             yield return null;
         }
 
-        visual.localScale =
-            targetScale;
+        if (IsCurrentVisual(animationVisual))
+            animationVisual.localScale = targetScale;
+    }
+
+    private bool IsCurrentVisual(Transform candidate)
+    {
+        return candidate != null && candidate == visual;
+    }
+
+    private void StopAnimation(bool restoreBaseScale)
+    {
+        if (animationCoroutine != null)
+        {
+            Coroutine coroutine = animationCoroutine;
+            animationCoroutine = null;
+            StopCoroutine(coroutine);
+        }
+
+        if (restoreBaseScale && visual != null)
+            visual.localScale = baseScale;
+    }
+
+    private void HandleSceneLoaded(
+        Scene scene,
+        LoadSceneMode mode)
+    {
+        TryBindSettingsManager();
+    }
+
+    private void TryBindSettingsManager()
+    {
+        SettingsManager currentManager =
+            SettingsManager.Instance;
+
+        if (subscribedSettingsManager != currentManager)
+        {
+            UnbindSettingsManager();
+            if (currentManager != null)
+            {
+                subscribedSettingsManager = currentManager;
+                subscribedSettingsManager.SettingsChanged +=
+                    HandleSettingsChanged;
+            }
+        }
+
+        if (currentManager == null ||
+            currentManager.PersistenceStatus ==
+                SettingsPersistenceStatus.NotInitialized)
+        {
+            ApplyReduceAnimations(false);
+            return;
+        }
+
+        ApplySettings(currentManager.CurrentSettings);
+    }
+
+    private void UnbindSettingsManager()
+    {
+        if (subscribedSettingsManager != null)
+        {
+            subscribedSettingsManager.SettingsChanged -=
+                HandleSettingsChanged;
+        }
+
+        subscribedSettingsManager = null;
+    }
+
+    private void HandleSettingsChanged(SettingsProfileData settings)
+    {
+        ApplySettings(settings);
+    }
+
+    private void ApplySettings(SettingsProfileData settings)
+    {
+        if (settings != null)
+            ApplyReduceAnimations(settings.reduceAnimations);
+    }
+
+    private void ApplyReduceAnimations(bool enabled)
+    {
+        bool wasEnabled = reduceAnimations;
+        reduceAnimations = enabled;
+
+        if (!wasEnabled && enabled)
+            StopAnimation(true);
     }
 }

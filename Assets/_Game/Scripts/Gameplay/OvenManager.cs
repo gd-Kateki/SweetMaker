@@ -75,26 +75,58 @@ public class OvenManager : MonoBehaviour
 
             if (spawned)
             {
-                if (!progression.TryConsumeEnergy())
+                bool energyConsumed =
+                    progression.TryConsumeEnergy();
+                if (!energyConsumed)
                 {
                     Debug.LogError(
                         "OVEN | Dessert spawned, but Energy could not be " +
                         "deducted after the successful request."
                     );
                 }
-                else if (SaveManager.Instance == null)
+
+                bool discoveryAdded =
+                    dessertSpawner.LastSpawnAddedDiscovery;
+                if (energyConsumed || discoveryAdded)
                 {
-                    Debug.LogError(
-                        "OVEN | Energy was deducted, but SaveManager is " +
-                        "unavailable; the Energy state was not persisted."
-                    );
-                }
-                else if (!SaveManager.Instance.SaveCurrentGame())
-                {
-                    Debug.LogError(
-                        "OVEN | Energy was deducted, but saving the Energy " +
-                        "state failed."
-                    );
+                    SaveManager saveManager =
+                        SaveManager.Instance;
+                    if (saveManager == null)
+                    {
+                        if (energyConsumed)
+                        {
+                            Debug.LogError(
+                                "OVEN | Energy was deducted, but SaveManager is " +
+                                "unavailable; the Energy state was not persisted."
+                            );
+                        }
+
+                        if (discoveryAdded)
+                        {
+                            Debug.LogError(
+                                "COLLECTION | Oven discovery was added in memory, " +
+                                "but SaveManager is unavailable; it was not persisted."
+                            );
+                        }
+                    }
+                    else if (!saveManager.SaveCurrentGame())
+                    {
+                        if (energyConsumed)
+                        {
+                            Debug.LogError(
+                                "OVEN | Energy was deducted, but saving the Energy " +
+                                "state failed."
+                            );
+                        }
+
+                        if (discoveryAdded)
+                        {
+                            Debug.LogError(
+                                "COLLECTION | Oven discovery was added in memory, " +
+                                "but the immediate save failed; a later save must retry it."
+                            );
+                        }
+                    }
                 }
             }
         }

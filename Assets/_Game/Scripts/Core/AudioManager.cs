@@ -52,6 +52,9 @@ public sealed class AudioManager : MonoBehaviour
     private readonly HashSet<SfxId> missingClipWarnings =
         new HashSet<SfxId>();
     private AudioSource[] audioSources = Array.Empty<AudioSource>();
+    private SettingsManager subscribedSettingsManager;
+    private bool sfxEnabled = true;
+    private bool vibrationEnabled;
     private OrderManager subscribedOrderManager;
     private UpgradePurchaseManager subscribedUpgradePurchaseManager;
 
@@ -69,6 +72,7 @@ public sealed class AudioManager : MonoBehaviour
         }
 
         Instance = this;
+        TryBindSettingsManager();
         GameplayEvents.DessertSpawned += HandleDessertSpawned;
         GameplayEvents.DessertMergeCommitted += HandleDessertMergeCommitted;
         SceneManager.sceneLoaded += HandleSceneLoaded;
@@ -83,11 +87,17 @@ public sealed class AudioManager : MonoBehaviour
         InitializeRuntime();
     }
 
+    private void Start()
+    {
+        TryBindSettingsManager();
+    }
+
     private void OnDestroy()
     {
         GameplayEvents.DessertSpawned -= HandleDessertSpawned;
         GameplayEvents.DessertMergeCommitted -= HandleDessertMergeCommitted;
         SceneManager.sceneLoaded -= HandleSceneLoaded;
+        UnbindSettingsManager();
         SubscribeToOrderManager(null);
         SubscribeToUpgradePurchaseManager(null);
         if (Instance == this)
@@ -107,13 +117,83 @@ public sealed class AudioManager : MonoBehaviour
             isNewHighestTier
                 ? SfxId.Dessert_MergeSpecial
                 : SfxId.Dessert_Merge);
+        VibrateForGameplay();
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        TryBindSettingsManager();
         SubscribeToOrderManager(FindAnyObjectByType<OrderManager>());
         SubscribeToUpgradePurchaseManager(
             FindAnyObjectByType<UpgradePurchaseManager>());
+    }
+
+    private void TryBindSettingsManager()
+    {
+        SettingsManager currentManager = SettingsManager.Instance;
+        if (currentManager == null)
+            return;
+
+        if (subscribedSettingsManager != currentManager)
+        {
+            UnbindSettingsManager();
+            subscribedSettingsManager = currentManager;
+            subscribedSettingsManager.SettingsChanged +=
+                HandleSettingsChanged;
+        }
+
+        if (subscribedSettingsManager.PersistenceStatus ==
+            SettingsPersistenceStatus.NotInitialized)
+        {
+            return;
+        }
+
+        ApplySettings(subscribedSettingsManager.CurrentSettings);
+    }
+
+    private void UnbindSettingsManager()
+    {
+        if (subscribedSettingsManager != null)
+        {
+            subscribedSettingsManager.SettingsChanged -=
+                HandleSettingsChanged;
+        }
+
+        subscribedSettingsManager = null;
+    }
+
+    private void HandleSettingsChanged(SettingsProfileData settings)
+    {
+        ApplySettings(settings);
+    }
+
+    private void ApplySettings(SettingsProfileData settings)
+    {
+        if (settings == null)
+            return;
+
+        SetVolumeInternal(settings.sfxVolume);
+        SetSfxEnabledInternal(settings.sfxEnabled);
+        vibrationEnabled = settings.vibrationEnabled;
+    }
+
+    private bool ShouldVibrateForGameplay()
+    {
+        return vibrationEnabled;
+    }
+
+    private void VibrateForGameplay()
+    {
+        if (!ShouldVibrateForGameplay())
+            return;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (Application.platform == RuntimePlatform.Android &&
+            SystemInfo.deviceType == DeviceType.Handheld)
+        {
+            Handheld.Vibrate();
+        }
+#endif
     }
 
     private void SubscribeToOrderManager(OrderManager orderManager)
@@ -136,6 +216,7 @@ public sealed class AudioManager : MonoBehaviour
     private void HandleOrderCompleted(CustomerOrder order)
     {
         Play(SfxId.Order_Complete);
+        VibrateForGameplay();
     }
 
     private void SubscribeToUpgradePurchaseManager(
@@ -240,6 +321,9 @@ public sealed class AudioManager : MonoBehaviour
 
     private bool TryPlayInternal(SfxId id)
     {
+        if (!sfxEnabled)
+            return false;
+
         if (!TryGetClipEntry(id, out SfxClipEntry entry))
         {
             WarnMissingClip(id);
@@ -305,8 +389,31 @@ public sealed class AudioManager : MonoBehaviour
         foreach (AudioSource source in audioSources)
         {
             if (source != null)
-                source.volume = sfxVolume;
+                source.volume = GetEffectiveVolume();
         }
+    }
+
+    private void SetSfxEnabledInternal(bool enabled)
+    {
+        if (sfxEnabled == enabled)
+            return;
+
+        sfxEnabled = enabled;
+        foreach (AudioSource source in audioSources)
+        {
+            if (source == null)
+                continue;
+
+            if (!enabled)
+                source.Stop();
+
+            source.volume = GetEffectiveVolume();
+        }
+    }
+
+    private float GetEffectiveVolume()
+    {
+        return sfxEnabled ? sfxVolume : 0f;
     }
 
     private void WarnMissingClip(SfxId id)

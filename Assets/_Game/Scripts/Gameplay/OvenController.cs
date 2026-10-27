@@ -18,6 +18,9 @@ public class OvenController : MonoBehaviour, IPointerDownHandler
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            return;
+
         if (eventData.button != PointerEventData.InputButton.Left)
         {
             return;
@@ -43,8 +46,17 @@ public class OvenController : MonoBehaviour, IPointerDownHandler
             ovenAnimator.PlayPress();
         }
 
-        ovenManager.RequestSpawn();
-        if (ovenManager.LastRequestFailedForNoBoardSpace)
-            AudioManager.Play(SfxId.Action_Invalid);
+        if (!GameplayModalInputGate.TryBeginGameplayOperation(
+                out GameplayModalInputGate.GameplayOperationLease operation))
+        {
+            return;
+        }
+
+        using (operation)
+        {
+            ovenManager.RequestSpawn();
+            if (ovenManager.LastRequestFailedForNoBoardSpace)
+                AudioManager.Play(SfxId.Action_Invalid);
+        }
     }
 }

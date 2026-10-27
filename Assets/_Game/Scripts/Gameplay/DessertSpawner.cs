@@ -65,7 +65,7 @@ public class DessertSpawner : MonoBehaviour
 
     [Header("Dessert Database")]
     [SerializeField]
-    private DessertDefinition[] dessertDefinitions;
+    private DessertCatalog dessertCatalog;
 
     [Header("Next Dessert")]
     [SerializeField]
@@ -78,11 +78,28 @@ public class DessertSpawner : MonoBehaviour
     public DessertDefinition NextDessert =>
         nextDessert;
 
+    public bool LastSpawnAddedDiscovery
+    {
+        get;
+        private set;
+    }
+
     public string SelectedSpawnPoolId =>
         selectedSpawnPoolId;
 
     public IReadOnlyList<DessertDefinition> DessertDefinitions =>
-        dessertDefinitions;
+        ResolvedDessertDefinitions;
+
+    private IReadOnlyList<DessertDefinition> ResolvedDessertDefinitions
+    {
+        get
+        {
+            ResolveDessertCatalog();
+            return dessertCatalog != null
+                ? dessertCatalog.Definitions
+                : Array.Empty<DessertDefinition>();
+        }
+    }
 
     public int CurrentOvenLevel
     {
@@ -133,12 +150,9 @@ public class DessertSpawner : MonoBehaviour
         {
             int maxTier = 0;
 
-            if (dessertDefinitions == null)
-                return maxTier;
-
             foreach (
                 DessertDefinition definition
-                in dessertDefinitions)
+                in ResolvedDessertDefinitions)
             {
                 if (definition == null)
                     continue;
@@ -160,6 +174,21 @@ public class DessertSpawner : MonoBehaviour
 
     private void Start()
     {
+        ResolveDessertCatalog();
+        if (dessertCatalog == null)
+        {
+            Debug.LogError(
+                "DessertSpawner: Shared dessert catalog is missing.");
+            return;
+        }
+        if (!dessertCatalog.TryValidate(out string catalogFailure))
+        {
+            Debug.LogError(
+                "DessertSpawner: Shared dessert catalog is invalid. " +
+                catalogFailure);
+            return;
+        }
+
         ResolveProgressionManager();
 
         if (progressionManager == null)
@@ -371,9 +400,27 @@ public class DessertSpawner : MonoBehaviour
         int roll,
         out DessertDefinition bonusDefinition)
     {
+        return TryGetBonusDessertDefinition(
+            (IReadOnlyList<DessertDefinition>)definitions,
+            selectedPoolId,
+            ovenLevel,
+            maxTier,
+            roll,
+            out bonusDefinition);
+    }
+
+    private static bool TryGetBonusDessertDefinition(
+        IReadOnlyList<DessertDefinition> definitions,
+        string selectedPoolId,
+        int ovenLevel,
+        int maxTier,
+        int roll,
+        out DessertDefinition bonusDefinition)
+    {
         bonusDefinition = null;
         int selectedPoolIndex = GetSpawnPoolIndex(selectedPoolId);
         if (definitions == null ||
+            definitions.Count == 0 ||
             selectedPoolIndex < 0 ||
             ovenLevel < 1 ||
             ovenLevel > SpawnPoolIds.Length ||
@@ -438,9 +485,12 @@ public class DessertSpawner : MonoBehaviour
     }
 
     private static DessertDefinition FindDefinition(
-        DessertDefinition[] definitions,
+        IReadOnlyList<DessertDefinition> definitions,
         int tier)
     {
+        if (definitions == null)
+            return null;
+
         foreach (DessertDefinition definition in definitions)
             if (definition != null && definition.Tier == tier)
                 return definition;
@@ -575,6 +625,7 @@ public class DessertSpawner : MonoBehaviour
         out bool failedForNoBoardSpace)
     {
         failedForNoBoardSpace = false;
+        LastSpawnAddedDiscovery = false;
 
         if (gridManager != null &&
             gridManager.IsMergeTransactionActive)
@@ -637,6 +688,7 @@ public class DessertSpawner : MonoBehaviour
         GameplayEvents.RaiseDessertSpawned(
             definitionToSpawn.Tier
         );
+        RecordOvenDiscovery(dessert);
 
         Debug.Log(
             $"Spawned " +
@@ -655,7 +707,7 @@ public class DessertSpawner : MonoBehaviour
                     : 1f,
                 bonusRoll) &&
             TryGetBonusDessertDefinition(
-                dessertDefinitions,
+                ResolvedDessertDefinitions,
                 selectedSpawnPoolId,
                 CurrentOvenLevel,
                 MaxUnlockedDessertTier,
@@ -674,6 +726,7 @@ public class DessertSpawner : MonoBehaviour
 
                     GameplayEvents.RaiseDessertSpawned(
                         bonusDefinition.Tier);
+                    RecordOvenDiscovery(bonusDessert);
                     Debug.Log(
                         $"OVEN BONUS | Spawned {bonusDefinition.DisplayName} " +
                         $"(T{bonusDefinition.Tier}) in {bonusCell.name}.");
@@ -692,6 +745,36 @@ public class DessertSpawner : MonoBehaviour
         PrepareNextDessert();
 
         return true;
+    }
+
+    private void RecordOvenDiscovery(Dessert spawnedDessert)
+    {
+        if (spawnedDessert == null)
+        {
+            Debug.LogError(
+                "COLLECTION | Cannot record an Oven discovery " +
+                "because the spawned dessert is missing.");
+            return;
+        }
+
+        SaveManager saveManager = SaveManager.Instance;
+        if (saveManager == null)
+        {
+            Debug.LogError(
+                "COLLECTION | Oven spawned tier " +
+                spawnedDessert.Tier +
+                ", but SaveManager is unavailable; discovery was not recorded.");
+            return;
+        }
+
+        DessertDiscoveryRecordResult result =
+            saveManager.RecordDessertDiscovery(
+                spawnedDessert.Tier);
+        if (result ==
+            DessertDiscoveryRecordResult.Added)
+        {
+            LastSpawnAddedDiscovery = true;
+        }
     }
 
     // ==================================================
@@ -1047,23 +1130,10 @@ public class DessertSpawner : MonoBehaviour
     public DessertDefinition GetDefinitionByTier(
         int tier)
     {
-        if (dessertDefinitions == null)
-            return null;
-
-        foreach (
-            DessertDefinition definition
-            in dessertDefinitions)
-        {
-            if (definition == null)
-                continue;
-
-            if (definition.Tier == tier)
-            {
-                return definition;
-            }
-        }
-
-        return null;
+        ResolveDessertCatalog();
+        return dessertCatalog != null
+            ? dessertCatalog.GetDefinitionByTier(tier)
+            : null;
     }
 
     // ==================================================
@@ -1112,7 +1182,9 @@ public class DessertSpawner : MonoBehaviour
 
         int totalWeight = 0;
 
-        if (dessertDefinitions == null)
+        IReadOnlyList<DessertDefinition> definitions =
+            ResolvedDessertDefinitions;
+        if (definitions.Count == 0)
             return null;
 
         int maxUnlockedTier =
@@ -1263,17 +1335,24 @@ public class DessertSpawner : MonoBehaviour
             return false;
         }
 
-        if (dessertDefinitions == null ||
-            dessertDefinitions.Length == 0)
+        ResolveDessertCatalog();
+        if (dessertCatalog == null ||
+            dessertCatalog.Definitions.Count == 0)
         {
             Debug.LogError(
                 "DessertSpawner: " +
-                "No dessert definitions assigned."
+                "No shared dessert catalog is assigned."
             );
 
             return false;
         }
 
         return true;
+    }
+
+    private void ResolveDessertCatalog()
+    {
+        if (dessertCatalog == null)
+            dessertCatalog = DessertCatalog.LoadShared();
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class DessertAnimator : MonoBehaviour
 {
@@ -33,157 +34,175 @@ public class DessertAnimator : MonoBehaviour
     private float spawnPopDuration = 0.18f;
 
     private Coroutine movementCoroutine;
-    private Coroutine popCoroutine;
-    private Coroutine squishCoroutine;
-    private Coroutine spawnCoroutine;
+    private Coroutine scaleCoroutine;
+    private SettingsManager subscribedSettingsManager;
+    private Transform scaleVisual;
+    private DessertDefinition scaleDefinition;
+    private Vector3 stableVisualScale;
+    private Vector3 movementTargetPosition;
+    private Dessert movementDessert;
+    private bool movementHadDessertOwner;
+    private GridCell movementCell;
+    private ShelfSlot movementShelfSlot;
+    private Transform movementParent;
+    private Action movementCompletion;
+    private bool reduceAnimations;
 
     public void MoveTo(
         Vector3 targetPosition)
     {
+        TryBindSettingsManager();
         StopMovement();
+        targetPosition.z = 0f;
 
-        movementCoroutine =
-            StartCoroutine(
-                MoveRoutine(
-                    targetPosition,
-                    moveDuration,
-                    null
-                )
-            );
+        if (reduceAnimations || moveDuration <= 0f)
+        {
+            transform.position = targetPosition;
+            return;
+        }
+
+        BeginMovement(targetPosition, moveDuration, null);
     }
 
     public void MoveToForMerge(
         Vector3 targetPosition,
         Action onComplete)
     {
+        TryBindSettingsManager();
         StopMovement();
+        targetPosition.z = 0f;
+
+        if (reduceAnimations || mergeMoveDuration <= 0f)
+        {
+            transform.position = targetPosition;
+            onComplete?.Invoke();
+            return;
+        }
+
+        BeginMovement(targetPosition, mergeMoveDuration, onComplete);
+    }
+
+    public void PlayMergeSquish()
+    {
+        TryBindSettingsManager();
+        if (!TryGetScaleVisual(out Transform visual))
+            return;
+
+        StopScaleAnimation(true);
+        if (reduceAnimations ||
+            mergeMoveDuration * 0.5f <= 0f)
+        {
+            return;
+        }
+
+        scaleCoroutine =
+            StartCoroutine(
+                MergeSquishRoutine(
+                    visual,
+                    stableVisualScale));
+    }
+
+    public void PlayMergePop()
+    {
+        TryBindSettingsManager();
+        if (!TryGetScaleVisual(out Transform visual))
+            return;
+
+        StopScaleAnimation(true);
+        if (reduceAnimations || mergePopDuration <= 0f)
+        {
+            return;
+        }
+
+        scaleCoroutine =
+            StartCoroutine(
+                MergePopRoutine(
+                    visual,
+                    stableVisualScale));
+    }
+
+    public void PlaySpawnPop()
+    {
+        TryBindSettingsManager();
+        if (!TryGetScaleVisual(out Transform visual))
+            return;
+
+        StopScaleAnimation(true);
+        if (reduceAnimations || spawnPopDuration <= 0f)
+        {
+            return;
+        }
+
+        scaleCoroutine =
+            StartCoroutine(
+                SpawnPopRoutine(
+                    visual,
+                    stableVisualScale));
+    }
+
+    private void StopMovement()
+    {
+        CancelMovement(false);
+    }
+
+    private void BeginMovement(
+        Vector3 targetPosition,
+        float duration,
+        Action onComplete)
+    {
+        movementTargetPosition = targetPosition;
+        movementCompletion = onComplete;
+        movementDessert = GetComponent<Dessert>();
+        movementHadDessertOwner = movementDessert != null;
+        movementCell = movementDessert != null
+            ? movementDessert.CurrentCell
+            : null;
+        movementShelfSlot = movementDessert != null
+            ? movementDessert.CurrentShelfSlot
+            : null;
+        movementParent = transform.parent;
 
         movementCoroutine =
             StartCoroutine(
                 MoveRoutine(
                     targetPosition,
-                    mergeMoveDuration,
-                    onComplete
-                )
-            );
-    }
-
-    public void PlayMergeSquish()
-    {
-        Dessert dessert =
-            GetComponent<Dessert>();
-
-        if (dessert == null ||
-            dessert.Visual == null)
-        {
-            return;
-        }
-
-        if (squishCoroutine != null)
-        {
-            StopCoroutine(
-                squishCoroutine
-            );
-        }
-
-        squishCoroutine =
-            StartCoroutine(
-                MergeSquishRoutine(
-                    dessert.Visual
-                )
-            );
-    }
-
-    public void PlayMergePop()
-    {
-        Dessert dessert =
-            GetComponent<Dessert>();
-
-        if (dessert == null ||
-            dessert.Visual == null)
-        {
-            return;
-        }
-
-        if (popCoroutine != null)
-        {
-            StopCoroutine(
-                popCoroutine
-            );
-        }
-
-        popCoroutine =
-            StartCoroutine(
-                MergePopRoutine(
-                    dessert.Visual
-                )
-            );
-    }
-
-    public void PlaySpawnPop()
-    {
-        Dessert dessert =
-            GetComponent<Dessert>();
-
-        if (dessert == null ||
-            dessert.Visual == null)
-        {
-            return;
-        }
-
-        if (spawnCoroutine != null)
-        {
-            StopCoroutine(
-                spawnCoroutine
-            );
-        }
-
-        spawnCoroutine =
-            StartCoroutine(
-                SpawnPopRoutine(
-                    dessert.Visual
-                )
-            );
-    }
-
-    private void StopMovement()
-    {
-        if (movementCoroutine == null)
-            return;
-
-        StopCoroutine(
-            movementCoroutine
-        );
-
-        movementCoroutine = null;
+                    duration,
+                    movementDessert,
+                    movementHadDessertOwner,
+                    movementCell,
+                    movementShelfSlot,
+                    movementParent,
+                    onComplete));
     }
 
     private IEnumerator MoveRoutine(
         Vector3 targetPosition,
         float duration,
+        Dessert owner,
+        bool hadDessertOwner,
+        GridCell cell,
+        ShelfSlot shelfSlot,
+        Transform parent,
         Action onComplete)
     {
         Vector3 startPosition =
             transform.position;
 
-        targetPosition.z = 0f;
-
-        if (duration <= 0f)
-        {
-            transform.position =
-                targetPosition;
-
-            movementCoroutine = null;
-
-            onComplete?.Invoke();
-
-            yield break;
-        }
-
         float elapsed = 0f;
 
         while (elapsed < duration)
         {
+            if (!HasMovementOwner(
+                    owner,
+                    hadDessertOwner,
+                    cell,
+                    shelfSlot,
+                    parent))
+            {
+                ClearMovement();
+                yield break;
+            }
+
             elapsed += Time.deltaTime;
 
             float t =
@@ -202,26 +221,107 @@ public class DessertAnimator : MonoBehaviour
                 Vector3.LerpUnclamped(
                     startPosition,
                     targetPosition,
-                    easedT
-                );
+                    easedT);
 
             yield return null;
         }
 
-        transform.position =
-            targetPosition;
+        bool ownerUnchanged =
+            HasMovementOwner(
+                owner,
+                hadDessertOwner,
+                cell,
+                shelfSlot,
+                parent);
+        if (ownerUnchanged)
+            transform.position = targetPosition;
 
+        ClearMovement();
+        if (ownerUnchanged)
+            onComplete?.Invoke();
+    }
+
+    private bool HasMovementOwner(
+        Dessert owner,
+        bool hadDessertOwner,
+        GridCell cell,
+        ShelfSlot shelfSlot,
+        Transform parent)
+    {
+        if (this == null ||
+            !isActiveAndEnabled ||
+            transform.parent != parent)
+        {
+            return false;
+        }
+
+        Dessert currentDessert = GetComponent<Dessert>();
+        if (hadDessertOwner &&
+            (owner == null || currentDessert == null))
+        {
+            return false;
+        }
+
+        return currentDessert == owner &&
+               (!hadDessertOwner ||
+                (owner.CurrentCell == cell &&
+                 owner.CurrentShelfSlot == shelfSlot));
+    }
+
+    private void CancelMovement(bool finishAtDestination)
+    {
+        if (movementCoroutine == null)
+            return;
+
+        Coroutine coroutine = movementCoroutine;
         movementCoroutine = null;
 
-        onComplete?.Invoke();
+        Vector3 targetPosition = movementTargetPosition;
+        Dessert owner = movementDessert;
+        bool hadDessertOwner = movementHadDessertOwner;
+        GridCell cell = movementCell;
+        ShelfSlot shelfSlot = movementShelfSlot;
+        Transform parent = movementParent;
+        Action completion = movementCompletion;
+
+        ClearMovementState();
+        StopCoroutine(coroutine);
+
+        if (!finishAtDestination ||
+            !HasMovementOwner(
+                owner,
+                hadDessertOwner,
+                cell,
+                shelfSlot,
+                parent))
+        {
+            return;
+        }
+
+        transform.position = targetPosition;
+        completion?.Invoke();
+    }
+
+    private void ClearMovement()
+    {
+        movementCoroutine = null;
+        ClearMovementState();
+    }
+
+    private void ClearMovementState()
+    {
+        movementDessert = null;
+        movementHadDessertOwner = false;
+        movementCell = null;
+        movementShelfSlot = null;
+        movementParent = null;
+        movementCompletion = null;
     }
 
     private IEnumerator MergeSquishRoutine(
-        Transform visual)
+        Transform visual,
+        Vector3 normalScale)
     {
-        Vector3 normalScale =
-            visual.localScale;
-
         Vector3 squishScale =
             normalScale *
             mergeSquishMultiplier;
@@ -231,10 +331,10 @@ public class DessertAnimator : MonoBehaviour
 
         if (halfDuration <= 0f)
         {
-            visual.localScale =
-                normalScale;
+            if (IsCurrentScaleVisual(visual))
+                visual.localScale = normalScale;
 
-            squishCoroutine = null;
+            scaleCoroutine = null;
 
             yield break;
         }
@@ -244,6 +344,12 @@ public class DessertAnimator : MonoBehaviour
         while (elapsed < halfDuration)
         {
             elapsed += Time.deltaTime;
+
+            if (!IsCurrentScaleVisual(visual))
+            {
+                scaleCoroutine = null;
+                yield break;
+            }
 
             float t =
                 Mathf.Clamp01(
@@ -266,6 +372,12 @@ public class DessertAnimator : MonoBehaviour
         {
             elapsed += Time.deltaTime;
 
+            if (!IsCurrentScaleVisual(visual))
+            {
+                scaleCoroutine = null;
+                yield break;
+            }
+
             float t =
                 Mathf.Clamp01(
                     elapsed / halfDuration
@@ -281,18 +393,16 @@ public class DessertAnimator : MonoBehaviour
             yield return null;
         }
 
-        visual.localScale =
-            normalScale;
+        if (IsCurrentScaleVisual(visual))
+            visual.localScale = normalScale;
 
-        squishCoroutine = null;
+        scaleCoroutine = null;
     }
 
     private IEnumerator MergePopRoutine(
-        Transform visual)
+        Transform visual,
+        Vector3 normalScale)
     {
-        Vector3 normalScale =
-            visual.localScale;
-
         Vector3 popScale =
             normalScale *
             mergePopMultiplier;
@@ -302,10 +412,10 @@ public class DessertAnimator : MonoBehaviour
 
         if (mergePopDuration <= 0f)
         {
-            visual.localScale =
-                normalScale;
+            if (IsCurrentScaleVisual(visual))
+                visual.localScale = normalScale;
 
-            popCoroutine = null;
+            scaleCoroutine = null;
 
             yield break;
         }
@@ -315,6 +425,12 @@ public class DessertAnimator : MonoBehaviour
         while (elapsed < mergePopDuration)
         {
             elapsed += Time.deltaTime;
+
+            if (!IsCurrentScaleVisual(visual))
+            {
+                scaleCoroutine = null;
+                yield break;
+            }
 
             float t =
                 Mathf.Clamp01(
@@ -339,18 +455,16 @@ public class DessertAnimator : MonoBehaviour
             yield return null;
         }
 
-        visual.localScale =
-            normalScale;
+        if (IsCurrentScaleVisual(visual))
+            visual.localScale = normalScale;
 
-        popCoroutine = null;
+        scaleCoroutine = null;
     }
 
     private IEnumerator SpawnPopRoutine(
-        Transform visual)
+        Transform visual,
+        Vector3 normalScale)
     {
-        Vector3 normalScale =
-            visual.localScale;
-
         Vector3 startScale =
             normalScale *
             spawnStartMultiplier;
@@ -373,7 +487,7 @@ public class DessertAnimator : MonoBehaviour
             visual.localScale =
                 normalScale;
 
-            spawnCoroutine = null;
+            scaleCoroutine = null;
 
             yield break;
         }
@@ -383,6 +497,12 @@ public class DessertAnimator : MonoBehaviour
         while (elapsed < firstDuration)
         {
             elapsed += Time.deltaTime;
+
+            if (!IsCurrentScaleVisual(visual))
+            {
+                scaleCoroutine = null;
+                yield break;
+            }
 
             float t =
                 Mathf.Clamp01(
@@ -412,6 +532,12 @@ public class DessertAnimator : MonoBehaviour
         {
             elapsed += Time.deltaTime;
 
+            if (!IsCurrentScaleVisual(visual))
+            {
+                scaleCoroutine = null;
+                yield break;
+            }
+
             float t =
                 Mathf.Clamp01(
                     elapsed / secondDuration
@@ -427,9 +553,164 @@ public class DessertAnimator : MonoBehaviour
             yield return null;
         }
 
-        visual.localScale =
-            normalScale;
+        if (IsCurrentScaleVisual(visual))
+            visual.localScale = normalScale;
 
-        spawnCoroutine = null;
+        scaleCoroutine = null;
+    }
+
+    private bool TryGetScaleVisual(out Transform visual)
+    {
+        Dessert dessert = GetComponent<Dessert>();
+        visual = dessert != null ? dessert.Visual : null;
+        if (visual == null)
+            return false;
+
+        if (scaleVisual != visual ||
+            scaleDefinition != dessert.Definition)
+        {
+            StopScaleAnimation(false);
+            scaleVisual = visual;
+            scaleDefinition = dessert.Definition;
+            stableVisualScale = scaleDefinition != null
+                ? Vector3.one * scaleDefinition.VisualScale
+                : visual.localScale;
+        }
+
+        return true;
+    }
+
+    private bool IsCurrentScaleVisual(Transform visual)
+    {
+        if (visual == null ||
+            visual != scaleVisual ||
+            !isActiveAndEnabled)
+        {
+            return false;
+        }
+
+        Dessert dessert = GetComponent<Dessert>();
+        return dessert != null &&
+               dessert.Visual == visual &&
+               dessert.Definition == scaleDefinition;
+    }
+
+    private void StopScaleAnimation(bool restoreStableScale)
+    {
+        if (scaleCoroutine != null)
+        {
+            Coroutine coroutine = scaleCoroutine;
+            scaleCoroutine = null;
+            StopCoroutine(coroutine);
+        }
+
+        if (restoreStableScale &&
+            scaleVisual != null)
+        {
+            scaleVisual.localScale = stableVisualScale;
+        }
+    }
+
+    private void FinishPresentationAnimations()
+    {
+        CancelMovement(true);
+
+        Dessert dessert = GetComponent<Dessert>();
+        if (dessert != null && dessert.Visual != null)
+            TryGetScaleVisual(out _);
+
+        StopScaleAnimation(true);
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        TryBindSettingsManager();
+    }
+
+    private void Start()
+    {
+        TryBindSettingsManager();
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        UnbindSettingsManager();
+        CancelMovement(false);
+        StopScaleAnimation(true);
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        UnbindSettingsManager();
+        CancelMovement(false);
+        StopScaleAnimation(false);
+    }
+
+    private void HandleSceneLoaded(
+        Scene scene,
+        LoadSceneMode mode)
+    {
+        TryBindSettingsManager();
+    }
+
+    private void TryBindSettingsManager()
+    {
+        SettingsManager currentManager =
+            SettingsManager.Instance;
+
+        if (subscribedSettingsManager != currentManager)
+        {
+            UnbindSettingsManager();
+            if (currentManager != null)
+            {
+                subscribedSettingsManager = currentManager;
+                subscribedSettingsManager.SettingsChanged +=
+                    HandleSettingsChanged;
+            }
+        }
+
+        if (currentManager == null ||
+            currentManager.PersistenceStatus ==
+                SettingsPersistenceStatus.NotInitialized)
+        {
+            ApplyReduceAnimations(false);
+            return;
+        }
+
+        ApplySettings(currentManager.CurrentSettings);
+    }
+
+    private void UnbindSettingsManager()
+    {
+        if (subscribedSettingsManager != null)
+        {
+            subscribedSettingsManager.SettingsChanged -=
+                HandleSettingsChanged;
+        }
+
+        subscribedSettingsManager = null;
+    }
+
+    private void HandleSettingsChanged(SettingsProfileData settings)
+    {
+        ApplySettings(settings);
+    }
+
+    private void ApplySettings(SettingsProfileData settings)
+    {
+        if (settings != null)
+            ApplyReduceAnimations(settings.reduceAnimations);
+    }
+
+    private void ApplyReduceAnimations(bool enabled)
+    {
+        bool wasEnabled = reduceAnimations;
+        reduceAnimations = enabled;
+
+        if (!wasEnabled && enabled)
+            FinishPresentationAnimations();
     }
 }

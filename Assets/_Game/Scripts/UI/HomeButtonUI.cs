@@ -60,29 +60,15 @@ public class HomeButtonUI : MonoBehaviour
 
     private void HandleHomeClicked()
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            return;
+
         // ------------------------------------------
         // PREVENT DUPLICATE NAVIGATION
         // ------------------------------------------
 
         if (isNavigating)
         {
-            return;
-        }
-
-        // ------------------------------------------
-        // VALIDATE SAVE MANAGER
-        // ------------------------------------------
-
-        SaveManager saveManager =
-            SaveManager.Instance;
-
-        if (saveManager == null)
-        {
-            Debug.LogError(
-                "HOME | Cannot return to MainBakery. " +
-                "SaveManager is unavailable."
-            );
-
             return;
         }
 
@@ -104,44 +90,73 @@ public class HomeButtonUI : MonoBehaviour
         }
 
         // ------------------------------------------
-        // SAVE CURRENT GAME
+        // VALIDATE VERIFIED GAMEPLAY READINESS
         // ------------------------------------------
 
-        Debug.Log(
-            "HOME | Saving current game " +
-            "before returning to MainBakery."
-        );
+        GameStartupCoordinator startup =
+            GameStartupCoordinator.Instance;
+        MergeSessionController[] controllers =
+            FindObjectsByType<MergeSessionController>();
 
-        bool saveSucceeded =
-            saveManager.SaveCurrentGame();
-
-        if (!saveSucceeded)
+        if (SaveManager.Instance == null ||
+            startup == null ||
+            !startup.IsStartupComplete ||
+            !startup.IsGameplayReady ||
+            !SaveManager.Instance.IsLifecycleSavingReady ||
+            controllers.Length != 1 ||
+            controllers[0] == null ||
+            !controllers[0].isActiveAndEnabled ||
+            !controllers[0].IsRestorationVerified)
         {
             Debug.LogError(
-                "HOME | Save failed. " +
-                "Remaining in Game to protect progress."
+                "HOME | Cannot return to MainBakery. " +
+                "Verified gameplay readiness or its controller is unavailable."
             );
 
             return;
         }
 
-        // ------------------------------------------
-        // NAVIGATE TO MAIN BAKERY
-        // ------------------------------------------
-
-        UiClickSfx.TryPlay(homeButton);
-        isNavigating = true;
-
-        if (homeButton != null)
+        if (!GameplayModalInputGate.TryBeginGameplayOperation(
+                out GameplayModalInputGate.GameplayOperationLease operation))
         {
-            homeButton.interactable = false;
+            return;
         }
 
-        Debug.Log(
-            "HOME | Save successful. " +
-            "Returning to MainBakery."
-        );
+        using (operation)
+        {
+            Debug.Log(
+                "HOME | Preparing verified gameplay departure " +
+                "before returning to MainBakery."
+            );
 
-        navigationManager.GoToMainBakery();
+            if (!controllers[0].PrepareToLeaveGameplay())
+            {
+                Debug.LogError(
+                    "HOME | Gameplay departure preparation failed. " +
+                    "Remaining in Game to protect progress."
+                );
+
+                return;
+            }
+
+            // ------------------------------------------
+            // NAVIGATE TO MAIN BAKERY
+            // ------------------------------------------
+
+            UiClickSfx.TryPlay(homeButton);
+            isNavigating = true;
+
+            if (homeButton != null)
+            {
+                homeButton.interactable = false;
+            }
+
+            Debug.Log(
+                "HOME | Verified gameplay departure prepared. " +
+                "Returning to MainBakery."
+            );
+
+            navigationManager.GoToMainBakery();
+        }
     }
 }

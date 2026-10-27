@@ -30,6 +30,9 @@ public class PlayerSaveData
     public MergeGameplaySaveData mergeGameplay =
         new MergeGameplaySaveData();
 
+    public DessertCollectionSaveData dessertCollection =
+        new DessertCollectionSaveData();
+
     public PlayerSaveData()
     {
     }
@@ -122,6 +125,24 @@ public class MergeGameplaySaveData
     public int nextDessertTier = -1;
 
     public MergeGameplaySaveData()
+    {
+    }
+}
+
+// ======================================================
+// DESSERT COLLECTION
+// ======================================================
+
+[Serializable]
+public class DessertCollectionSaveData
+{
+    public List<int> discoveredTierIds =
+        new List<int>();
+
+    public List<int> claimedMilestoneIds =
+        new List<int>();
+
+    public DessertCollectionSaveData()
     {
     }
 }

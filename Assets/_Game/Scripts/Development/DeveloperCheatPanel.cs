@@ -26,6 +26,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     private TextMeshProUGUI clearButtonText;
     private TextMeshProUGUI diagnosticsText;
     private TextMeshProUGUI lifetimeStatisticsText;
+    private TextMeshProUGUI cafeProgressionText;
     private TMP_InputField customCashInput;
     private Button clearBoardButton;
     private Button clearCancelButton;
@@ -273,6 +274,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
         BuildCashSection(content.transform);
         BuildLifetimeStatisticsSection(content.transform);
+        BuildCafeProgressionSection(content.transform);
         BuildEnergySection(content.transform);
         BuildRebirthSection(content.transform);
         BuildDessertSection(content.transform);
@@ -324,6 +326,19 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             Color.white);
         lifetimeStatisticsText.textWrappingMode = TextWrappingModes.Normal;
         SetLayoutHeight(lifetimeStatisticsText.gameObject, 58f);
+    }
+
+    private void BuildCafeProgressionSection(Transform content)
+    {
+        AddSection(content, "CAFE PROGRESSION");
+        cafeProgressionText = CreateText(
+            string.Empty,
+            content,
+            19f,
+            TextAlignmentOptions.TopLeft,
+            Color.white);
+        cafeProgressionText.textWrappingMode = TextWrappingModes.Normal;
+        SetLayoutHeight(cafeProgressionText.gameObject, 108f);
     }
 
     private void BuildEnergySection(Transform content)
@@ -822,6 +837,57 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
                   economy.TotalOrdersCompleted.ToString("N0", CultureInfo.InvariantCulture) +
                   "\nTotal Money Earned: $" +
                   economy.TotalMoneyEarned.ToString("N0", CultureInfo.InvariantCulture);
+        }
+
+        if (cafeProgressionText != null)
+        {
+            string cafeTitle = null;
+            int starLevel = 0;
+            int? nextStarRebirth = null;
+            bool hasCafeProgression = progression != null;
+            if (hasCafeProgression)
+                hasCafeProgression =
+                    progression.TryGetCafeTitle(out cafeTitle);
+            if (hasCafeProgression)
+                hasCafeProgression =
+                    progression.TryGetCafeStarLevel(out starLevel);
+            if (hasCafeProgression)
+            {
+                hasCafeProgression =
+                    progression.TryGetNextCafeStarRebirth(
+                        out nextStarRebirth);
+            }
+
+            if (!hasCafeProgression)
+            {
+                cafeProgressionText.text =
+                    "Completed Rebirths: " +
+                    (progression != null
+                        ? progression.CurrentRebirthCount.ToString(
+                            "N0",
+                            CultureInfo.InvariantCulture)
+                        : "Unavailable") +
+                    "\nCafe Title: Unavailable" +
+                    "\nCafe Stars: Unavailable" +
+                    "\nNext Star: Unavailable";
+            }
+            else
+            {
+                cafeProgressionText.text =
+                    "Completed Rebirths: " +
+                    progression.CurrentRebirthCount.ToString(
+                        "N0",
+                        CultureInfo.InvariantCulture) +
+                    "\nCafe Title: " + cafeTitle +
+                    "\nCafe Stars: " + starLevel + " / " +
+                    CafeProgressionCatalog.MaximumRegularStarLevel +
+                    "\nNext Star: " +
+                    (nextStarRebirth.HasValue
+                        ? "Rebirth " + nextStarRebirth.Value.ToString(
+                            "N0",
+                            CultureInfo.InvariantCulture)
+                        : "MAX");
+            }
         }
 
         if (diagnosticsText == null)

@@ -980,6 +980,8 @@ internal void PublishPreparedFreshSessionOrders()
     public bool TryFulfillOrderAtIndex(
         int customerIndex)
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            return false;
         if (isFulfilling)
             return false;
         if (gridManager != null &&
@@ -1036,73 +1038,88 @@ internal void PublishPreparedFreshSessionOrders()
             return false;
         }
         isFulfilling = true;
-        OrderFulfillmentStarted?.Invoke(
-            orderToComplete
-        );
-        // ----------------------------------------------
-        // CONSUME SERVING PLATE INVENTORY
-        // ----------------------------------------------
-        foreach (
-            Dessert dessert
-            in dessertsToConsume)
+        if (!GameplayModalInputGate.TryBeginGameplayOperation(
+                out GameplayModalInputGate.GameplayOperationLease operation))
         {
-            if (dessert == null)
-                continue;
-            ShelfSlot slot =
-                dessert.CurrentShelfSlot;
-            if (slot != null)
-            {
-                slot.RemoveDessert(
-                    dessert
-                );
-            }
-            dessert.ClearLocation();
+            isFulfilling = false;
+            return false;
         }
-        foreach (
-            Dessert dessert
-            in dessertsToConsume)
+
+        try
         {
-            if (dessert != null)
+            OrderFulfillmentStarted?.Invoke(
+                orderToComplete
+            );
+            // ----------------------------------------------
+            // CONSUME SERVING PLATE INVENTORY
+            // ----------------------------------------------
+            foreach (
+                Dessert dessert
+                in dessertsToConsume)
             {
-                Destroy(
-                    dessert.gameObject
-                );
+                if (dessert == null)
+                    continue;
+                ShelfSlot slot =
+                    dessert.CurrentShelfSlot;
+                if (slot != null)
+                {
+                    slot.RemoveDessert(
+                        dessert
+                    );
+                }
+                dessert.ClearLocation();
             }
+            foreach (
+                Dessert dessert
+                in dessertsToConsume)
+            {
+                if (dessert != null)
+                {
+                    Destroy(
+                        dessert.gameObject
+                    );
+                }
+            }
+            // ----------------------------------------------
+            // CLEAR EXACT CUSTOMER SLOT
+            // ----------------------------------------------
+            customerOrders[
+                customerIndex
+            ] = null;
+            CustomerOrderChanged?.Invoke(
+                customerIndex,
+                null
+            );
+            gridManager
+                .NotifyBoardChanged();
+            shelfManager.NotifyShelfChanged();
+            Debug.Log(
+                $"ORDER COMPLETED | " +
+                $"Customer {customerIndex + 1} | " +
+                $"Order #{orderToComplete.OrderId} | " +
+                $"{orderToComplete.DisplayName} | " +
+                $"Consumed: " +
+                $"{dessertsToConsume.Count}"
+            );
+            // EconomyManager listens to this event.
+            OrderCompleted?.Invoke(
+                orderToComplete
+            );
+            // ----------------------------------------------
+            // REPLACE ONLY THIS CUSTOMER'S ORDER
+            // ----------------------------------------------
+            GenerateOrderForCustomer(
+                customerIndex
+            );
+            isFulfilling = false;
+            NotifyOrderCollectionsChanged();
+            return true;
         }
-        // ----------------------------------------------
-        // CLEAR EXACT CUSTOMER SLOT
-        // ----------------------------------------------
-        customerOrders[
-            customerIndex
-        ] = null;
-        CustomerOrderChanged?.Invoke(
-            customerIndex,
-            null
-        );
-        gridManager
-            .NotifyBoardChanged();
-        shelfManager.NotifyShelfChanged();
-        Debug.Log(
-            $"ORDER COMPLETED | " +
-            $"Customer {customerIndex + 1} | " +
-            $"Order #{orderToComplete.OrderId} | " +
-            $"{orderToComplete.DisplayName} | " +
-            $"Consumed: " +
-            $"{dessertsToConsume.Count}"
-        );
-        // EconomyManager listens to this event.
-        OrderCompleted?.Invoke(
-            orderToComplete
-        );
-        // ----------------------------------------------
-        // REPLACE ONLY THIS CUSTOMER'S ORDER
-        // ----------------------------------------------
-        GenerateOrderForCustomer(
-            customerIndex
-        );
-        isFulfilling = false;
-        NotifyOrderCollectionsChanged();
-        return true;
+        finally
+        {
+            isFulfilling = false;
+            operation.Dispose();
+        }
     }
     // ==================================================
     // BOARD STATE

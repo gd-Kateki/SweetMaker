@@ -25,6 +25,8 @@ public class DessertDragHandler :
     [SerializeField]
     private RecycleDropTarget recycleDropTarget;
 
+    private RecycleConfirmationController recycleConfirmationController;
+
     [Header("Dragging")]
     [SerializeField]
     private int draggingSortingOrder = 100;
@@ -45,9 +47,11 @@ public class DessertDragHandler :
     private bool isDragging;
     private bool isInteractionLocked;
     private bool hasBeenRecycled;
+    private bool isPendingRecycleConfirmation;
     private bool mergeTransactionActive;
     private bool sourceColliderWasEnabled;
     private bool targetColliderWasEnabled;
+    private GameplayModalInputGate.GameplayOperationLease mergeOperation;
     private GridCell mergeSourceCell;
     private GridCell mergeTargetCell;
     private Dessert mergeTargetDessert;
@@ -72,8 +76,26 @@ public class DessertDragHandler :
 
     private void OnDisable()
     {
+        GameplayModalInputGate.BlockingStateChanged -=
+            HandleBlockingStateChanged;
+        if (recycleConfirmationController != null)
+            recycleConfirmationController.CancelForSource(this);
+        CancelUncommittedDrag();
         if (mergeTransactionActive)
+        {
             AbortMergeTransaction();
+            ReleaseMergeOperation();
+        }
+    }
+
+    private void OnEnable()
+    {
+        GameplayModalInputGate.BlockingStateChanged -=
+            HandleBlockingStateChanged;
+        GameplayModalInputGate.BlockingStateChanged +=
+            HandleBlockingStateChanged;
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            CancelUncommittedDrag();
     }
 
     private void ResolveReferences()
@@ -102,6 +124,12 @@ public class DessertDragHandler :
                 FindAnyObjectByType<RecycleDropTarget>();
         }
 
+        if (recycleConfirmationController == null)
+        {
+            recycleConfirmationController =
+                FindAnyObjectByType<RecycleConfirmationController>();
+        }
+
         /*
          * PlayerProgressionManager persists between
          * scenes, so always prefer the singleton
@@ -120,6 +148,53 @@ public class DessertDragHandler :
         }
     }
 
+    private void HandleBlockingStateChanged()
+    {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            CancelUncommittedDrag();
+    }
+
+    private void CancelUncommittedDrag()
+    {
+        if (!isDragging || mergeTransactionActive)
+            return;
+
+        isDragging = false;
+        ClearHighlights();
+
+        if (dessert == null)
+        {
+            Debug.LogError(
+                "Gameplay input was blocked during a drag after its Dessert reference was lost.",
+                this);
+            return;
+        }
+
+        dessert.ApplyNormalRendering();
+        if (originCell != null &&
+            originCell.CurrentDessert == dessert &&
+            dessert.CurrentCell == originCell)
+        {
+            transform.position = originCell.ContentPosition;
+        }
+        else if (originShelfSlot != null &&
+                 originShelfSlot.CurrentDessert == dessert &&
+                 dessert.CurrentShelfSlot == originShelfSlot)
+        {
+            transform.position = originShelfSlot.ContentPosition;
+        }
+        else
+        {
+            Debug.LogError(
+                "Gameplay input was blocked during a drag, but its original " +
+                "Board or Serving Plate location could not be verified.",
+                this);
+        }
+
+        originCell = null;
+        originShelfSlot = null;
+    }
+
     // ==================================================
     // POINTER INPUT
     // ==================================================
@@ -127,7 +202,11 @@ public class DessertDragHandler :
     public void OnPointerDown(
         PointerEventData eventData)
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+            return;
+
         if (isDragging ||
+            isPendingRecycleConfirmation ||
             isInteractionLocked)
             return;
 
@@ -190,6 +269,12 @@ public class DessertDragHandler :
     public void OnDrag(
         PointerEventData eventData)
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+        {
+            CancelUncommittedDrag();
+            return;
+        }
+
         if (!isDragging ||
             isInteractionLocked)
         {
@@ -213,6 +298,12 @@ public class DessertDragHandler :
     public void OnPointerUp(
         PointerEventData eventData)
     {
+        if (GameplayModalInputGate.IsGameplayInputBlocked)
+        {
+            CancelUncommittedDrag();
+            return;
+        }
+
         if (!isDragging ||
             isInteractionLocked)
         {
@@ -238,6 +329,9 @@ public class DessertDragHandler :
                 eventData.position))
         {
             ClearHighlights();
+            if (TryBeginRecycleConfirmation())
+                return;
+
             if (TryRecycleDraggedDessert())
             {
                 if (Application.isPlaying)
@@ -283,6 +377,119 @@ public class DessertDragHandler :
         }
 
         ReturnToOrigin();
+    }
+
+    private bool TryBeginRecycleConfirmation()
+    {
+        SettingsManager settingsManager = SettingsManager.Instance;
+        if (settingsManager == null ||
+            settingsManager.PersistenceStatus ==
+                SettingsPersistenceStatus.NotInitialized ||
+            settingsManager.PersistenceStatus ==
+                SettingsPersistenceStatus.UnsupportedFutureSchema ||
+            settingsManager.PersistenceStatus ==
+                SettingsPersistenceStatus.InvalidProfileProtected)
+        {
+            SnapToVerifiedOrigin();
+            ClearOrigin();
+            Debug.LogError(
+                "Recycle was canceled because initialized Settings are unavailable.",
+                this);
+            return true;
+        }
+
+        SettingsProfileData settings = settingsManager.CurrentSettings;
+        if (settings == null)
+        {
+            SnapToVerifiedOrigin();
+            ClearOrigin();
+            Debug.LogError(
+                "Recycle was canceled because the Settings profile is unavailable.",
+                this);
+            return true;
+        }
+
+        if (!settings.confirmImportantActions)
+            return false;
+
+        if (recycleConfirmationController == null)
+            ResolveReferences();
+
+        if (recycleConfirmationController == null)
+        {
+            SnapToVerifiedOrigin();
+            ClearOrigin();
+            Debug.LogError(
+                "Recycle was canceled because the confirmation controller is unavailable.",
+                this);
+            return true;
+        }
+
+        dessert.ApplyNormalRendering();
+        SnapToVerifiedOrigin();
+        isPendingRecycleConfirmation = true;
+        if (recycleConfirmationController.TryBeginPendingRecycle(
+                this,
+                dessert,
+                originCell,
+                originShelfSlot))
+        {
+            return true;
+        }
+
+        isPendingRecycleConfirmation = false;
+        SnapToVerifiedOrigin();
+        ClearOrigin();
+        Debug.LogError(
+            "Recycle was canceled because confirmation could not be opened safely.",
+            this);
+        return true;
+    }
+
+    public void CompletePendingRecycle(bool recycled)
+    {
+        if (!isPendingRecycleConfirmation)
+            return;
+
+        if (recycled)
+        {
+            hasBeenRecycled = true;
+            if (dessertCollider != null)
+                dessertCollider.enabled = false;
+        }
+        else
+        {
+            SnapToVerifiedOrigin();
+        }
+
+        isPendingRecycleConfirmation = false;
+        ClearOrigin();
+    }
+
+    private void SnapToVerifiedOrigin()
+    {
+        if (dessert == null)
+            return;
+
+        dessert.ApplyNormalRendering();
+        if (originCell != null &&
+            originCell.CurrentDessert == dessert &&
+            dessert.CurrentCell == originCell)
+        {
+            transform.position = originCell.ContentPosition;
+        }
+        else if (originShelfSlot != null &&
+                 originShelfSlot.CurrentDessert == dessert &&
+                 dessert.CurrentShelfSlot == originShelfSlot)
+        {
+            transform.position = originShelfSlot.ContentPosition;
+        }
+    }
+
+    private void ClearOrigin()
+    {
+        originCell = null;
+        originShelfSlot = null;
     }
 
     // ==================================================
@@ -503,6 +710,7 @@ public class DessertDragHandler :
                     .ShowInvalidHighlight();
             }
         }
+
     }
 
     private void UpdateShelfHighlight(
@@ -1225,13 +1433,22 @@ public class DessertDragHandler :
             yield break;
         }
 
-        if (gridManager == null ||
-            !gridManager.TryBeginMergeTransaction(this))
+        if (!GameplayModalInputGate.TryBeginGameplayOperation(
+                out GameplayModalInputGate.GameplayOperationLease operation))
         {
             ReturnToOrigin();
             yield break;
         }
 
+        if (gridManager == null ||
+            !gridManager.TryBeginMergeTransaction(this))
+        {
+            operation.Dispose();
+            ReturnToOrigin();
+            yield break;
+        }
+
+        mergeOperation = operation;
         mergeTransactionActive = true;
         mergeSourceCell = sourceCell;
         mergeTargetCell = targetCell;
@@ -1321,6 +1538,19 @@ public class DessertDragHandler :
                 isNewHighestTier);
             CompleteMergeTransaction();
 
+            if (upgradedDessert.CurrentCell != targetCell ||
+                targetCell.CurrentDessert != upgradedDessert)
+            {
+                Debug.LogError(
+                    "COLLECTION | Merge completed without retaining its " +
+                    $"tier {resultingTier} result in the target cell; " +
+                    "discovery was not recorded.");
+            }
+            else
+            {
+                RecordMergeDiscovery(resultingTier);
+            }
+
             Destroy(targetDessert.gameObject);
             Destroy(gameObject);
 
@@ -1334,8 +1564,42 @@ public class DessertDragHandler :
         }
         finally
         {
-            if (mergeTransactionActive)
-                AbortMergeTransaction();
+            try
+            {
+                if (mergeTransactionActive)
+                    AbortMergeTransaction();
+            }
+            finally
+            {
+                ReleaseMergeOperation();
+            }
+        }
+    }
+
+    private static void RecordMergeDiscovery(int resultingTier)
+    {
+        SaveManager saveManager = SaveManager.Instance;
+        if (saveManager == null)
+        {
+            Debug.LogError(
+                "COLLECTION | Merge produced tier " +
+                resultingTier +
+                ", but SaveManager is unavailable; discovery was not recorded.");
+            return;
+        }
+
+        DessertDiscoveryRecordResult result =
+            saveManager.RecordDessertDiscovery(resultingTier);
+        if (result != DessertDiscoveryRecordResult.Added)
+            return;
+
+        if (!saveManager.SaveCurrentGame())
+        {
+            Debug.LogError(
+                "COLLECTION | Merge discovery for tier " +
+                resultingTier +
+                " was added in memory, but the immediate save failed; " +
+                "a later save must retry it.");
         }
     }
 
@@ -1436,6 +1700,12 @@ public class DessertDragHandler :
         mergeTargetCell = null;
         mergeTargetDessert = null;
         mergeTargetCollider = null;
+    }
+
+    private void ReleaseMergeOperation()
+    {
+        mergeOperation?.Dispose();
+        mergeOperation = null;
     }
 
     // ==================================================

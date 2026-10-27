@@ -148,6 +148,27 @@ public class PlayerProgressionManager : MonoBehaviour
     public int CurrentRebirthCount =>
         RebirthProgression.CurrentRebirthCount;
 
+    public bool TryGetCafeTitle(out string cafeTitle)
+    {
+        return CafeProgressionCatalog.TryGetCafeTitle(
+            CurrentRebirthCount,
+            out cafeTitle);
+    }
+
+    public bool TryGetCafeStarLevel(out int starLevel)
+    {
+        return CafeProgressionCatalog.TryGetRegularStarLevel(
+            CurrentRebirthCount,
+            out starLevel);
+    }
+
+    public bool TryGetNextCafeStarRebirth(out int? nextStarRebirth)
+    {
+        return CafeProgressionCatalog.TryGetNextRegularStarRebirth(
+            CurrentRebirthCount,
+            out nextStarRebirth);
+    }
+
     public int HighestTierCreatedThisRun =>
         RebirthProgression.HighestTierCreatedThisRun;
 

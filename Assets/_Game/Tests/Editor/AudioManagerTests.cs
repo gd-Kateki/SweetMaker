@@ -112,6 +112,504 @@ public class AudioManagerTests
     }
 
     [Test]
+    public void LoadedAudioPreferencesApplyAtStartupWithoutUsingMusicPreferences()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            false,
+            0.42f,
+            false,
+            0f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out Component audioManager);
+            Invoke(audioManager, "InitializeRuntime");
+
+            Assert.AreEqual(
+                0.42f,
+                (float)AudioManagerType.GetMethod(
+                        "GetSfxVolume",
+                        BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, null));
+            Assert.IsFalse((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.IsTrue((bool)GetPrivateField(audioManager, "vibrationEnabled"));
+            Assert.IsNotEmpty(audioManager.GetComponents<AudioSource>());
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, source.volume);
+        }
+        finally
+        {
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(
+                settingsObject,
+                settingsManager,
+                previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void UninitializedSettingsWaitForTheLoadedSnapshot()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            false,
+            0.25f,
+            true,
+            0.7f,
+            false,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+
+        try
+        {
+            SetPrivateField(
+                settingsManager,
+                "persistenceStatus",
+                Enum.Parse(
+                    FindPlayerType("SettingsPersistenceStatus"),
+                    "NotInitialized"));
+            audioManagerObject = CreateManager(out Component audioManager);
+            Invoke(audioManager, "InitializeRuntime");
+
+            Assert.IsTrue((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.IsFalse((bool)GetPrivateField(audioManager, "vibrationEnabled"));
+            Assert.AreEqual(
+                1f,
+                (float)AudioManagerType.GetMethod(
+                    "GetSfxVolume",
+                    BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, null));
+
+            SetPrivateField(
+                settingsManager,
+                "persistenceStatus",
+                Enum.Parse(
+                    FindPlayerType("SettingsPersistenceStatus"),
+                    "Loaded"));
+            Invoke(audioManager, "TryBindSettingsManager");
+
+            Assert.IsFalse((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.IsFalse((bool)GetPrivateField(audioManager, "vibrationEnabled"));
+            Assert.AreEqual(
+                0.25f,
+                (float)AudioManagerType.GetMethod(
+                    "GetSfxVolume",
+                    BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, null));
+            Assert.IsNotEmpty(audioManager.GetComponents<AudioSource>());
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, source.volume);
+        }
+        finally
+        {
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(
+                settingsObject,
+                settingsManager,
+                previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void SettingsChangesMuteAndRestoreSfxAndPreserveSavedVolume()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            true,
+            0.7f,
+            true,
+            0.9f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+        AudioClip clip = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out Component audioManager);
+            Invoke(audioManager, "InitializeRuntime");
+            clip = AudioClip.Create("SFX settings test", 441, 1, 44100, false);
+            ConfigureClipEntry(audioManager, "Dessert_Spawn", clip, 0.5f);
+
+            SetSettingsValues(settingsManager, true, 0.7f, false, 0f, true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.IsTrue((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.AreEqual(0.7f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0.7f, source.volume);
+
+            object sfxId = Enum.Parse(
+                FindPlayerType("SfxId"),
+                "Dessert_Spawn");
+            Assert.IsTrue((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[] { sfxId }));
+
+            SetSettingsValues(settingsManager, false, 0.7f, false, 0f, true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.IsFalse((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.AreEqual(0.7f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+            {
+                Assert.AreEqual(0f, source.volume);
+                Assert.IsFalse(source.isPlaying);
+            }
+
+            Assert.IsFalse((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[] { sfxId }));
+
+            SetSettingsValues(settingsManager, false, 0.35f, true, 1f, true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.AreEqual(0.35f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            Assert.IsNotEmpty(audioManager.GetComponents<AudioSource>());
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, source.volume);
+
+            SetSettingsValues(settingsManager, true, 0.35f, true, 1f, true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.IsTrue((bool)GetPrivateField(audioManager, "sfxEnabled"));
+            Assert.AreEqual(0.35f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            Assert.IsTrue((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[] { sfxId }));
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0.35f, source.volume);
+        }
+        finally
+        {
+            if (clip != null)
+                UnityEngine.Object.DestroyImmediate(clip);
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(settingsObject, settingsManager, previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void SettingsSubscriptionIsIdempotentAndRemovedOnDestroy()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            true,
+            0.5f,
+            true,
+            0.7f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+        Component audioManager = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out audioManager);
+            Invoke(audioManager, "TryBindSettingsManager");
+            Invoke(audioManager, "TryBindSettingsManager");
+
+            Delegate listeners = (Delegate)GetPrivateField(
+                settingsManager,
+                "SettingsChanged");
+            Assert.AreEqual(
+                1,
+                listeners.GetInvocationList()
+                    .Count(callback => callback.Target == audioManager));
+
+            DestroyManager(audioManagerObject);
+            audioManagerObject = null;
+
+            listeners = (Delegate)GetPrivateField(
+                settingsManager,
+                "SettingsChanged");
+            Assert.IsTrue(
+                listeners == null ||
+                listeners.GetInvocationList()
+                    .All(callback => callback.Target != audioManager));
+        }
+        finally
+        {
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(settingsObject, settingsManager, previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void ZeroVolumeIsSilentAndClipVolumeScalingRemainsConfigured()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            true,
+            0f,
+            true,
+            1f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+        AudioClip clip = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out Component audioManager);
+            Invoke(audioManager, "InitializeRuntime");
+            clip = AudioClip.Create("SFX volume test", 441, 1, 44100, false);
+            object entry = ConfigureClipEntry(
+                audioManager,
+                "Dessert_Spawn",
+                clip,
+                0.35f);
+
+            Assert.IsTrue((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[]
+                {
+                    Enum.Parse(FindPlayerType("SfxId"), "Dessert_Spawn")
+                }));
+            Assert.AreEqual(0f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            Assert.IsNotEmpty(audioManager.GetComponents<AudioSource>());
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, source.volume);
+
+            SetSettingsValues(settingsManager, true, 0.6f, false, 0f, true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.AreEqual(0.6f, (float)AudioManagerType.GetMethod(
+                "GetSfxVolume",
+                BindingFlags.Public | BindingFlags.Static).Invoke(null, null));
+            Assert.AreEqual(0.35f, GetPublicField(entry, "baseVolume"));
+            foreach (AudioSource source in audioManager.GetComponents<AudioSource>())
+                Assert.AreEqual(0.6f, source.volume);
+        }
+        finally
+        {
+            if (clip != null)
+                UnityEngine.Object.DestroyImmediate(clip);
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(settingsObject, settingsManager, previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void LiveVibrationPreferenceUpdatesTheGameplayHapticDecision()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            true,
+            0.8f,
+            true,
+            0.7f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out Component audioManager);
+            Assert.IsTrue((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+
+            SetSettingsValues(
+                settingsManager,
+                true,
+                0.8f,
+                true,
+                0.7f,
+                false);
+            RaiseSettingsChanged(settingsManager);
+            Assert.IsFalse((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+
+            SetSettingsValues(
+                settingsManager,
+                true,
+                0.8f,
+                true,
+                0.7f,
+                true);
+            RaiseSettingsChanged(settingsManager);
+            Assert.IsTrue((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+        }
+        finally
+        {
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(
+                settingsObject,
+                settingsManager,
+                previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void SfxAndVibrationPreferencesAreIndependent()
+    {
+        Component settingsManager;
+        object previousSettingsManager;
+        GameObject settingsObject = CreateSettingsManager(
+            false,
+            0.65f,
+            true,
+            0.2f,
+            true,
+            out settingsManager,
+            out previousSettingsManager);
+        GameObject audioManagerObject = null;
+        AudioClip clip = null;
+
+        try
+        {
+            audioManagerObject = CreateManager(out Component audioManager);
+            Invoke(audioManager, "InitializeRuntime");
+            clip = AudioClip.Create(
+                "SFX haptics independence test",
+                441,
+                1,
+                44100,
+                false);
+            ConfigureClipEntry(audioManager, "Dessert_Spawn", clip, 1f);
+
+            Assert.IsTrue((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+            Assert.IsFalse((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[]
+                {
+                    Enum.Parse(FindPlayerType("SfxId"), "Dessert_Spawn")
+                }));
+
+            SetSettingsValues(
+                settingsManager,
+                true,
+                0.65f,
+                true,
+                0.2f,
+                false);
+            RaiseSettingsChanged(settingsManager);
+
+            Assert.IsFalse((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+            Assert.IsTrue((bool)Invoke(
+                audioManager,
+                "TryPlayInternal",
+                new[]
+                {
+                    Enum.Parse(FindPlayerType("SfxId"), "Dessert_Spawn")
+                }));
+        }
+        finally
+        {
+            if (clip != null)
+                UnityEngine.Object.DestroyImmediate(clip);
+            if (audioManagerObject != null)
+                DestroyManager(audioManagerObject);
+            DestroySettingsManager(
+                settingsObject,
+                settingsManager,
+                previousSettingsManager);
+        }
+    }
+
+    [Test]
+    public void GameplayHapticsRouteOnceFromSuccessHandlersAndAreEditorNoOp()
+    {
+        string source = System.IO.File.ReadAllText(
+            "Assets/_Game/Scripts/Core/AudioManager.cs");
+        string mergeHandler = GetSourceMethod(
+            "Assets/_Game/Scripts/Core/AudioManager.cs",
+            "private void HandleDessertMergeCommitted(");
+        string orderHandler = GetSourceMethod(
+            "Assets/_Game/Scripts/Core/AudioManager.cs",
+            "private void HandleOrderCompleted(");
+        string vibrationMethod = GetSourceMethod(
+            "Assets/_Game/Scripts/Core/AudioManager.cs",
+            "private void VibrateForGameplay(");
+
+        Assert.AreEqual(
+            1,
+            Regex.Matches(mergeHandler, @"VibrateForGameplay\(\)").Count);
+        Assert.AreEqual(
+            1,
+            Regex.Matches(orderHandler, @"VibrateForGameplay\(\)").Count);
+        StringAssert.Contains(
+            "GameplayEvents.DessertMergeCommitted += HandleDessertMergeCommitted;",
+            source);
+        StringAssert.DoesNotContain(
+            "GameplayEvents.DessertMerged += ",
+            source);
+        StringAssert.Contains(
+            "#if UNITY_ANDROID && !UNITY_EDITOR",
+            vibrationMethod);
+        StringAssert.Contains(
+            "Application.platform == RuntimePlatform.Android",
+            vibrationMethod);
+        StringAssert.Contains(
+            "SystemInfo.deviceType == DeviceType.Handheld",
+            vibrationMethod);
+        StringAssert.Contains("Handheld.Vibrate();", vibrationMethod);
+        StringAssert.DoesNotContain("sfxEnabled", vibrationMethod);
+
+        GameObject audioManagerObject = CreateManager(out Component audioManager);
+        try
+        {
+            Type gameplayEventsType = FindPlayerType("GameplayEvents");
+            Delegate mergeSubscribers = (Delegate)gameplayEventsType.GetField(
+                "DessertMergeCommitted",
+                BindingFlags.Static | BindingFlags.NonPublic)
+                .GetValue(null);
+            Assert.AreEqual(
+                1,
+                mergeSubscribers.GetInvocationList()
+                    .Count(callback => callback.Target == audioManager));
+
+            FieldInfo mergedEvent = gameplayEventsType.GetField(
+                "DessertMerged",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Delegate mergedSubscribers =
+                (Delegate)mergedEvent.GetValue(null);
+            Assert.IsTrue(
+                mergedSubscribers == null ||
+                mergedSubscribers.GetInvocationList()
+                    .All(callback => callback.Target != audioManager));
+
+            SetPrivateField(audioManager, "vibrationEnabled", true);
+            Assert.IsTrue((bool)Invoke(audioManager, "ShouldVibrateForGameplay"));
+            Assert.DoesNotThrow(() => Invoke(audioManager, "VibrateForGameplay"));
+        }
+        finally
+        {
+            DestroyManager(audioManagerObject);
+        }
+    }
+
+    [Test]
     public void PlaybackIsSafeWhenNoManagerExists()
     {
         PropertyInfo instanceProperty = AudioManagerType.GetProperty(
@@ -209,12 +707,22 @@ public class AudioManagerTests
             1);
         AssertUiClickRequestCount(
             "Assets/_Game/Scripts/UI/SpawnPoolSelectorUI.cs",
-            "private void SelectPreviousPool()",
+            "private void OpenSelectionPanel()",
             1);
         AssertUiClickRequestCount(
             "Assets/_Game/Scripts/UI/SpawnPoolSelectorUI.cs",
-            "private void SelectNextPool()",
+            "private void CloseSelectionPanel()",
             1);
+        AssertUiClickRequestCount(
+            "Assets/_Game/Scripts/UI/SpawnPoolSelectorUI.cs",
+            "private void SelectPool(int index)",
+            1);
+        string selectorSource = System.IO.File.ReadAllText(
+            "Assets/_Game/Scripts/UI/SpawnPoolSelectorUI.cs");
+        StringAssert.Contains("() => SelectPool(poolIndex)", selectorSource);
+        StringAssert.Contains(
+            "tierButtons[i].onClick.AddListener(tierButtonListeners[i])",
+            selectorSource);
 
         AssertUiClickRequestCount(
             "Assets/_Game/Scripts/UI/UpgradeCardUI.cs",
@@ -950,6 +1458,11 @@ public class AudioManagerTests
     public void FullBoardOvenTapRequestsInvalidOnce()
     {
         GameObject audioManagerObject = CreateManager(out _);
+        var progressionObject = new GameObject("Full board test progression");
+        progressionObject.SetActive(false);
+        PropertyInfo progressionInstance = FindPlayerType("PlayerProgressionManager")
+            .GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+        object previousProgression = progressionInstance.GetValue(null);
         var gridObject = new GameObject("Full board test grid");
         gridObject.SetActive(false);
         var spawnerObject = new GameObject("Full board test spawner");
@@ -976,6 +1489,17 @@ public class AudioManagerTests
             gameManagerInstance.GetSetMethod(true)
                 .Invoke(null, new object[] { null });
 
+            // OvenManager requires the authoritative progression singleton before
+            // it can reach the full-board rejection path.
+            Component progression = progressionObject.AddComponent(
+                FindPlayerType("PlayerProgressionManager"));
+            progressionInstance.GetSetMethod(true).Invoke(null, new object[] { progression });
+            Invoke(progression, "ResetEnergy", null);
+            int energyBefore = (int)progression.GetType()
+                .GetProperty("CurrentEnergy").GetValue(progression);
+            Assert.Greater(energyBefore, 0);
+            Assert.AreSame(progression, progressionInstance.GetValue(null));
+
             Component gridManager = gridObject.AddComponent(
                 FindPlayerType("GridManager"));
             Component cell = occupiedCellObject.AddComponent(
@@ -995,8 +1519,9 @@ public class AudioManagerTests
             SetPrivateField(spawner, "dessertContainer", containerObject.transform);
             SetPrivateField(
                 spawner,
-                "dessertDefinitions",
-                Array.CreateInstance(FindPlayerType("DessertDefinition"), 1));
+                "dessertCatalog",
+                AssetDatabase.LoadMainAssetAtPath(
+                    "Assets/_Game/Resources/DessertCatalog.asset"));
 
             Component ovenManager = ovenManagerObject.AddComponent(
                 FindPlayerType("OvenManager"));
@@ -1023,6 +1548,9 @@ public class AudioManagerTests
             Assert.IsTrue((bool)ovenManager.GetType()
                 .GetProperty("LastRequestFailedForNoBoardSpace")
                 .GetValue(ovenManager));
+            Assert.AreEqual(energyBefore, progression.GetType()
+                .GetProperty("CurrentEnergy").GetValue(progression),
+                "A full-board rejection must not consume Energy.");
 
             object warningSet = GetPrivateField(
                 GetManagerComponent(audioManagerObject),
@@ -1049,6 +1577,9 @@ public class AudioManagerTests
             UnityEngine.Object.DestroyImmediate(occupiedCellObject);
             UnityEngine.Object.DestroyImmediate(spawnerObject);
             UnityEngine.Object.DestroyImmediate(gridObject);
+            UnityEngine.Object.DestroyImmediate(progressionObject);
+            progressionInstance.GetSetMethod(true)
+                .Invoke(null, new[] { previousProgression });
             UnityEngine.Object.DestroyImmediate(definition);
             DestroyManager(audioManagerObject);
             gameManagerInstance.GetSetMethod(true)
@@ -1349,7 +1880,7 @@ public class AudioManagerTests
             Match clip = Regex.Match(
                 entry.Groups["fields"].Value,
                 @"(?m)^    clip: \{fileID: (?<fileId>\d+), " +
-                @"guid: (?<guid>[0-9a-f]{32}), type: 3\}$");
+                @"guid: (?<guid>[0-9a-f]{32}), type: 3\}\r?$");
             Assert.IsTrue(clip.Success,
                 $"SFX id {entry.Groups["id"].Value} needs an AudioClip reference.");
             Assert.AreNotEqual("0", clip.Groups["fileId"].Value);
@@ -1365,7 +1896,114 @@ public class AudioManagerTests
             sceneRoots.Value);
         Assert.AreEqual(
             1,
-            Regex.Matches(scene, @"(?m)^AudioListener:$").Count);
+            Regex.Matches(scene, @"(?m)^AudioListener:\r?$").Count);
+    }
+
+    private static GameObject CreateSettingsManager(
+        bool sfxEnabled,
+        float sfxVolume,
+        bool musicEnabled,
+        float musicVolume,
+        bool vibrationEnabled,
+        out Component settingsManager,
+        out object previousInstance)
+    {
+        Type settingsManagerType = FindPlayerType("SettingsManager");
+        PropertyInfo instanceProperty = settingsManagerType.GetProperty(
+            "Instance",
+            BindingFlags.Public | BindingFlags.Static);
+        previousInstance = instanceProperty.GetValue(null);
+
+        var settingsObject = new GameObject("SettingsManager test");
+        settingsObject.SetActive(false);
+        settingsManager = settingsObject.AddComponent(settingsManagerType);
+
+        Type profileType = FindPlayerType("SettingsProfileData");
+        object profile = Activator.CreateInstance(profileType);
+        profileType.GetField("sfxEnabled").SetValue(profile, sfxEnabled);
+        profileType.GetField("sfxVolume").SetValue(profile, sfxVolume);
+        profileType.GetField("musicEnabled").SetValue(profile, musicEnabled);
+        profileType.GetField("musicVolume").SetValue(profile, musicVolume);
+        profileType.GetField("vibrationEnabled").SetValue(profile, vibrationEnabled);
+        SetPrivateField(settingsManager, "currentSettings", profile);
+        SetPrivateField(
+            settingsManager,
+            "persistenceStatus",
+            Enum.Parse(
+                FindPlayerType("SettingsPersistenceStatus"),
+                "Loaded"));
+        instanceProperty.GetSetMethod(true).Invoke(
+            null,
+            new[] { settingsManager });
+        return settingsObject;
+    }
+
+    private static void SetSettingsValues(
+        Component settingsManager,
+        bool sfxEnabled,
+        float sfxVolume,
+        bool musicEnabled,
+        float musicVolume,
+        bool vibrationEnabled)
+    {
+        object profile = GetPrivateField(settingsManager, "currentSettings");
+        Type profileType = profile.GetType();
+        profileType.GetField("sfxEnabled").SetValue(profile, sfxEnabled);
+        profileType.GetField("sfxVolume").SetValue(profile, sfxVolume);
+        profileType.GetField("musicEnabled").SetValue(profile, musicEnabled);
+        profileType.GetField("musicVolume").SetValue(profile, musicVolume);
+        profileType.GetField("vibrationEnabled").SetValue(profile, vibrationEnabled);
+    }
+
+    private static void RaiseSettingsChanged(Component settingsManager)
+    {
+        Delegate listeners = (Delegate)GetPrivateField(
+            settingsManager,
+            "SettingsChanged");
+        if (listeners == null)
+            return;
+
+        listeners.DynamicInvoke(
+            GetPrivateField(settingsManager, "currentSettings"));
+    }
+
+    private static object ConfigureClipEntry(
+        Component manager,
+        string id,
+        AudioClip clip,
+        float baseVolume)
+    {
+        Type entryType = FindPlayerType("SfxClipEntry");
+        object entry = Activator.CreateInstance(entryType);
+        entryType.GetField("id").SetValue(
+            entry,
+            Enum.Parse(FindPlayerType("SfxId"), id));
+        entryType.GetField("clip").SetValue(entry, clip);
+        entryType.GetField("baseVolume").SetValue(entry, baseVolume);
+
+        Type listType = typeof(System.Collections.Generic.List<>)
+            .MakeGenericType(entryType);
+        IList entries = (IList)Activator.CreateInstance(listType);
+        entries.Add(entry);
+        SetPrivateField(manager, "clips", entries);
+        Invoke(manager, "RebuildClipLookup");
+        return entry;
+    }
+
+    private static void DestroySettingsManager(
+        GameObject settingsObject,
+        Component settingsManager,
+        object previousInstance)
+    {
+        if (settingsManager != null)
+            Invoke(settingsManager, "OnDestroy");
+        if (settingsObject != null)
+            UnityEngine.Object.DestroyImmediate(settingsObject);
+
+        FindPlayerType("SettingsManager")
+            .GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)
+            .GetSetMethod(true)
+            .Invoke(null, new[] { previousInstance });
     }
 
     private static GameObject CreateManager(out Component manager)
@@ -1426,6 +2064,17 @@ public class AudioManagerTests
         FieldInfo field = target.GetType().GetField(
             fieldName,
             BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Missing test field {fieldName}.");
+        return field.GetValue(target);
+    }
+
+    private static object GetPublicField(
+        object target,
+        string fieldName)
+    {
+        FieldInfo field = target.GetType().GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.Public);
         Assert.IsNotNull(field, $"Missing test field {fieldName}.");
         return field.GetValue(target);
     }
