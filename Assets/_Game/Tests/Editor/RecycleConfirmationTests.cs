@@ -356,34 +356,6 @@ public sealed class RecycleConfirmationTests
     }
 
     [Test]
-    public void ControllerDisableCancelsPendingRecycleAndReleasesBothLeases()
-    {
-        Component cell = CreateBoardCell();
-        Component dessert = CreateDessert();
-        PlaceDessert(cell, dessert);
-        Component dragHandler = dessert.GetComponent(GetRequiredType("DessertDragHandler"));
-        SetField(dragHandler, "isPendingRecycleConfirmation", true);
-        Component controller = CreateController(
-            out GameObject overlayRoot,
-            CreateGridManager(),
-            null);
-
-        Assert.IsTrue(BeginPendingRecycle(
-            controller,
-            dragHandler,
-            dessert,
-            cell,
-            null));
-        Assert.That(controller, Is.InstanceOf<Behaviour>());
-        ((Behaviour)controller).enabled = false;
-
-        Assert.AreSame(dessert, GetProperty(cell, "CurrentDessert"));
-        Assert.IsFalse(overlayRoot.activeSelf);
-        Assert.IsFalse(IsGameplayInputBlocked());
-        Assert.IsFalse(IsReservedBy(controller));
-    }
-
-    [Test]
     public void ControllerOnDisableCallbackCancelsPendingRecycleAndReleasesBothLeases()
     {
         Component cell = CreateBoardCell();
@@ -407,35 +379,6 @@ public sealed class RecycleConfirmationTests
         // verifies callback delivery and must also be checked in Play Mode.
         Invoke(controller, "OnDisable", Type.EmptyTypes);
         Invoke(controller, "OnDisable", Type.EmptyTypes);
-
-        Assert.AreSame(dessert, GetProperty(cell, "CurrentDessert"));
-        Assert.IsFalse(overlayRoot.activeSelf);
-        Assert.IsFalse(IsGameplayInputBlocked());
-        Assert.IsFalse(IsReservedBy(controller));
-    }
-
-    [Test]
-    public void DragHandlerDisableCancelsItsPendingRecycle()
-    {
-        Component cell = CreateBoardCell();
-        Component dessert = CreateDessert();
-        PlaceDessert(cell, dessert);
-        Component dragHandler = dessert.GetComponent(GetRequiredType("DessertDragHandler"));
-        SetField(dragHandler, "isPendingRecycleConfirmation", true);
-        Component controller = CreateController(
-            out GameObject overlayRoot,
-            CreateGridManager(),
-            null);
-        SetField(dragHandler, "recycleConfirmationController", controller);
-
-        Assert.IsTrue(BeginPendingRecycle(
-            controller,
-            dragHandler,
-            dessert,
-            cell,
-            null));
-        Assert.That(dragHandler, Is.InstanceOf<Behaviour>());
-        ((Behaviour)dragHandler).enabled = false;
 
         Assert.AreSame(dessert, GetProperty(cell, "CurrentDessert"));
         Assert.IsFalse(overlayRoot.activeSelf);

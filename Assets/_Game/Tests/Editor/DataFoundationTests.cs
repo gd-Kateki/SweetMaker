@@ -602,9 +602,22 @@ public class DataFoundationTests
             previewScene = EditorSceneManager.OpenPreviewScene(
                 "Assets/_Game/Scenes/Game.unity");
             Type customerButtonType = FindPlayerType("CustomerButtonUI");
-            Component customerButton = previewScene.GetRootGameObjects()
+            Component[] customerButtons = previewScene.GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren(customerButtonType, true))
-                .Single(component => (int)GetPropertyValue(component, "CustomerIndex") == 0);
+                .ToArray();
+            Assert.AreEqual(3, customerButtons.Length);
+            foreach (Component preview in customerButtons)
+            {
+                Array icons = (Array)GetPrivateField(preview, "requirementIcons");
+                Array labels = (Array)GetPrivateField(preview, "requirementLabels");
+                AssertCustomerPreviewLayout(preview.transform,
+                    icons.GetValue(0), labels.GetValue(0),
+                    icons.GetValue(1), labels.GetValue(1),
+                    GetPrivateField(preview, "customerLabel"),
+                    GetPrivateField(preview, "readinessLabel"));
+            }
+            Component customerButton = customerButtons.Single(component =>
+                (int)GetPropertyValue(component, "CustomerIndex") == 0);
             buttonObject = customerButton.gameObject;
             Type imageType = FindPlayerType("UnityEngine.UI.Image");
             Type buttonType = FindPlayerType("UnityEngine.UI.Button");
@@ -776,12 +789,12 @@ public class DataFoundationTests
                 readinessLabel,
                 "rectTransform");
 
-        Assert.AreEqual(new Vector2(18f, 18f), firstIconRect.sizeDelta);
-        Assert.AreEqual(new Vector2(190f, 22f), firstTextRect.sizeDelta);
-        Assert.AreEqual(18f, GetPropertyValue(headerLabel, "fontSize"));
-        Assert.AreEqual(16f,
+        Assert.AreEqual(new Vector2(50f, 50f), firstIconRect.sizeDelta);
+        Assert.AreEqual(new Vector2(158f, 24f), firstTextRect.sizeDelta);
+        Assert.AreEqual(19f, GetPropertyValue(headerLabel, "fontSize"));
+        Assert.AreEqual(22f,
             GetPropertyValue(firstRequirementLabel, "fontSize"));
-        Assert.AreEqual(15f,
+        Assert.AreEqual(16f,
             GetPropertyValue(readinessLabel, "fontSize"));
         Assert.IsFalse((bool)GetPropertyValue(firstIcon, "raycastTarget"));
         Assert.IsFalse((bool)GetPropertyValue(
@@ -841,6 +854,28 @@ public class DataFoundationTests
             firstTextRect.anchoredPosition.x +
             firstTextRect.sizeDelta.x / 2f,
             120f);
+        // All visible elements must remain inside the card, including the
+        // larger icons and status text. Do not accept a new size alone.
+        Rect cardBounds = ((RectTransform)buttonTransform).rect;
+        foreach (RectTransform child in new[]
+                 { firstIconRect, secondIconRect, firstTextRect, secondTextRect,
+                   headerRect, readinessRect })
+        {
+            Assert.AreEqual(buttonTransform, child.parent);
+            Assert.AreEqual(new Vector2(0.5f, 0.5f), child.anchorMin);
+            Assert.AreEqual(child.anchorMin, child.anchorMax);
+            Rect bounds = new Rect(child.anchoredPosition -
+                Vector2.Scale(child.sizeDelta, child.pivot), child.sizeDelta);
+            AssertRectInside(cardBounds, bounds, child.name);
+        }
+        Assert.AreEqual(firstIconRect.sizeDelta, secondIconRect.sizeDelta);
+        Assert.AreEqual(firstTextRect.sizeDelta, secondTextRect.sizeDelta);
+        Assert.Less(secondIconRect.anchoredPosition.y + secondIconRect.sizeDelta.y / 2f,
+            firstIconRect.anchoredPosition.y - firstIconRect.sizeDelta.y / 2f);
+        Assert.Less(firstIconRect.anchoredPosition.y + firstIconRect.sizeDelta.y / 2f,
+            headerRect.anchoredPosition.y - headerRect.sizeDelta.y / 2f);
+        Assert.Less(readinessRect.anchoredPosition.y + readinessRect.sizeDelta.y / 2f,
+            secondIconRect.anchoredPosition.y - secondIconRect.sizeDelta.y / 2f);
         Assert.AreEqual(buttonTransform, firstIconRect.parent);
         Assert.AreEqual(buttonTransform, firstTextRect.parent);
     }
@@ -3437,9 +3472,9 @@ public class DataFoundationTests
             "The controller toggles the blocker with its parent screen.");
         StringAssert.Contains("closeButton: {fileID: 2117529019}",
             upgradeScreenController.Value);
-        StringAssert.Contains("m_Father: {fileID: 373026617}",
+        StringAssert.Contains("m_Father: {fileID: 1616590802}",
             viewport.Value,
-            "Preserve the existing Viewport-under-Scrollbar hierarchy.");
+            "The viewport and scrollbar are siblings under the scroll root.");
         Assert.AreEqual(6, contentChildren.Count,
             "All six upgrade cards must remain in the scroll content.");
     }
@@ -3995,80 +4030,50 @@ public class DataFoundationTests
     [Category("Step6C.5.2")]
     public void RebirthEntryButtonFitsPortraitSafeAreas()
     {
-        string sceneText = File.ReadAllText(
-            "Assets/_Game/Scenes/Game.unity");
-        Match buttonObject = Regex.Match(
-            sceneText,
-            @"(?ms)^--- !u!1 &915782262\r?\n(.*?)(?=^--- !u!|\z)");
-        Match buttonTransform = Regex.Match(
-            sceneText,
-            @"(?ms)^--- !u!224 &915782263\r?\n(.*?)(?=^--- !u!|\z)");
-        Match safeAreaFitter = Regex.Match(
-            sceneText,
-            @"(?ms)^--- !u!114 &2200000006\r?\n(.*?)(?=^--- !u!|\z)");
+        string scene = File.ReadAllText("Assets/_Game/Scenes/Game.unity");
+        string navigation = ReadSceneBlock(scene, 224, 705582561);
+        string navigationObject = ReadSceneBlock(scene, 1, 705582560);
+        string fitter = ReadSceneBlock(scene, 114, 2200000005);
+        StringAssert.Contains("- component: {fileID: 2200000005}", navigationObject);
+        StringAssert.Contains("m_GameObject: {fileID: 705582560}", fitter);
+        StringAssert.Contains("m_Enabled: 1", fitter);
+        StringAssert.Contains("guid: a64a846354a844edba8d64814a12c990", fitter);
+        StringAssert.Contains("m_Father: {fileID: 1297646555}", navigation);
+        string scaler = ReadSceneBlock(scene, 114, 1297646557);
+        Assert.AreEqual(0f, ReadSceneFloat(scaler, "m_MatchWidthOrHeight"));
+        Assert.AreEqual(new Vector2(1080f, 1920f),
+            ReadSceneVector2(scaler, "m_ReferenceResolution"));
 
-        Assert.IsTrue(buttonObject.Success);
-        Assert.IsTrue(buttonTransform.Success);
-        Assert.IsTrue(safeAreaFitter.Success);
-        StringAssert.Contains(
-            "- component: {fileID: 2200000006}",
-            buttonObject.Value);
-        StringAssert.Contains(
-            "m_EditorClassIdentifier: Assembly-CSharp::SafeAreaFitter",
-            safeAreaFitter.Value);
-        StringAssert.Contains(
-            "guid: a64a846354a844edba8d64814a12c990",
-            safeAreaFitter.Value);
-        StringAssert.Contains(
-            "m_Father: {fileID: 1297646555}",
-            buttonTransform.Value);
-
-        Vector2 anchorMin = ReadSceneVector2(
-            buttonTransform.Value,
-            "m_AnchorMin");
-        Vector2 anchorMax = ReadSceneVector2(
-            buttonTransform.Value,
-            "m_AnchorMax");
-        Vector2 offset = ReadSceneVector2(
-            buttonTransform.Value,
-            "m_AnchoredPosition");
-        Vector2 size = ReadSceneVector2(
-            buttonTransform.Value,
-            "m_SizeDelta");
-        Assert.AreEqual(new Vector2(0.5f, 0f), anchorMin);
-        Assert.AreEqual(anchorMin, anchorMax);
-
-        float[] screenHeights = { 1920f, 2340f, 2400f };
-        float[] bottomInsets = { 48f, 70f, 80f };
-        float[] topInsets = { 48f, 70f, 80f };
-        for (int i = 0; i < screenHeights.Length; i++)
+        // Prestige and Recycle inherit SafeAreaFitter from BottomNavigation.
+        // Game uses width matching: at width 1080 the scale is 1 at every height.
+        long[] controls = { 3000002001, 915782263, 2047490582, 2200000001 };
+        float[] heights = { 1920f, 2340f, 2400f };
+        float[] insets = { 48f, 70f, 80f };
+        for (int i = 0; i < heights.Length; i++)
         {
-            float screenHeight = screenHeights[i];
-            Rect canvasRect = new Rect(0f, 0f, 1080f, screenHeight);
-            Rect safeArea = new Rect(
-                0f,
-                bottomInsets[i],
-                1080f,
-                screenHeight - bottomInsets[i] - topInsets[i]);
-            Vector4 anchors = CalculateSafeAreaAnchors(
-                anchorMin,
-                anchorMax,
-                safeArea,
-                canvasRect);
-            float scale = Mathf.Sqrt(screenHeight / 1920f);
-            Vector2 safeAnchor = new Vector2(
-                canvasRect.xMin + anchors.x * canvasRect.width,
-                canvasRect.yMin + anchors.y * canvasRect.height);
-            Rect buttonBounds = new Rect(
-                safeAnchor.x + offset.x * scale - size.x * scale * 0.5f,
-                safeAnchor.y + offset.y * scale,
-                size.x * scale,
-                size.y * scale);
-
-            Assert.GreaterOrEqual(buttonBounds.xMin, safeArea.xMin);
-            Assert.LessOrEqual(buttonBounds.xMax, safeArea.xMax);
-            Assert.GreaterOrEqual(buttonBounds.yMin, safeArea.yMin);
-            Assert.LessOrEqual(buttonBounds.yMax, safeArea.yMax);
+            Rect safeArea = new Rect(24f, insets[i], 1032f, heights[i] - 2f * insets[i]);
+            Rect canvas = new Rect(0f, 0f, 1080f, heights[i]);
+            Vector4 safeAnchors = CalculateSafeAreaAnchors(
+                ReadSceneVector2(navigation, "m_AnchorMin"),
+                ReadSceneVector2(navigation, "m_AnchorMax"), safeArea, canvas);
+            Rect navBounds = CalculateSerializedRect(navigation, canvas, 1f,
+                new Vector2(safeAnchors.x, safeAnchors.y),
+                new Vector2(safeAnchors.z, safeAnchors.w));
+            AssertRectInside(safeArea, navBounds, "Bottom navigation");
+            var controlBounds = new List<Rect>();
+            foreach (long id in controls)
+            {
+                string control = ReadSceneBlock(scene, 224, id);
+                StringAssert.Contains("m_Father: {fileID: 705582561}", control);
+                Rect bounds = CalculateSerializedRect(control, navBounds, 1f,
+                    ReadSceneVector2(control, "m_AnchorMin"),
+                    ReadSceneVector2(control, "m_AnchorMax"));
+                AssertRectInside(safeArea, bounds, $"Navigation control {id}");
+                foreach (Rect previous in controlBounds)
+                    Assert.IsFalse(previous.Overlaps(bounds),
+                        $"Navigation control {id} overlaps another control.");
+                controlBounds.Add(bounds);
+            }
         }
     }
 
@@ -4134,6 +4139,34 @@ public class DataFoundationTests
         StringAssert.Contains(
             "m_AnchorMax: {x: 1, y: 1}",
             verticalScrollbarTransform.Value);
+        // AutoHideAndExpandViewport resets the viewport offsets and would
+        // cover the fixed header once Unity performs its layout pass.
+        StringAssert.Contains("m_VerticalScrollbarVisibility: 1", scrollRect.Value);
+        string scaler = ReadSceneBlock(sceneText, 114, 191567263);
+        Assert.AreEqual(0.5f, ReadSceneFloat(scaler, "m_MatchWidthOrHeight"));
+        Assert.AreEqual(new Vector2(1080f, 1920f),
+            ReadSceneVector2(scaler, "m_ReferenceResolution"));
+        string scrollTransform = ReadSceneBlock(sceneText, 224, 1616590802);
+        string headerTransform = ReadSceneBlock(sceneText, 224, 2065082387);
+        foreach (float height in new[] { 1920f, 2340f, 2400f })
+        {
+            float scale = Mathf.Sqrt(height / 1920f); // MainBakery matches width/height equally.
+            Rect canvas = new Rect(0f, 0f, 1080f, height);
+            Rect panel = CalculateSerializedRect(scrollTransform, canvas, scale,
+                ReadSceneVector2(scrollTransform, "m_AnchorMin"),
+                ReadSceneVector2(scrollTransform, "m_AnchorMax"));
+            Rect viewport = CalculateSerializedRect(viewportTransform.Value, panel, scale,
+                ReadSceneVector2(viewportTransform.Value, "m_AnchorMin"),
+                ReadSceneVector2(viewportTransform.Value, "m_AnchorMax"));
+            Rect header = CalculateSerializedRect(headerTransform, panel, scale,
+                ReadSceneVector2(headerTransform, "m_AnchorMin"),
+                ReadSceneVector2(headerTransform, "m_AnchorMax"));
+            AssertRectInside(panel, viewport, "Upgrade viewport");
+            Assert.AreEqual(panel.width - 20f * scale, viewport.width, 0.01f,
+                "Viewport width must follow the panel with a scrollbar gutter.");
+            Assert.LessOrEqual(viewport.yMax, header.yMin - 10f * scale + 0.01f,
+                "The fixed header must stay above the scrolling content.");
+        }
     }
 
     [Test]
@@ -4178,17 +4211,16 @@ public class DataFoundationTests
             orderNumberTransform.Value,
             "m_SizeDelta");
 
-        float titleRight = titlePosition.x + titleSize.x * 0.5f;
-        float orderNumberLeft =
-            orderNumberPosition.x - orderNumberSize.x * 0.5f;
-        foreach (float screenHeight in new[] { 1920f, 2340f, 2400f })
-        {
-            float canvasScale = Mathf.Sqrt(screenHeight / 1920f);
-            Assert.Less(
-                titleRight * canvasScale,
-                orderNumberLeft * canvasScale,
-                $"Order title overlaps its number at 1080x{screenHeight:0}.");
-        }
+        StringAssert.Contains("m_Father: {fileID: 1504059926}", titleTransform.Value);
+        StringAssert.Contains("m_Father: {fileID: 1504059926}", orderNumberTransform.Value);
+        float titleBottom = titlePosition.y - titleSize.y * 0.5f;
+        float orderNumberTop = orderNumberPosition.y + orderNumberSize.y * 0.5f;
+        Assert.GreaterOrEqual(titleBottom - orderNumberTop, 4f,
+            "The stacked title must leave a visible gap above the order number.");
+        Assert.LessOrEqual(Mathf.Abs(titlePosition.x) + titleSize.x * 0.5f, 375f,
+            "The title must fit the 750-unit portrait panel width.");
+        Assert.GreaterOrEqual(titleSize.y, 36f,
+            "The header must fit the maximum single-line font size.");
     }
 
     [Test]
@@ -4378,6 +4410,19 @@ public class DataFoundationTests
 
         try
         {
+            Component sceneGrid = previewScene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren(FindPlayerType("GridManager"), true))
+                .Single();
+            float cellSize = (float)GetPrivateField(sceneGrid, "cellSize");
+            float spacing = (float)GetPrivateField(sceneGrid, "spacing");
+            int columns = (int)GetPrivateField(sceneGrid, "columns");
+            Component cellPrefab = (Component)GetPrivateField(sceneGrid, "cellPrefab");
+            BoxCollider2D cellCollider = cellPrefab.GetComponent<BoxCollider2D>();
+            Assert.IsNotNull(cellCollider);
+            float localBoardLeft = -(columns - 1) * (cellSize + spacing) * 0.5f +
+                (cellCollider.offset.x - cellCollider.size.x * 0.5f) * cellSize;
+            float boardLeft = sceneGrid.transform.TransformPoint(
+                new Vector3(localBoardLeft, 0f, 0f)).x;
             Camera sceneCamera = null;
             ShelfSlotSceneData[] slotData =
                 new ShelfSlotSceneData[5];
@@ -4434,6 +4479,13 @@ public class DataFoundationTests
                         slotData[i].Collider.bounds.size.y,
                         1f,
                         $"ShelfSlot_{i + 1} touch height is too small.");
+                    Assert.LessOrEqual(slotData[i].Collider.bounds.max.x,
+                        boardLeft - 0.1f,
+                        $"ShelfSlot_{i + 1} touch area must remain separate from the board.");
+                    for (int other = 0; other < i; other++)
+                        Assert.IsFalse(slotData[i].Collider.bounds.Intersects(
+                            slotData[other].Collider.bounds),
+                            "Shelf touch targets must not overlap each other.");
                     AssertBoundsContained(
                         viewBounds,
                         slotData[i].Collider.bounds,
@@ -4900,7 +4952,7 @@ public class DataFoundationTests
                 buttonText.GetType().GetProperty("text").GetValue(buttonText));
             Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
             Assert.AreEqual(
-                "REBIRTH COMPLETE",
+                "PRESTIGE COMPLETE",
                 entryButtonText.GetType().GetProperty("text").GetValue(entryButtonText));
 
             setup.Progression.GetType()
@@ -5262,7 +5314,7 @@ public class DataFoundationTests
             requirements.Value);
         StringAssert.Contains("m_SizeDelta: {x: 680, y: 210}",
             requirements.Value);
-        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 365}",
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 370}",
             title.Value);
         StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -125}",
             confirm.Value);
@@ -5355,13 +5407,22 @@ public class DataFoundationTests
                 rowLayout.Value);
         }
 
+        string requirementsLayout = ReadSceneBlock(scene, 114, 401750354);
+        StringAssert.Contains("m_ChildControlWidth: 1", requirementsLayout);
+        StringAssert.Contains("m_ChildForceExpandWidth: 1", requirementsLayout);
         foreach (int rowId in new[] { 1434013343, 76114892, 173951685 })
         {
             Match row = Regex.Match(
                 scene,
                 $@"(?ms)^--- !u!224 &{rowId}\r?\n(.*?)(?=^--- !u!|\z)");
             Assert.IsTrue(row.Success);
-            StringAssert.Contains("m_SizeDelta: {x: 0, y: 80}", row.Value);
+            // VerticalLayoutGroup drives row width after layout; Unity saves
+            // that driven width (680), not necessarily a zero sizeDelta.
+            Vector2 rowSize = ReadSceneVector2(row.Value, "m_SizeDelta");
+            Assert.AreEqual(80f, rowSize.y);
+            Assert.AreEqual(ReadSceneVector2(requirements.Value, "m_SizeDelta").x,
+                rowSize.x, "The serialized row must fill its requirements container.");
+            StringAssert.Contains("m_Father: {fileID: 401750353}", row.Value);
         }
 
         foreach (int iconId in new[] { 1485393869, 1843911900, 2142781157 })
@@ -7252,6 +7313,44 @@ public class DataFoundationTests
             safeArea,
             canvasPixelRect
         });
+    }
+
+    private static object GetPrivateField(object target, string name)
+    {
+        FieldInfo field = target.GetType().GetField(name,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Missing fixture field {name}.");
+        return field.GetValue(target);
+    }
+
+    private static string ReadSceneBlock(string scene, int type, long id)
+    {
+        Match match = Regex.Match(scene,
+            $@"(?ms)^--- !u!{type} &{id}\r?\n(.*?)(?=^--- !u!|\z)");
+        Assert.IsTrue(match.Success, $"Scene object {id} is missing.");
+        return match.Value;
+    }
+
+    private static Rect CalculateSerializedRect(string block, Rect parent, float scale,
+        Vector2 anchorMin, Vector2 anchorMax)
+    {
+        Vector2 delta = ReadSceneVector2(block, "m_SizeDelta") * scale;
+        Vector2 position = ReadSceneVector2(block, "m_AnchoredPosition") * scale;
+        Vector2 pivot = ReadSceneVector2(block, "m_Pivot");
+        Vector2 min = parent.min + Vector2.Scale(parent.size, anchorMin) +
+            position - Vector2.Scale(delta, pivot);
+        Vector2 size = Vector2.Scale(parent.size, anchorMax - anchorMin) + delta;
+        return new Rect(min, size);
+    }
+
+    private static void AssertRectInside(Rect outer, Rect inner, string label)
+    {
+        Assert.Greater(inner.width, 0f, label);
+        Assert.Greater(inner.height, 0f, label);
+        Assert.GreaterOrEqual(inner.xMin, outer.xMin - 0.01f, label);
+        Assert.GreaterOrEqual(inner.yMin, outer.yMin - 0.01f, label);
+        Assert.LessOrEqual(inner.xMax, outer.xMax + 0.01f, label);
+        Assert.LessOrEqual(inner.yMax, outer.yMax + 0.01f, label);
     }
 
     private static Vector2 ReadSceneVector2(

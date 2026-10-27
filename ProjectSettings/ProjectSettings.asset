@@ -170,7 +170,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.offcutstudio.dessertmergecafe.dev
+    Android: com.offcutstudios.dessertmergecafe.dev
     Standalone: com.DefaultCompany.2D-URP
   buildNumber:
     Standalone: 0

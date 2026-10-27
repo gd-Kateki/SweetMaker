@@ -6,43 +6,119 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 internal sealed class DevelopmentAndroidIdentityValidator :
-    IPreprocessBuildWithReport
+    IPreprocessBuildWithReport,
+    IPostprocessBuildWithReport
 {
-    private const string DevelopmentIdentifierSuffix = ".dev";
+    private const string DevelopmentIdentifier =
+        "com.offcutstudios.dessertmergecafe.dev";
+    private const string ReleaseIdentifier =
+        "com.offcutstudios.dessertmergecafe";
 
     public int callbackOrder => 0;
 
     public void OnPreprocessBuild(BuildReport report)
     {
-        if (report == null ||
-            report.summary.platform != BuildTarget.Android ||
-            (report.summary.options & BuildOptions.Development) == 0)
+        if (report == null)
+            throw new BuildFailedException(
+                "Android application identity could not be selected because the build report is missing.");
+
+        if (report.summary.platform != BuildTarget.Android)
         {
             return;
         }
 
-        string identifier =
-            PlayerSettings.GetApplicationIdentifier(
-                NamedBuildTarget.Android);
-        if (string.IsNullOrWhiteSpace(identifier) ||
-            !identifier.EndsWith(
-                DevelopmentIdentifierSuffix,
-                StringComparison.OrdinalIgnoreCase))
+        bool isDevelopmentBuild =
+            (report.summary.options & BuildOptions.Development) != 0;
+        string expectedIdentifier = isDevelopmentBuild
+            ? DevelopmentIdentifier
+            : ReleaseIdentifier;
+
+        try
         {
-            throw new BuildFailedException(
-                "Android Development Builds require a distinct application " +
-                "identifier ending in '.dev'. The development save directory " +
-                "is isolated, but a separate identifier prevents installing " +
-                "the development build over the release app.");
+            SetAndValidateIdentifier(expectedIdentifier);
+        }
+        catch (BuildFailedException selectionException)
+        {
+            try
+            {
+                SetAndValidateIdentifier(DevelopmentIdentifier);
+            }
+            catch (BuildFailedException restorationException)
+            {
+                throw new BuildFailedException(
+                    selectionException.Message +
+                    " Restoring the development application ID also failed: " +
+                    restorationException.Message);
+            }
+
+            throw;
         }
 
-        Debug.Log(
-            "DEVELOPMENT BUILD IDENTITY | Android application ID: " +
-            identifier +
-            " | Save mode: " +
-            SavePathPolicy.ModeName +
-            " | Save directory: " +
-            SavePathPolicy.GetSaveDirectory());
+        if (isDevelopmentBuild)
+        {
+            Debug.Log(
+                "DEVELOPMENT BUILD IDENTITY | Android application ID: " +
+                expectedIdentifier +
+                " | Save mode: " +
+                SavePathPolicy.ModeName +
+                " | Save directory: " +
+                SavePathPolicy.GetSaveDirectory());
+        }
+        else
+        {
+            Debug.Log(
+                "RELEASE BUILD IDENTITY | Android application ID: " +
+                expectedIdentifier);
+        }
+    }
+
+    public void OnPostprocessBuild(BuildReport report)
+    {
+        if (report == null ||
+            report.summary.platform != BuildTarget.Android)
+        {
+            return;
+        }
+
+        SetAndValidateIdentifier(DevelopmentIdentifier);
+    }
+
+    private static void SetAndValidateIdentifier(string expectedIdentifier)
+    {
+        try
+        {
+            PlayerSettings.SetApplicationIdentifier(
+                NamedBuildTarget.Android,
+                expectedIdentifier);
+
+            string actualIdentifier =
+                PlayerSettings.GetApplicationIdentifier(
+                    NamedBuildTarget.Android);
+            if (!string.Equals(
+                    actualIdentifier,
+                    expectedIdentifier,
+                    StringComparison.Ordinal))
+            {
+                throw new BuildFailedException(
+                    "Android application ID configuration mismatch. Expected '" +
+                    expectedIdentifier +
+                    "' but found '" +
+                    (actualIdentifier ?? "<null>") +
+                    "'.");
+            }
+        }
+        catch (BuildFailedException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new BuildFailedException(
+                "Could not configure Android application ID '" +
+                expectedIdentifier +
+                "': " +
+                exception.Message);
+        }
     }
 }
 #endif
