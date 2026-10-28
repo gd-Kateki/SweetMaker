@@ -48,6 +48,91 @@ public class SaveManager : MonoBehaviour
         public long energySavedUtcTicks;
     }
 
+    private sealed class SessionPublicationRecord
+    {
+        private readonly FrozenMergeSessionValues session;
+        private readonly int customerCapacity;
+        private readonly SessionPublicationOwnership ownership;
+        private readonly SessionPublicationEligibility eligibility;
+        private readonly object ownerIdentity;
+        private readonly object publicationIdentity;
+        private readonly MergeSessionController sourceController;
+        private readonly SessionPublicationRevocationReason revocationReason;
+
+        public FrozenMergeSessionValues Session => session;
+        public int CustomerCapacity => customerCapacity;
+        public SessionPublicationOwnership Ownership => ownership;
+        public SessionPublicationEligibility Eligibility => eligibility;
+        public object OwnerIdentity => ownerIdentity;
+        public object PublicationIdentity => publicationIdentity;
+        public MergeSessionController SourceController => sourceController;
+        public SessionPublicationRevocationReason RevocationReason =>
+            revocationReason;
+
+        public SessionPublicationRecord(
+            FrozenMergeSessionValues session,
+            int customerCapacity,
+            SessionPublicationOwnership ownership,
+            SessionPublicationEligibility eligibility,
+            object ownerIdentity,
+            MergeSessionController sourceController,
+            SessionPublicationRevocationReason revocationReason)
+        {
+            this.session = session;
+            this.customerCapacity = customerCapacity;
+            this.ownership = ownership;
+            this.eligibility = eligibility;
+            this.ownerIdentity = ownerIdentity;
+            this.sourceController = sourceController;
+            this.revocationReason = revocationReason;
+            publicationIdentity = new object();
+        }
+    }
+
+    private readonly object sessionPublicationOwnerIdentity = new object();
+    private SessionPublicationRecord currentSessionPublication;
+
+    private bool IsExpectedSessionPublication(
+        SessionPublicationRecord publication,
+        SessionPublicationRecord expectedPublication,
+        object expectedPublicationIdentity,
+        FrozenMergeSessionValues expectedSession)
+    {
+        return publication != null &&
+               expectedPublication != null &&
+               expectedSession != null &&
+               ReferenceEquals(currentSessionPublication, publication) &&
+               ReferenceEquals(publication, expectedPublication) &&
+               ReferenceEquals(
+                   publication.PublicationIdentity,
+                   expectedPublicationIdentity) &&
+               ReferenceEquals(
+                   publication.OwnerIdentity,
+                   sessionPublicationOwnerIdentity) &&
+               ReferenceEquals(publication.Session, expectedSession) &&
+               publication.Session != null &&
+               publication.Session.HasSession &&
+               IsSupportedSessionPublicationCapacity(
+                   publication.CustomerCapacity) &&
+               IsOrdinarySessionPublicationOwnership(publication.Ownership) &&
+               publication.Eligibility ==
+                   SessionPublicationEligibility.ActivePublication &&
+               publication.RevocationReason ==
+                   SessionPublicationRevocationReason.None;
+    }
+
+    private static bool IsSupportedSessionPublicationCapacity(int capacity)
+    {
+        return capacity >= 1 && capacity <= 3;
+    }
+
+    private static bool IsOrdinarySessionPublicationOwnership(
+        SessionPublicationOwnership ownership)
+    {
+        return ownership == SessionPublicationOwnership.LiveControllerBound ||
+               ownership == SessionPublicationOwnership.ReleasedSnapshotBound;
+    }
+
     private PlayerSaveData capacityLoadedData;
 
     private int loadedCustomerCapacity;
@@ -3598,6 +3683,41 @@ public class SaveManager : MonoBehaviour
         return decision == MigrationDecision.MigrationNotRegistered ||
                decision == MigrationDecision.FutureVersionBlocked ||
                decision == MigrationDecision.AmbiguousVersionBlocked;
+    }
+
+    internal SaveDiscoveryStatus InspectSaveBytesForDiscovery(
+        byte[] bytes,
+        out SaveDiscoveryVersionKind versionKind,
+        out int version)
+    {
+        versionKind = SaveDiscoveryVersionKind.Unknown;
+        version = 0;
+        if (bytes == null)
+            return SaveDiscoveryStatus.Unknown;
+
+        SaveVersionClassification classification =
+            ClassifySaveVersion(bytes, out version);
+        switch (classification)
+        {
+            case SaveVersionClassification.Current:
+                versionKind = SaveDiscoveryVersionKind.V2;
+                return IsStrictlyValidSaveFile(bytes)
+                    ? SaveDiscoveryStatus.ValidV2
+                    : SaveDiscoveryStatus.Invalid;
+            case SaveVersionClassification.UnsupportedOlder:
+                versionKind = SaveDiscoveryVersionKind.UnsupportedOlder;
+                return SaveDiscoveryStatus.UnsupportedVersion;
+            case SaveVersionClassification.UnsupportedFuture:
+                versionKind = SaveDiscoveryVersionKind.UnsupportedFuture;
+                return SaveDiscoveryStatus.UnsupportedVersion;
+            case SaveVersionClassification.Ambiguous:
+                versionKind = SaveDiscoveryVersionKind.Ambiguous;
+                version = 0;
+                return SaveDiscoveryStatus.Unknown;
+            default:
+                version = 0;
+                return SaveDiscoveryStatus.Invalid;
+        }
     }
 
     // Step 12.8.8.3 — primary-first load with independently validated backup recovery.

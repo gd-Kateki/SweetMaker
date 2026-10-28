@@ -428,6 +428,99 @@ public class PlayerProgressionManager : MonoBehaviour
         savedUtcTicks = energyUtcAnchorTicks;
     }
 
+    internal bool TryObserveFrozenEnergyMetadata(
+        out FrozenEnergyMetadata metadata)
+    {
+        metadata = null;
+        if (currentEnergy < 0 ||
+            currentEnergy > MaximumEnergyValue ||
+            double.IsNaN(secondsUntilNextEnergy) ||
+            double.IsInfinity(secondsUntilNextEnergy) ||
+            secondsUntilNextEnergy < 0d ||
+            secondsUntilNextEnergy > EnergyRegenerationIntervalSeconds ||
+            (currentEnergy == MaximumEnergyValue &&
+             secondsUntilNextEnergy != 0d) ||
+            (currentEnergy < MaximumEnergyValue &&
+             secondsUntilNextEnergy <= 0d) ||
+            double.IsNaN(lastEnergyRealtimeSeconds) ||
+            double.IsInfinity(lastEnergyRealtimeSeconds))
+        {
+            return false;
+        }
+
+        int observedEnergy = currentEnergy;
+        double observedSecondsUntilNextEnergy = secondsUntilNextEnergy;
+        long savedUtcTicks;
+        if (energyClockPaused)
+        {
+            savedUtcTicks = energyPauseUtcTicks;
+        }
+        else
+        {
+            double sampledRealtime = Time.realtimeSinceStartupAsDouble;
+            long sampledUtcTicks = DateTime.UtcNow.Ticks;
+            if (double.IsNaN(sampledRealtime) ||
+                double.IsInfinity(sampledRealtime) ||
+                energyUtcAnchorTicks <= 0 ||
+                energyUtcAnchorTicks > DateTime.MaxValue.Ticks ||
+                sampledUtcTicks <= 0 ||
+                sampledUtcTicks > DateTime.MaxValue.Ticks)
+            {
+                return false;
+            }
+
+            double elapsedSeconds =
+                sampledRealtime - lastEnergyRealtimeSeconds;
+            if (double.IsNaN(elapsedSeconds) ||
+                double.IsInfinity(elapsedSeconds))
+            {
+                return false;
+            }
+
+            EnergyProjection projection = CalculateEnergyProjection(
+                currentEnergy,
+                secondsUntilNextEnergy,
+                elapsedSeconds);
+            observedEnergy = projection.Energy;
+            observedSecondsUntilNextEnergy =
+                projection.SecondsUntilNextEnergy;
+            savedUtcTicks = Math.Max(
+                energyUtcAnchorTicks,
+                sampledUtcTicks);
+        }
+
+        if (savedUtcTicks <= 0 ||
+            savedUtcTicks > DateTime.MaxValue.Ticks ||
+            double.IsNaN(observedSecondsUntilNextEnergy) ||
+            double.IsInfinity(observedSecondsUntilNextEnergy) ||
+            observedSecondsUntilNextEnergy < 0d ||
+            observedSecondsUntilNextEnergy >
+                EnergyRegenerationIntervalSeconds ||
+            (observedEnergy == MaximumEnergyValue &&
+             observedSecondsUntilNextEnergy != 0d) ||
+            (observedEnergy < MaximumEnergyValue &&
+             observedSecondsUntilNextEnergy <= 0d) ||
+            observedEnergy < 0 ||
+            observedEnergy > MaximumEnergyValue)
+        {
+            return false;
+        }
+
+        int millisecondsUntilNextPoint =
+            observedEnergy == MaximumEnergyValue
+                ? 0
+                : Mathf.Clamp(
+                    (int)Math.Ceiling(
+                        observedSecondsUntilNextEnergy * 1000d),
+                    1,
+                    60000);
+        metadata = new FrozenEnergyMetadata(
+            observedEnergy,
+            millisecondsUntilNextPoint,
+            savedUtcTicks);
+        return true;
+    }
+
     private void AdvanceEnergyClock()
     {
         double now = Time.realtimeSinceStartupAsDouble;
@@ -485,6 +578,63 @@ public class PlayerProgressionManager : MonoBehaviour
 
         if (currentEnergy > previousEnergy)
             EnergyChanged?.Invoke();
+    }
+
+    private struct EnergyProjection
+    {
+        public readonly int Energy;
+        public readonly double SecondsUntilNextEnergy;
+
+        public EnergyProjection(int energy, double secondsUntilNextEnergy)
+        {
+            Energy = energy;
+            SecondsUntilNextEnergy = secondsUntilNextEnergy;
+        }
+    }
+
+    private static EnergyProjection CalculateEnergyProjection(
+        int currentEnergy,
+        double secondsUntilNextEnergy,
+        double elapsedSeconds)
+    {
+        if (currentEnergy >= MaximumEnergyValue)
+        {
+            currentEnergy = MaximumEnergyValue;
+            secondsUntilNextEnergy = 0d;
+            return new EnergyProjection(currentEnergy, secondsUntilNextEnergy);
+        }
+
+        if (elapsedSeconds <= 0d)
+            return new EnergyProjection(currentEnergy, secondsUntilNextEnergy);
+
+        double timeToCapacity =
+            secondsUntilNextEnergy +
+            (MaximumEnergyValue - currentEnergy - 1) *
+            EnergyRegenerationIntervalSeconds;
+        if (elapsedSeconds >= timeToCapacity)
+        {
+            currentEnergy = MaximumEnergyValue;
+            secondsUntilNextEnergy = 0d;
+        }
+        else if (elapsedSeconds >= secondsUntilNextEnergy)
+        {
+            double elapsedAfterFirstPoint =
+                elapsedSeconds - secondsUntilNextEnergy;
+            int regeneratedPoints =
+                1 + (int)(elapsedAfterFirstPoint /
+                          EnergyRegenerationIntervalSeconds);
+            currentEnergy += regeneratedPoints;
+            secondsUntilNextEnergy =
+                EnergyRegenerationIntervalSeconds -
+                (elapsedAfterFirstPoint %
+                 EnergyRegenerationIntervalSeconds);
+        }
+        else
+        {
+            secondsUntilNextEnergy -= elapsedSeconds;
+        }
+
+        return new EnergyProjection(currentEnergy, secondsUntilNextEnergy);
     }
 
     private RebirthProgressionState RebirthProgression

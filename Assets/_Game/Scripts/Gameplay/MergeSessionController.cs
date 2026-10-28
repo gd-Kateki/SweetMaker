@@ -4,6 +4,36 @@ using System.Collections.Generic;
 using UnityEngine;
 public class MergeSessionController : MonoBehaviour
 {
+    internal interface ILiveSessionCapacityEvidence
+    {
+        FrozenMergeSessionValues Session { get; }
+        int CustomerCapacity { get; }
+    }
+
+    private sealed class LiveSessionCapacityEvidence :
+        ILiveSessionCapacityEvidence
+    {
+        private readonly object issuerToken;
+
+        public FrozenMergeSessionValues Session { get; }
+        public int CustomerCapacity { get; }
+
+        public LiveSessionCapacityEvidence(
+            object issuerToken,
+            FrozenMergeSessionValues session,
+            int customerCapacity)
+        {
+            this.issuerToken = issuerToken;
+            Session = session;
+            CustomerCapacity = customerCapacity;
+        }
+
+        public bool WasIssuedBy(object expectedIssuerToken)
+        {
+            return ReferenceEquals(issuerToken, expectedIssuerToken);
+        }
+    }
+
     private sealed class DessertPlacement
     {
         public Dessert Dessert;
@@ -20,6 +50,7 @@ public class MergeSessionController : MonoBehaviour
     private DessertSpawner dessertSpawner;
     [SerializeField]
     private OrderManager orderManager;
+    private readonly object liveEvidenceIssuerToken = new object();
     private bool hasRestoredAutomatically;
     private bool restorationInProgress;
     private bool allowVerifiedMigrationCapture;
@@ -238,6 +269,248 @@ public class MergeSessionController : MonoBehaviour
             $"Next Order ID: #{data.nextOrderId} | " +
             $"Next Dessert: T{data.nextDessertTier}"
         );
+        return true;
+    }
+
+    internal bool TryCaptureLiveSessionCapacityEvidence(
+        out ILiveSessionCapacityEvidence evidence,
+        out SessionPublicationFailure failure)
+    {
+        evidence = null;
+        failure = SessionPublicationFailure.None;
+
+        GameStartupCoordinator coordinator =
+            GameStartupCoordinator.Instance;
+        if (coordinator == null ||
+            PlayerProgressionManager.Instance == null)
+        {
+            failure = SessionPublicationFailure.OwnerUnavailable;
+            return false;
+        }
+
+        if (!isActiveAndEnabled ||
+            restorationInProgress ||
+            departurePrepared ||
+            !coordinator.IsStartupComplete ||
+            !coordinator.IsGameplayReady ||
+            !IsRestorationVerified)
+        {
+            failure = SessionPublicationFailure.IneligibleLifecycle;
+            return false;
+        }
+
+        MergeSessionController[] controllers =
+            FindObjectsByType<MergeSessionController>();
+        if (controllers.Length != 1 ||
+            !ReferenceEquals(controllers[0], this))
+        {
+            failure = SessionPublicationFailure.UnauthorizedSource;
+            return false;
+        }
+
+        if (gridManager == null ||
+            shelfManager == null ||
+            dessertSpawner == null ||
+            orderManager == null ||
+            gridManager.IsMergeTransactionActive)
+        {
+            failure = SessionPublicationFailure.CaptureUnavailable;
+            return false;
+        }
+
+        PlayerProgressionManager progression =
+            PlayerProgressionManager.Instance;
+        if (progression == null)
+        {
+            failure = SessionPublicationFailure.OwnerUnavailable;
+            return false;
+        }
+
+        int customerCapacity = progression.ActiveCustomerOrders;
+        if (customerCapacity < 1 || customerCapacity > 3)
+        {
+            failure = SessionPublicationFailure.CapacityEvidenceUnavailable;
+            return false;
+        }
+
+        if (!ValidateLiveState(out _))
+        {
+            failure = SessionPublicationFailure.CaptureUnavailable;
+            return false;
+        }
+
+        var saveData = new MergeGameplaySaveData
+        {
+            hasSession = true,
+            nextOrderId = orderManager.NextOrderId,
+            nextDessertTier = dessertSpawner.NextDessert != null
+                ? dessertSpawner.NextDessert.Tier
+                : -1
+        };
+
+        for (int i = 0; i < gridManager.Cells.Count; i++)
+        {
+            GridCell cell = gridManager.Cells[i];
+            if (cell.IsEmpty)
+                continue;
+
+            Dessert dessert = cell.CurrentDessert;
+            saveData.boardDesserts.Add(
+                new BoardDessertSaveData(
+                    i,
+                    dessert.Definition.Tier));
+        }
+
+        for (int i = 0; i < shelfManager.Slots.Count; i++)
+        {
+            ShelfSlot slot = shelfManager.Slots[i];
+            if (slot.IsEmpty)
+                continue;
+
+            Dessert dessert = slot.CurrentDessert;
+            saveData.shelfDesserts.Add(
+                new ShelfDessertSaveData(
+                    i,
+                    dessert.Definition.Tier));
+        }
+
+        for (int customerIndex = 0;
+             customerIndex < customerCapacity;
+             customerIndex++)
+        {
+            CustomerOrder order =
+                orderManager.CustomerOrders[customerIndex];
+            string definitionId;
+            if (order.Definition != null)
+            {
+                definitionId = order.Definition.DefinitionId;
+                if (string.IsNullOrWhiteSpace(definitionId))
+                {
+                    failure =
+                        SessionPublicationFailure.InvalidFrozenValues;
+                    return false;
+                }
+            }
+            else if (!ProceduralCustomerOrderSaveCodec.TryEncode(
+                         order.DisplayName,
+                         order.CashReward,
+                         order.Requirements,
+                         out definitionId))
+            {
+                failure =
+                    SessionPublicationFailure.InvalidFrozenValues;
+                return false;
+            }
+
+            saveData.customerOrders.Add(
+                new CustomerOrderSaveData(
+                    customerIndex,
+                    order.OrderId,
+                    definitionId));
+        }
+
+        if (!StrictMergeSessionFreezer.TryFreeze(
+                saveData,
+                out FrozenMergeSessionValues frozen,
+                out _))
+        {
+            failure = SessionPublicationFailure.InvalidFrozenValues;
+            return false;
+        }
+
+        if (!HasExactLiveCustomerCoverage(
+                frozen,
+                customerCapacity))
+        {
+            failure = SessionPublicationFailure.CapacityEvidenceMismatch;
+            return false;
+        }
+
+        evidence = new LiveSessionCapacityEvidence(
+            liveEvidenceIssuerToken,
+            frozen,
+            customerCapacity);
+        return true;
+    }
+
+    internal bool TryVerifyIssuedLiveEvidence(
+        ILiveSessionCapacityEvidence evidence,
+        FrozenMergeSessionValues expectedSession,
+        out int customerCapacity,
+        out SessionPublicationFailure failure)
+    {
+        customerCapacity = 0;
+        failure = SessionPublicationFailure.UnauthorizedSource;
+        if (evidence == null)
+            return false;
+        if (expectedSession == null)
+        {
+            failure = SessionPublicationFailure.InvalidFrozenValues;
+            return false;
+        }
+
+        if (!(evidence is LiveSessionCapacityEvidence issuedEvidence) ||
+            !issuedEvidence.WasIssuedBy(liveEvidenceIssuerToken))
+        {
+            return false;
+        }
+
+        if (!ReferenceEquals(issuedEvidence.Session, expectedSession))
+        {
+            failure = SessionPublicationFailure.PublicationIdentityMismatch;
+            return false;
+        }
+
+        if (!HasExactLiveCustomerCoverage(
+                issuedEvidence.Session,
+                issuedEvidence.CustomerCapacity))
+        {
+            failure = SessionPublicationFailure.CapacityEvidenceMismatch;
+            return false;
+        }
+
+        customerCapacity = issuedEvidence.CustomerCapacity;
+        failure = SessionPublicationFailure.None;
+        return true;
+    }
+
+    private static bool HasExactLiveCustomerCoverage(
+        FrozenMergeSessionValues frozen,
+        int customerCapacity)
+    {
+        if (frozen == null ||
+            !frozen.HasSession ||
+            customerCapacity < 1 ||
+            customerCapacity > 3 ||
+            frozen.CustomerOrders == null ||
+            frozen.CustomerOrders.Count != customerCapacity ||
+            frozen.NextOrderId < 1)
+        {
+            return false;
+        }
+
+        var coveredCustomers = new bool[customerCapacity];
+        var orderIds = new HashSet<int>();
+        foreach (FrozenCustomerOrderValue order in frozen.CustomerOrders)
+        {
+            if (order == null ||
+                order.CustomerIndex < 0 ||
+                order.CustomerIndex >= customerCapacity ||
+                coveredCustomers[order.CustomerIndex] ||
+                order.OrderId <= 0 ||
+                order.OrderId >= frozen.NextOrderId ||
+                !orderIds.Add(order.OrderId))
+            {
+                return false;
+            }
+
+            coveredCustomers[order.CustomerIndex] = true;
+        }
+
+        for (int i = 0; i < coveredCustomers.Length; i++)
+            if (!coveredCustomers[i])
+                return false;
+
         return true;
     }
 
