@@ -2,17 +2,21 @@
 using System;
 using UnityEditor;
 using UnityEditor.Build;
+using UnityEditor.Build.Profile;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 internal sealed class DevelopmentAndroidIdentityValidator :
-    IPreprocessBuildWithReport,
-    IPostprocessBuildWithReport
+    IPreprocessBuildWithReport
 {
-    private const string DevelopmentIdentifier =
+    internal const string DevelopmentIdentifier =
         "com.offcutstudios.dessertmergecafe.dev";
-    private const string ReleaseIdentifier =
+    internal const string ReleaseIdentifier =
         "com.offcutstudios.dessertmergecafe";
+    internal const string DevelopmentProfilePath =
+        "Assets/Settings/Build Profiles/Android Dev.asset";
+    internal const string ReleaseProfilePath =
+        "Assets/Settings/Build Profiles/Android Release.asset";
 
     public int callbackOrder => 0;
 
@@ -20,105 +24,86 @@ internal sealed class DevelopmentAndroidIdentityValidator :
     {
         if (report == null)
             throw new BuildFailedException(
-                "Android application identity could not be selected because the build report is missing.");
+                "Android identity validation failed because the build report is missing.");
 
         if (report.summary.platform != BuildTarget.Android)
-        {
             return;
-        }
 
+        BuildProfile activeProfile = BuildProfile.GetActiveBuildProfile();
+        string profilePath = NormalizeAssetPath(
+            AssetDatabase.GetAssetPath(activeProfile));
         bool isDevelopmentBuild =
             (report.summary.options & BuildOptions.Development) != 0;
+        string expectedProfilePath = isDevelopmentBuild
+            ? DevelopmentProfilePath
+            : ReleaseProfilePath;
         string expectedIdentifier = isDevelopmentBuild
             ? DevelopmentIdentifier
             : ReleaseIdentifier;
 
+        if (!string.Equals(
+                profilePath,
+                expectedProfilePath,
+                StringComparison.Ordinal))
+        {
+            throw new BuildFailedException(
+                "Android build used profile '" +
+                (profilePath ?? "<none>") +
+                "'; expected '" +
+                expectedProfilePath +
+                "'.");
+        }
+
+        string effectiveIdentifier;
         try
         {
-            SetAndValidateIdentifier(expectedIdentifier);
-        }
-        catch (BuildFailedException selectionException)
-        {
-            try
-            {
-                SetAndValidateIdentifier(DevelopmentIdentifier);
-            }
-            catch (BuildFailedException restorationException)
-            {
-                throw new BuildFailedException(
-                    selectionException.Message +
-                    " Restoring the development application ID also failed: " +
-                    restorationException.Message);
-            }
-
-            throw;
-        }
-
-        if (isDevelopmentBuild)
-        {
-            Debug.Log(
-                "DEVELOPMENT BUILD IDENTITY | Android application ID: " +
-                expectedIdentifier +
-                " | Save mode: " +
-                SavePathPolicy.ModeName +
-                " | Save directory: " +
-                SavePathPolicy.GetSaveDirectory());
-        }
-        else
-        {
-            Debug.Log(
-                "RELEASE BUILD IDENTITY | Android application ID: " +
-                expectedIdentifier);
-        }
-    }
-
-    public void OnPostprocessBuild(BuildReport report)
-    {
-        if (report == null ||
-            report.summary.platform != BuildTarget.Android)
-        {
-            return;
-        }
-
-        SetAndValidateIdentifier(DevelopmentIdentifier);
-    }
-
-    private static void SetAndValidateIdentifier(string expectedIdentifier)
-    {
-        try
-        {
-            PlayerSettings.SetApplicationIdentifier(
-                NamedBuildTarget.Android,
-                expectedIdentifier);
-
-            string actualIdentifier =
+            effectiveIdentifier =
                 PlayerSettings.GetApplicationIdentifier(
                     NamedBuildTarget.Android);
-            if (!string.Equals(
-                    actualIdentifier,
-                    expectedIdentifier,
-                    StringComparison.Ordinal))
-            {
-                throw new BuildFailedException(
-                    "Android application ID configuration mismatch. Expected '" +
-                    expectedIdentifier +
-                    "' but found '" +
-                    (actualIdentifier ?? "<null>") +
-                    "'.");
-            }
-        }
-        catch (BuildFailedException)
-        {
-            throw;
         }
         catch (Exception exception)
         {
             throw new BuildFailedException(
-                "Could not configure Android application ID '" +
-                expectedIdentifier +
-                "': " +
+                "Could not read the effective Android application ID: " +
                 exception.Message);
         }
+
+        if (!string.Equals(
+                effectiveIdentifier,
+                expectedIdentifier,
+                StringComparison.Ordinal))
+        {
+            throw new BuildFailedException(
+                "Android profile identity mismatch for '" +
+                profilePath +
+                "'. Expected '" +
+                expectedIdentifier +
+                "' but found '" +
+                (effectiveIdentifier ?? "<null>") +
+                "'.");
+        }
+
+        Debug.Log(
+            (isDevelopmentBuild
+                ? "DEVELOPMENT BUILD IDENTITY"
+                : "RELEASE BUILD IDENTITY") +
+            " | Profile: " +
+            profilePath +
+            " | Android application ID: " +
+            effectiveIdentifier +
+            (isDevelopmentBuild
+                ? " | Save mode: " +
+                    SavePathPolicy.ModeName +
+                    " | Save directory: " +
+                    SavePathPolicy.GetSaveDirectory()
+                : string.Empty));
+    }
+
+    private static string NormalizeAssetPath(string path)
+    {
+        return string.IsNullOrWhiteSpace(path)
+            ? null
+            : path.Replace('\\', '/');
     }
 }
 #endif
