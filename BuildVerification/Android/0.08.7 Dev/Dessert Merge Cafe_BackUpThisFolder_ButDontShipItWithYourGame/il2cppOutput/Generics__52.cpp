@@ -171,6 +171,41 @@ struct EnumerableSorter_2_tFA37E8829A58429F33CA2FF55D50F63C56D9D428;
 struct EnumerableSorter_2_tC5B56F6D36DDDD4A2B34B722DE3E70713AE830CA;
 struct EnumerableSorter_2_tF496E0D6C57F791B7881673464F4A77EC633EF1D;
 struct EnumerableSorter_2_t810E08E7949A0E1A131D77FAE633E11B2031917C;
+struct EqualityComparer_1_t6F8A54278C86159EE3781689EB4C3B37E6AE6F61;
+struct EqualityComparer_1_t673BF14D21F851D63B60738A3F25EAAFB1576E53;
+struct EqualityComparer_1_t7BFB380024EE23637EA2957679B24804460D2932;
+struct EqualityComparer_1_t604CB3B96C7A7AA140E10CD2D4A3C07F393ECA78;
+struct EqualityComparer_1_t93F0F814DC5381D4F8B9F05F0BFD5EF159D27F7A;
+struct EqualityComparer_1_t48A62359BEFECE804CBC430D44C8D09A0A284922;
+struct EqualityComparer_1_t1521ADB5096538DFD14AAA20D995F9A713182D34;
+struct EqualityComparer_1_t281A2F4FFC77426CDEA72374C6C5963C23019356;
+struct EqualityComparer_1_tE78495C69113F410A6D60AA37345F82B821DD514;
+struct EqualityComparer_1_t98E58A7967AAF3850FA08AEC2DD3BDDF08F12950;
+struct EqualityComparer_1_t47A202E0616B7339D4BD7C046BDFAAACE737B425;
+struct EqualityComparer_1_t135D3ED9ADA9371CBAFF07201C732C5C16DE9459;
+struct EqualityComparer_1_tB2BBF3403BA483E21B2E50B898902EDEDC69FFA6;
+struct EqualityComparer_1_t5C3EAC4D23AE37A8BC687581D04DE926AC1600D7;
+struct EqualityComparer_1_t5DC47A0F94B42C4AF542C58E4C8DA89D0B1F74A1;
+struct EqualityComparer_1_t8D42329611F97CCC4D5639A8AC51A8AB3814386A;
+struct EqualityComparer_1_t692FEF9F57712F3BE73097B8DC6CC8171CA58E20;
+struct EqualityComparer_1_t58DF80BB2ADF5DA80380805AE875192720D301BB;
+struct EqualityComparer_1_tD0F60C39918FC3BE76054D458C550B9ACAE461D0;
+struct EqualityComparer_1_t2712CAA114403E9C1DB5F257E38A75F8AB5107B1;
+struct EqualityComparer_1_tA90588281A488CFD78E25CDD0639A30052C22D1E;
+struct EqualityComparer_1_t5D0EADFAB4CDA6FE8C645F2DF54E2D0DB89614F7;
+struct EqualityComparer_1_tD504A821C37C17ECA18CEF2E8E7015B679048053;
+struct EqualityComparer_1_t3A31078765D87C2AC206B2693E088E92B3D63DF1;
+struct EqualityComparer_1_t6DEA85179F1E95399D345A3BA69B4B8FC1622863;
+struct EqualityComparer_1_t2B59281EB3D8F817FAED7FEEB7F9E3EE34A0C22C;
+struct EqualityComparer_1_t4009E4A8C68F59FF00143A55A5DFDF57865A7E38;
+struct EqualityComparer_1_t295FC5F5EF98320B6827AB1557B6326DF7503422;
+struct EqualityComparer_1_t605E3467F6965F520858072057A5749E5F48EE5C;
+struct EqualityComparer_1_tD7205521D3599CA03B6F6E59448F34C53283EF28;
+struct EqualityComparer_1_t1A3D66D0CEBA85D4D61876DA6DFBBAF608586D5E;
+struct EqualityComparer_1_tF0F270AEB29B934D05F18759A9738B06303F18AC;
+struct EqualityComparer_1_tA71AE07432BEC52AC1C4F3D1F2B63700CE9FFE25;
+struct EqualityComparer_1_tDA1F4F4DA33DB962DD04D492BE1CB630E61EB24A;
+struct EqualityComparer_1_tD6B2C28EFFE66CC2E6E8D344B723AAA6F81CA17C;
 struct EqualityComparer_1_t75385E12AB6D6BB7AFEE5F8F5F285F526B72199C;
 struct EqualityComparer_1_t37BFE0DD79BF71274FF51A117A50EF9D259BAE86;
 struct EqualityComparer_1_t11D3541C027DB3906B041ED8C475CCCA6EDDA047;
@@ -268,44 +303,14 @@ struct IEnumerable_1_tCE758D940790D6D0D56B457E522C195F8C413AF2;
 struct IEnumerable_1_t6D5FFB1B4A97F30426C5D394135AD0D2FAEAE680;
 struct IEnumerator_1_tCA4783EF25312F5DCB3D15BC57C83CF8E75657C6;
 struct IEnumerator_1_tC915A24A3C5D3E9C074B4F22C1C929B4523E17C5;
-struct IEnumerator_1_t9214BAC12DECAD369CDF806331C3AF6908316E00;
-struct IEnumerator_1_t8F3CB5AC336835703974F2BA0A91CF91D5EF4081;
-struct IEnumerator_1_tA21A45923B60B3726289C53E39D4CB5C894EEE38;
-struct IEnumerator_1_t96BCDF97E8B41D9A27B97AF30095DC1DF240C79F;
-struct IEnumerator_1_tE1504631A2AD2ABD297883AF0D96C4C9A97DB434;
-struct IEnumerator_1_t762BC8FD61213FF83AB745DFE6CC84224A3CC0A6;
-struct IEnumerator_1_t1561844C1A6D82711324A7B33133C40D270015AF;
-struct IEnumerator_1_t619FE41531E47AD120137A1B6B365FEB1BC62D12;
-struct IEnumerator_1_t67A36DB8B74E9D5937470E8BB40CCEDA26A24223;
-struct IEnumerator_1_tC63A182736CE874C1A4B25C79EBBA73AC436188C;
 struct IEnumerator_1_t45F3F7FD63BD81FEABDE4F646B59715C819D84FC;
 struct IEnumerator_1_t327FF232159D9644239A65F54312F684DB7BE375;
 struct IEnumerator_1_tFABD3B897F1296469E9A2DB9BCF6C89439049208;
 struct IEnumerator_1_tD1E868EC4EE9679F2F2D4F9F10CEAB9153B8C991;
 struct IIndexedCollectionPropertyBagEnumerator_1_t6B0CBDF76B7A74D14E91F0E734F3EC671A18EA12;
 struct IIndexedCollectionPropertyBagEnumerator_1_t567D33BCD71C0C8FA81086D4821844FC9E402D9D;
-struct IIndexedCollectionPropertyBagEnumerator_1_t1A21FD9D5276E9FC4EFC4A70A01EA81AD44289F0;
-struct IIndexedCollectionPropertyBagEnumerator_1_t5C72E58DF92A663BCED9DE92DF26F4381474050C;
-struct IIndexedCollectionPropertyBagEnumerator_1_t3E29646A8184273DF78B1A0C4213B9DF2EE91BF4;
-struct IIndexedCollectionPropertyBagEnumerator_1_t5BA2C035C907564DC74E2173695C6D72DA907A3C;
-struct IIndexedCollectionPropertyBagEnumerator_1_tAFECB68A82939BB1809693E415EE7CA0E0C60436;
-struct IIndexedCollectionPropertyBagEnumerator_1_tFAF151A14CA8715BF77222CEE8ACD1EC4D762F0C;
-struct IIndexedCollectionPropertyBagEnumerator_1_t28593DC39E62B87F597EFB7182910C7BF8437693;
-struct IIndexedCollectionPropertyBagEnumerator_1_t89A8C68C0D7916947528C30A534F9E5DECF747C8;
-struct IIndexedCollectionPropertyBagEnumerator_1_t30317BD6EBFDADCB2B326A5AD13588207AB0F387;
-struct IIndexedCollectionPropertyBagEnumerator_1_tC9A9167FC818EC3F0499699972FA86E87C9AD901;
 struct IProperty_1_t96EAB806C8830D5A85425AB684E28477457DFA65;
 struct IProperty_1_t547794543BE34DC9A90D3809D982CB5AED5A040B;
-struct IProperty_1_t61101F2489246807852450EA09D128B6AF04DC9F;
-struct IProperty_1_tA78DB3C581C06C4CCB282D710145A0375191E7A3;
-struct IProperty_1_t677D1EA211332453BAB155C31D71F8E7CB59A396;
-struct IProperty_1_tC39AF2F72BB4FFB912CE9F0D35AEB26935728C0A;
-struct IProperty_1_t3F69A3B439E616ECC6546A4FDE9A8E6A32E5BA74;
-struct IProperty_1_t20AA0062C6B3B703BC835EFF2A7E40A807B06985;
-struct IProperty_1_t57DFAD2F6CA16A3DCDA17DE9CFFD9C506DE1400E;
-struct IProperty_1_t084D630DC7B240224B15A4896B8A0881B6D4C4E5;
-struct IProperty_1_tBA62AFD8A8EB0338FB9DBBC2CEF0C861711C9ABA;
-struct IProperty_1_tE20DF71A0FB28702E5C859B58C5A024AFF4D8C48;
 struct KeyValuePairProperty_t1FD0D2BA91EB5ACD2513F7960E2C302BD70E47FA;
 struct List_1_t5C893689A05DFF8E19858945CAE39A6F73202E7E;
 struct List_1_t123F30FF8AFCB8DB41E47112E545D215FAB3FCB0;
@@ -313,16 +318,6 @@ struct List_1_t5A2907B9068BEF9C37A7D3AB5F3C585728BF13A3;
 struct List_1_tB4E4622650DE5E7F388D2DAAACC7A70645A96041;
 struct List_1_t4B846D5AA2F21AD00EE16A815E0984EC65E357A5;
 struct List_1_t90F3642AD1F9EB0EFD8C9CA962DA5BF608F75F01;
-struct List_1_t06B1FE7600ED836E578C78E5167054E37028525F;
-struct List_1_t131FCECCFE1CD1D02B7AEC29B28DEF31A3C85E13;
-struct List_1_t4C381CC647F49373C4F525438F2ABBFA0C7C974F;
-struct List_1_tEBBDAF47FCA5A1F94556535B533E718EF9672648;
-struct List_1_tF49B179896A4E1F2B9AC67D99A18AE1937845AD8;
-struct List_1_tCB830066AAC18E2D651BC9D6ACAA8763104BBD98;
-struct List_1_t7D5EC63DFD03F27D82C73958671405E61EA85588;
-struct List_1_tAA5BA1E624C0AA64809E397FAD095D30E38ED9D2;
-struct List_1_t6DBAD9773D9372D659705ECE8F212F847D51DFBB;
-struct List_1_tF044FCD73D244FF3FD22E08722D474CDE4D9CCFB;
 struct List_1_t911A781105D1695C682E563428A2674E88D7919B;
 struct List_1_tAD07D03717C7AA1A007702BFE3864E1A3B407F85;
 struct List_1_tB43312EFB3560D121D0484B9AD48C5793385F7FB;
@@ -565,6 +560,111 @@ struct EnumerableSorter_1_t748424BBEB090E58B6D364ADABD271AC18B4C251  : public Ru
 {
 };
 struct Enumerator_tC99580AB9A05F44A3AFB77E659827518C332ED66 : public RuntimeObject {};
+struct EqualityComparer_1_t6F8A54278C86159EE3781689EB4C3B37E6AE6F61  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t673BF14D21F851D63B60738A3F25EAAFB1576E53  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t7BFB380024EE23637EA2957679B24804460D2932  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t604CB3B96C7A7AA140E10CD2D4A3C07F393ECA78  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t93F0F814DC5381D4F8B9F05F0BFD5EF159D27F7A  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t48A62359BEFECE804CBC430D44C8D09A0A284922  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t1521ADB5096538DFD14AAA20D995F9A713182D34  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t281A2F4FFC77426CDEA72374C6C5963C23019356  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tE78495C69113F410A6D60AA37345F82B821DD514  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t98E58A7967AAF3850FA08AEC2DD3BDDF08F12950  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t47A202E0616B7339D4BD7C046BDFAAACE737B425  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t135D3ED9ADA9371CBAFF07201C732C5C16DE9459  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tB2BBF3403BA483E21B2E50B898902EDEDC69FFA6  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t5C3EAC4D23AE37A8BC687581D04DE926AC1600D7  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t5DC47A0F94B42C4AF542C58E4C8DA89D0B1F74A1  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t8D42329611F97CCC4D5639A8AC51A8AB3814386A  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t692FEF9F57712F3BE73097B8DC6CC8171CA58E20  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t58DF80BB2ADF5DA80380805AE875192720D301BB  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tD0F60C39918FC3BE76054D458C550B9ACAE461D0  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t2712CAA114403E9C1DB5F257E38A75F8AB5107B1  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tA90588281A488CFD78E25CDD0639A30052C22D1E  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t5D0EADFAB4CDA6FE8C645F2DF54E2D0DB89614F7  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tD504A821C37C17ECA18CEF2E8E7015B679048053  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t3A31078765D87C2AC206B2693E088E92B3D63DF1  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t6DEA85179F1E95399D345A3BA69B4B8FC1622863  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t2B59281EB3D8F817FAED7FEEB7F9E3EE34A0C22C  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t4009E4A8C68F59FF00143A55A5DFDF57865A7E38  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t295FC5F5EF98320B6827AB1557B6326DF7503422  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t605E3467F6965F520858072057A5749E5F48EE5C  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tD7205521D3599CA03B6F6E59448F34C53283EF28  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_t1A3D66D0CEBA85D4D61876DA6DFBBAF608586D5E  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tF0F270AEB29B934D05F18759A9738B06303F18AC  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tA71AE07432BEC52AC1C4F3D1F2B63700CE9FFE25  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tDA1F4F4DA33DB962DD04D492BE1CB630E61EB24A  : public RuntimeObject
+{
+};
+struct EqualityComparer_1_tD6B2C28EFFE66CC2E6E8D344B723AAA6F81CA17C  : public RuntimeObject
+{
+};
 struct EqualityComparer_1_t75385E12AB6D6BB7AFEE5F8F5F285F526B72199C  : public RuntimeObject
 {
 };
@@ -1048,6 +1148,111 @@ struct ArraySegment_1_t00CCB00D2C671984CD055C219135EB0500C79178
 	int32_t ____offset;
 	int32_t ____count;
 };
+struct EnumEqualityComparer_1_tB7EA30CA8DA22C9637F2A217BDF90760E0447645  : public EqualityComparer_1_t6F8A54278C86159EE3781689EB4C3B37E6AE6F61
+{
+};
+struct EnumEqualityComparer_1_t08E1FF448095ED0A56E18701A2C4124BD1AF40FA  : public EqualityComparer_1_t673BF14D21F851D63B60738A3F25EAAFB1576E53
+{
+};
+struct EnumEqualityComparer_1_t56DF4D3515E2D5628FEADDA3664B3D2A4F21BF6A  : public EqualityComparer_1_t7BFB380024EE23637EA2957679B24804460D2932
+{
+};
+struct EnumEqualityComparer_1_tA1E581622370D05D37BF4B3717B23C8DA273DB80  : public EqualityComparer_1_t604CB3B96C7A7AA140E10CD2D4A3C07F393ECA78
+{
+};
+struct EnumEqualityComparer_1_t0D0B856BAC62A5FAA02862160CB6DC6D01725101  : public EqualityComparer_1_t93F0F814DC5381D4F8B9F05F0BFD5EF159D27F7A
+{
+};
+struct EnumEqualityComparer_1_tC13DAAE243EB08ED51E40BB6AF7398E1F82724B4  : public EqualityComparer_1_t48A62359BEFECE804CBC430D44C8D09A0A284922
+{
+};
+struct EnumEqualityComparer_1_tB8E5B6F8F5E5BCAC8810289AE24DADA2739E2219  : public EqualityComparer_1_t1521ADB5096538DFD14AAA20D995F9A713182D34
+{
+};
+struct EnumEqualityComparer_1_t9DF48C1DD0C764AA10DF585559291C4C3D50A278  : public EqualityComparer_1_t281A2F4FFC77426CDEA72374C6C5963C23019356
+{
+};
+struct EnumEqualityComparer_1_t4502B4ED70547E65EFF68D367A10CA674BC31983  : public EqualityComparer_1_tE78495C69113F410A6D60AA37345F82B821DD514
+{
+};
+struct EnumEqualityComparer_1_t430373EF3C95DF72C1908941F3DD8CE2806E129F  : public EqualityComparer_1_t98E58A7967AAF3850FA08AEC2DD3BDDF08F12950
+{
+};
+struct EnumEqualityComparer_1_t60F7884A4CA682F256FA539E0E05E64D50CDB280  : public EqualityComparer_1_t47A202E0616B7339D4BD7C046BDFAAACE737B425
+{
+};
+struct EnumEqualityComparer_1_tC68D21C5B3C2B718044440D21B6C1155B0F3A79A  : public EqualityComparer_1_t135D3ED9ADA9371CBAFF07201C732C5C16DE9459
+{
+};
+struct EnumEqualityComparer_1_t41748EE3E98885B6351E66FF3E113A33E9F5516B  : public EqualityComparer_1_tB2BBF3403BA483E21B2E50B898902EDEDC69FFA6
+{
+};
+struct EnumEqualityComparer_1_tF4B105DC10922E3718F493DAA965274DDA3DB9DA  : public EqualityComparer_1_t5C3EAC4D23AE37A8BC687581D04DE926AC1600D7
+{
+};
+struct EnumEqualityComparer_1_t5D0DC1AFD429277647AC609564178E84DA1D711F  : public EqualityComparer_1_t5DC47A0F94B42C4AF542C58E4C8DA89D0B1F74A1
+{
+};
+struct EnumEqualityComparer_1_t724967805ACF87479911E2ACDFE672909A22F675  : public EqualityComparer_1_t8D42329611F97CCC4D5639A8AC51A8AB3814386A
+{
+};
+struct EnumEqualityComparer_1_t59CDA9C767EFBCC0AF1270B55DE9C896F188D5C3  : public EqualityComparer_1_t692FEF9F57712F3BE73097B8DC6CC8171CA58E20
+{
+};
+struct EnumEqualityComparer_1_t4C965B2AF67B5B157211F7E4406C500C66E28B2B  : public EqualityComparer_1_t58DF80BB2ADF5DA80380805AE875192720D301BB
+{
+};
+struct EnumEqualityComparer_1_t1A84E64D3C5ED30FA4DC92B360DB2119662553CB  : public EqualityComparer_1_tD0F60C39918FC3BE76054D458C550B9ACAE461D0
+{
+};
+struct EnumEqualityComparer_1_t29DC77F3357032683BE079A7D83B6653771134F4  : public EqualityComparer_1_t2712CAA114403E9C1DB5F257E38A75F8AB5107B1
+{
+};
+struct EnumEqualityComparer_1_t43B96D5D86B4F359AE30E73FDF2DC781FDB46957  : public EqualityComparer_1_tA90588281A488CFD78E25CDD0639A30052C22D1E
+{
+};
+struct EnumEqualityComparer_1_t152A77E06A558CFC83186C9CACF7EC8863FA015C  : public EqualityComparer_1_t5D0EADFAB4CDA6FE8C645F2DF54E2D0DB89614F7
+{
+};
+struct EnumEqualityComparer_1_tBC5745FCE7ED246EA5F92FD14E2EE56C0798CB1F  : public EqualityComparer_1_tD504A821C37C17ECA18CEF2E8E7015B679048053
+{
+};
+struct EnumEqualityComparer_1_t6E910741EF38ADDCE0A0AAEC0C3C40832871AEE7  : public EqualityComparer_1_t3A31078765D87C2AC206B2693E088E92B3D63DF1
+{
+};
+struct EnumEqualityComparer_1_t33DCB4190C18A40FAEED5CB6AB77FA2776735B5E  : public EqualityComparer_1_t6DEA85179F1E95399D345A3BA69B4B8FC1622863
+{
+};
+struct EnumEqualityComparer_1_t6AA0DF7D82A254525AA235FE7D777182B6186184  : public EqualityComparer_1_t2B59281EB3D8F817FAED7FEEB7F9E3EE34A0C22C
+{
+};
+struct EnumEqualityComparer_1_t086AF914200CED83C03565408179658AB1B74861  : public EqualityComparer_1_t4009E4A8C68F59FF00143A55A5DFDF57865A7E38
+{
+};
+struct EnumEqualityComparer_1_tD8111EF975838C4358E72E0E1FEC17BDB456F1D4  : public EqualityComparer_1_t295FC5F5EF98320B6827AB1557B6326DF7503422
+{
+};
+struct EnumEqualityComparer_1_tC0A63AFCD8FCCDB7186AE229B26C88C8A0C1FBB2  : public EqualityComparer_1_t605E3467F6965F520858072057A5749E5F48EE5C
+{
+};
+struct EnumEqualityComparer_1_tFBA346AF6DB0EFFF9E2E9E1C4E42ECEC7AF9ADA9  : public EqualityComparer_1_tD7205521D3599CA03B6F6E59448F34C53283EF28
+{
+};
+struct EnumEqualityComparer_1_t74711504BB883024054934816BE86336A61E6B0C  : public EqualityComparer_1_t1A3D66D0CEBA85D4D61876DA6DFBBAF608586D5E
+{
+};
+struct EnumEqualityComparer_1_t37C10814219EF1EBA728C5E77D57201CB57F2004  : public EqualityComparer_1_tF0F270AEB29B934D05F18759A9738B06303F18AC
+{
+};
+struct EnumEqualityComparer_1_t7DE5340B321B0EC05B3E6A4C693D36F60C87B62E  : public EqualityComparer_1_tA71AE07432BEC52AC1C4F3D1F2B63700CE9FFE25
+{
+};
+struct EnumEqualityComparer_1_tFA2BD0E1B064F7E0046B78F366B628B838AC6161  : public EqualityComparer_1_tDA1F4F4DA33DB962DD04D492BE1CB630E61EB24A
+{
+};
+struct EnumEqualityComparer_1_t9CCF3AD07D19303450EC0FEA2329949AE0A13437  : public EqualityComparer_1_tD6B2C28EFFE66CC2E6E8D344B723AAA6F81CA17C
+{
+};
 struct EnumEqualityComparer_1_t11FC44D87FCE56F3F4564C9A04AC8F357EBB5E4A  : public EqualityComparer_1_t75385E12AB6D6BB7AFEE5F8F5F285F526B72199C
 {
 };
@@ -1359,76 +1564,6 @@ struct Enumerator_tE30178CF0292571E27109995E83B027A231A26D4
 struct Enumerator_t7EF85912511A9A11A65D35775B5FF1A5AFA623EE 
 {
 	List_1_t90F3642AD1F9EB0EFD8C9CA962DA5BF608F75F01* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_tFDA85FF2041A657151ACBB961B73CD1D929114AF 
-{
-	List_1_t06B1FE7600ED836E578C78E5167054E37028525F* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_tA913587158C10CB4E83549A09925329277CB3CD7 
-{
-	List_1_t131FCECCFE1CD1D02B7AEC29B28DEF31A3C85E13* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t0543034552A3582796F7A8712660196C993885E3 
-{
-	List_1_t4C381CC647F49373C4F525438F2ABBFA0C7C974F* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t1FB1AE600AF8B2689B4E6DE62120A71111B3F71F 
-{
-	List_1_tEBBDAF47FCA5A1F94556535B533E718EF9672648* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t91352D29E2683F8C693FEFD396D11A7D39628BB0 
-{
-	List_1_tF49B179896A4E1F2B9AC67D99A18AE1937845AD8* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t263B21003FBAB9B0A070342D52717E270AF395CF 
-{
-	List_1_tCB830066AAC18E2D651BC9D6ACAA8763104BBD98* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t49643E09B4FDF4F2772CFE409891E8C908D1968A 
-{
-	List_1_t7D5EC63DFD03F27D82C73958671405E61EA85588* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t1669EC31CE362DD204BE1E8B9F022B98F1B626AE 
-{
-	List_1_tAA5BA1E624C0AA64809E397FAD095D30E38ED9D2* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t9C4B2EB7191C58846EA3688BABE04B0C5F939EDB 
-{
-	List_1_t6DBAD9773D9372D659705ECE8F212F847D51DFBB* ____list;
-	int32_t ____index;
-	int32_t ____version;
-	RuntimeObject* ____current;
-};
-struct Enumerator_t6BE1AF28571CDF3EC5890FF9353332FF70D27D5D 
-{
-	List_1_tF044FCD73D244FF3FD22E08722D474CDE4D9CCFB* ____list;
 	int32_t ____index;
 	int32_t ____version;
 	RuntimeObject* ____current;
@@ -1917,46 +2052,6 @@ struct EnumeratorType_t2CF2CC28C8A83C948ED3D7CCBC095EE010D23786
 {
 	int32_t ___value__;
 };
-struct EnumeratorType_tA64147D7AA64150AC78BB7288029B847DE619B2E 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t859EB7A64DC4871EA509FE071BDB5FAE0E84E94D 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t93A50BAAE679752E328DEF669D100F42E189EAEC 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t2F449174C338A098A07DDD4048F344C7B56118DA 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_tCA1F03149C8003378461E1AC9C13793FCB82014D 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_tDB5B138D8A1C8B3B4B448DC4E88336FAA308AC5F 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_tD8E64E136EE04F81A3806E77B38633F5E53F7D47 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t9ADC8DE4012F22835601C0F8BCC18D3301BFC1C9 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t0B4F483F168B9DCA66E46C008C7586483FF7D61D 
-{
-	int32_t ___value__;
-};
-struct EnumeratorType_t715845571E4FFE54A0380EB1B51E99B8A2DC5229 
-{
-	int32_t ___value__;
-};
 struct InlinedArray_1_tCD4550E16CF87B93F7C4EF9D0F922C1D5E99FA43 
 {
 	int32_t ___length;
@@ -2040,18 +2135,6 @@ struct Delegate_t_marshaled_com
 	MethodInfo_t* ___original_method_info;
 	DelegateData_t9B286B493293CD2D23A5B2B5EF0E5B1324C2B77E* ___data;
 	int32_t ___method_is_virtual;
-};
-struct DisplayStyle_t87BEDA2F78F764785ED41FC5E622ECB0091B2459 
-{
-	int32_t ___value__;
-};
-struct EasingMode_tEF87477B9B9EB2524525550AE5ABEBC00FC7B0DF 
-{
-	int32_t ___value__;
-};
-struct EditorTextRenderingMode_tDAF3F89A6026D9F460A8C3DA671388E2E7DC2636 
-{
-	int32_t ___value__;
 };
 struct Exception_t  : public RuntimeObject
 {
@@ -2147,15 +2230,7 @@ struct FixedBytes32Align8_t07C7D543B487721FF9B88AD85209956AE423A779
 	};
 };
 #pragma pack(pop, tp)
-struct FlexDirection_t0B086E97C9B1B8F1D94B51CBEAE6564B2A7C15DC 
-{
-	int32_t ___value__;
-};
 struct FontFeatureLookupFlags_t2000121BA341A3CAE5E0D4FAC6AA4378FE14AE1B 
-{
-	int32_t ___value__;
-};
-struct FontStyle_tDD46734FA9BCB99FB315CD7CAD1137EE536136D1 
 {
 	int32_t ___value__;
 };
@@ -2167,10 +2242,6 @@ struct GlyphAdjustmentRecord_tC7A1B2E0AC7C4ED9CDB8E95E48790A46B6F315F7
 struct InspectorNameAttribute_t30287A92B113253B9E22924DD6FC4C7007545497  : public PropertyAttribute_t5E0CB5A6CDA6E24CBD4FF26DE3B0C29D8BB54BF0
 {
 	String_t* ___displayName;
-};
-struct Justify_t91B96D47B47940372289EFCB244DDB5F1F7BD057 
-{
-	int32_t ___value__;
 };
 struct MarkToBaseAdjustmentRecord_t03C041CB56601B46F025C69B899BBAB750201C71 
 {
@@ -2199,22 +2270,6 @@ struct MarkToMarkAdjustmentRecord_tD53618A3728435D5C904857DAC644EE27640807C
 	GlyphAnchorPoint_t581FDCAD5A1D0F3B129968FAEF20C113AAB0BC08 ___m_BaseMarkGlyphAnchorPoint;
 	uint32_t ___m_CombiningMarkGlyphID;
 	MarkPositionAdjustment_t2523798D56F14A93A080D9D1298498325A51F436 ___m_CombiningMarkPositionAdjustment;
-};
-struct Overflow_t8BBC4C69CC6DB71F146838364AFDB5C80FA6BE08 
-{
-	int32_t ___value__;
-};
-struct OverflowClipBox_t216E14FDAB321AF2B7F0DB6E22760D7724BDAA83 
-{
-	int32_t ___value__;
-};
-struct OverflowInternal_t6A74561363466CCB7905A65D3E5E24887AE0F11F 
-{
-	int32_t ___value__;
-};
-struct Position_t066B59B8657DAFCFBEDDAE8CBCE96E88796E1319 
-{
-	int32_t ___value__;
 };
 struct RegexOptions_tE9DA9C4DF8FB26DD1C7E0F8AA022C1164A423F6B 
 {
@@ -2409,56 +2464,6 @@ struct StyleEnum_1_t5578A741DA42584CA127D6AF3539B91F3E8CD180
 	int32_t ___m_Keyword;
 };
 struct StyleEnum_1_t77F383B8CB033853D8496A71CB7B6EF5333A5459 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t3B02FFF55849C9C8E6A7C0AA9C7E5F65F10C9C69 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t680B537FD207DA87F7310C74D3AA9E0FCBC40EB5 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t1B1D3ACF2F4579D9EB5C2F4A322680D1E17E3B29 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t4C47F320FF81E91A50EC2AD0D70A3D620362BBAE 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t630D2707E7AE53091B41095FD2A6F4C5163DF9B8 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t34BA4FFF165BCD81079E00E954FA752C1047ABBF 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_tFD98CA17238874382648721187F3EECC7595961E 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t8C936CCF2B1C193C0DA63C5C8DEDD72153462B3C 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_t649B4F502B707B42E38186C434A9D147312BDEE2 
-{
-	int32_t ___m_Value;
-	int32_t ___m_Keyword;
-};
-struct StyleEnum_1_tDDEAB09F1AAFEA72821D32D702E5349040FF46D9 
 {
 	int32_t ___m_Value;
 	int32_t ___m_Keyword;
@@ -2768,76 +2773,6 @@ struct IndexedCollectionPropertyBagEnumerator_1_t6D14473C18DD6F2282D49D38654E139
 	StyleEnum_1_t77F383B8CB033853D8496A71CB7B6EF5333A5459 ___m_Container;
 	int32_t ___m_Position;
 };
-struct IndexedCollectionPropertyBagEnumerator_1_tDAC404A8C1C44476858073C6D4D70B695C7DAEA1 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t3B02FFF55849C9C8E6A7C0AA9C7E5F65F10C9C69 ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t6E2EC6A030875022592A0B9AB1E8F4F4D3A14231 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t680B537FD207DA87F7310C74D3AA9E0FCBC40EB5 ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t51EFA0B31F7B184317E9E9AC6FEAF7BC13784D10 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t1B1D3ACF2F4579D9EB5C2F4A322680D1E17E3B29 ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t18CBF520D80C462B8C45561B500E86BA65D353C4 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t4C47F320FF81E91A50EC2AD0D70A3D620362BBAE ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t0D69342ED624A0D7A1492E765D94E362E4F7A946 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t630D2707E7AE53091B41095FD2A6F4C5163DF9B8 ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_tDA89A6E6518276BF439220FEE9C5B5332F86F5F7 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t34BA4FFF165BCD81079E00E954FA752C1047ABBF ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t283DFFD43EF08E6593E362EF62CB4BB7E812FD10 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_tFD98CA17238874382648721187F3EECC7595961E ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_t3ABB112D47F9F493056A29727C2DDC70F914BD06 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t8C936CCF2B1C193C0DA63C5C8DEDD72153462B3C ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_tC8A4A40A5A26D70F159D1A0FBD5F0B9CB2A1F2B7 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_t649B4F502B707B42E38186C434A9D147312BDEE2 ___m_Container;
-	int32_t ___m_Position;
-};
-struct IndexedCollectionPropertyBagEnumerator_1_tD58979F6945E360312A00F8A32AC18B862C76F68 
-{
-	RuntimeObject* ___m_Impl;
-	IndexedCollectionSharedPropertyState_t1E4ED168A72271A87F5FCFCBBF19BBB63F95FC79 ___m_Previous;
-	StyleEnum_1_tDDEAB09F1AAFEA72821D32D702E5349040FF46D9 ___m_Container;
-	int32_t ___m_Position;
-};
 struct KeyValuePair_2_tBACD60E472B89AFFBC34B7B0D1E260E20392A764 
 {
 	Il2CppSharedGenericObject* ___key;
@@ -2931,86 +2866,6 @@ struct Enumerator_t3EFABCBDC9F773B767A58FD5C7333D8E430D5BCF
 	RuntimeObject* ___m_Enumerator;
 	Enumerator_t7EF85912511A9A11A65D35775B5FF1A5AFA623EE ___m_Properties;
 	IndexedCollectionPropertyBagEnumerator_1_t6D14473C18DD6F2282D49D38654E139BECF27118 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t9CA53FE0321E8F8B899D54F482B7FF35FDC7D660 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_tFDA85FF2041A657151ACBB961B73CD1D929114AF ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_tDAC404A8C1C44476858073C6D4D70B695C7DAEA1 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t941FEE58BD303504201306DC330AE4855C70739B 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_tA913587158C10CB4E83549A09925329277CB3CD7 ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t6E2EC6A030875022592A0B9AB1E8F4F4D3A14231 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t0595662413592F96A78A76947FA1DCF5938797CD 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t0543034552A3582796F7A8712660196C993885E3 ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t51EFA0B31F7B184317E9E9AC6FEAF7BC13784D10 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_tD7CB880B45A9C6FCCD456D3D5DAA87432A6B1599 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t1FB1AE600AF8B2689B4E6DE62120A71111B3F71F ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t18CBF520D80C462B8C45561B500E86BA65D353C4 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t0C8EC2148AB969B8D6D3325B03CDE45FC127DE75 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t91352D29E2683F8C693FEFD396D11A7D39628BB0 ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t0D69342ED624A0D7A1492E765D94E362E4F7A946 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_tBB2046AF9308BD14F7F2CDE1DDC81AEAF2613DAE 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t263B21003FBAB9B0A070342D52717E270AF395CF ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_tDA89A6E6518276BF439220FEE9C5B5332F86F5F7 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_tE738368CC86DC1572A33542CED3173B1AE11793C 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t49643E09B4FDF4F2772CFE409891E8C908D1968A ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t283DFFD43EF08E6593E362EF62CB4BB7E812FD10 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t84D0338AE88492E469C50E73F8BCF033A8DA2508 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t1669EC31CE362DD204BE1E8B9F022B98F1B626AE ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_t3ABB112D47F9F493056A29727C2DDC70F914BD06 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_t2AF82D1195A3DB60CA2063A990F005421B7EE3C6 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t9C4B2EB7191C58846EA3688BABE04B0C5F939EDB ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_tC8A4A40A5A26D70F159D1A0FBD5F0B9CB2A1F2B7 ___m_IndexedCollectionPropertyBag;
-	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
-};
-struct Enumerator_tDA380CE68FB351AF6DB98018FFF5B20AF00DDC6D 
-{
-	int32_t ___m_Type;
-	RuntimeObject* ___m_Enumerator;
-	Enumerator_t6BE1AF28571CDF3EC5890FF9353332FF70D27D5D ___m_Properties;
-	IndexedCollectionPropertyBagEnumerator_1_tD58979F6945E360312A00F8A32AC18B862C76F68 ___m_IndexedCollectionPropertyBag;
 	RuntimeObject* ___U3CCurrentU3Ek__BackingField;
 };
 struct U3CU3Ec_t9F3CEDEE763A3064E583591FF2F1E58E8CA26B41_StaticFields
@@ -5287,6 +5142,531 @@ inline void List_1_AddWithResize_mCC24A812DFC30C3DE2230E3C8EE705871C1DFF81 (List
 IL2CPP_EXTERN_C IL2CPP_NO_INLINE IL2CPP_METHOD_ATTR void List_1_AddWithResize_m378B392086AAB6F400944FA9839516326B3F7BB8 (List_1_t05915E9237850A58106982B7FE4BC5DA4E872E73* __this, int32_t ___0_item, const RuntimeMethod* method) ;
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR EmbeddedArray32_1_tB435A10C3DB5E0B01F53C5CF569FEF40BB061A96 UnsafeUtilityInternal_ReadArrayElement_TisEmbeddedArray32_1_tB435A10C3DB5E0B01F53C5CF569FEF40BB061A96_m792E549B89DCE71909B3BCA2EC23DE250E72A16E_inline (void* ___0_source, int32_t ___1_index, const RuntimeMethod* method) ;
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR NativeArray_1_t3C666A50D3E0F5803B63036EC771A974D48FFF62 UnsafeUtilityInternal_ReadArrayElement_TisNativeArray_1_t3C666A50D3E0F5803B63036EC771A974D48FFF62_m75B3FAF2E30DFD3256DD7F68C14C58B209BDD96E_inline (void* ___0_source, int32_t ___1_index, const RuntimeMethod* method) ;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+// Method Definition Index: 11711
+// Method Definition Index: 11712
+// Method Definition Index: 11713
+// Method Definition Index: 11714
+// Method Definition Index: 11715
+// Method Definition Index: 11716
+// Method Definition Index: 11717
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
@@ -8289,7 +8669,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EnumParameter_1__ctor_m3F5099D74547B43A1
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 89370
+// Method Definition Index: 89371
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Enumerable__ctor_m9088B0F646E8EF80BCDA3B11D884763A9A817E61_fshared (Enumerable_tA45ABDBCF76DD463AFA99468C131E653CCBB9B4D* __this, Il2CppFullySharedGenericAny ___0_dictionary, KeyValuePairProperty_t1FD0D2BA91EB5ACD2513F7960E2C302BD70E47FA* ___1_property, const RuntimeMethod* method) 
 {
 	CHECKED_LOCAL(classRgctxInit);
@@ -8304,7 +8684,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Enumerable__ctor_m9088B0F646E8EF80BCDA3B
 		return;
 	}
 }
-// Method Definition Index: 89371
+// Method Definition Index: 89372
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* Enumerable_System_Collections_IEnumerable_GetEnumerator_m22D9023302E21EDDA6EDAB5AB7C40055EF33EBF4_fshared (Enumerable_tA45ABDBCF76DD463AFA99468C131E653CCBB9B4D* __this, const RuntimeMethod* method) 
 {
 	CHECKED_LOCAL(classRgctxInit);
@@ -8327,7 +8707,7 @@ IL2CPP_EXTERN_C  RuntimeObject* Enumerable_System_Collections_IEnumerable_GetEnu
 	_returnValue = Enumerable_System_Collections_IEnumerable_GetEnumerator_m22D9023302E21EDDA6EDAB5AB7C40055EF33EBF4(_thisAdjusted, method);
 	return _returnValue;
 }
-// Method Definition Index: 89372
+// Method Definition Index: 89373
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* Enumerable_System_Collections_Generic_IEnumerableU3CUnity_Properties_IPropertyU3CTDictionaryU3EU3E_GetEnumerator_m3A72329B599B83EC044C68832928DC458ACC6501_fshared (Enumerable_tA45ABDBCF76DD463AFA99468C131E653CCBB9B4D* __this, const RuntimeMethod* method) 
 {
 	CHECKED_LOCAL(classRgctxInit);
@@ -18586,7 +18966,6 @@ IL2CPP_EXTERN_C  void Enumerator_System_Collections_IEnumerator_Reset_m64CE2C9EC
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 89427
 // Method Definition Index: 89428
 // Method Definition Index: 89429
 // Method Definition Index: 89430
@@ -18595,6 +18974,7 @@ IL2CPP_EXTERN_C  void Enumerator_System_Collections_IEnumerator_Reset_m64CE2C9EC
 // Method Definition Index: 89433
 // Method Definition Index: 89434
 // Method Definition Index: 89435
+// Method Definition Index: 89436
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -18603,7 +18983,6 @@ IL2CPP_EXTERN_C  void Enumerator_System_Collections_IEnumerator_Reset_m64CE2C9EC
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 89427
 // Method Definition Index: 89428
 // Method Definition Index: 89429
 // Method Definition Index: 89430
@@ -18612,176 +18991,7 @@ IL2CPP_EXTERN_C  void Enumerator_System_Collections_IEnumerator_Reset_m64CE2C9EC
 // Method Definition Index: 89433
 // Method Definition Index: 89434
 // Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winvalid-offsetof"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-// Method Definition Index: 89427
-// Method Definition Index: 89428
-// Method Definition Index: 89429
-// Method Definition Index: 89430
-// Method Definition Index: 89431
-// Method Definition Index: 89432
-// Method Definition Index: 89433
-// Method Definition Index: 89434
-// Method Definition Index: 89435
+// Method Definition Index: 89436
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -19380,7 +19590,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR StructMultiKey_2_t5D4B566D2815511
 		return L_0;
 	}
 }
-// Method Definition Index: 95893
+// Method Definition Index: 95894
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR EmbeddedArray32_1_tB435A10C3DB5E0B01F53C5CF569FEF40BB061A96 UnsafeUtilityInternal_ReadArrayElement_TisEmbeddedArray32_1_tB435A10C3DB5E0B01F53C5CF569FEF40BB061A96_m792E549B89DCE71909B3BCA2EC23DE250E72A16E_inline (void* ___0_source, int32_t ___1_index, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -19395,7 +19605,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR EmbeddedArray32_1_tB435A10C3DB5E0
 		return L_6;
 	}
 }
-// Method Definition Index: 95893
+// Method Definition Index: 95894
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR NativeArray_1_t3C666A50D3E0F5803B63036EC771A974D48FFF62 UnsafeUtilityInternal_ReadArrayElement_TisNativeArray_1_t3C666A50D3E0F5803B63036EC771A974D48FFF62_m75B3FAF2E30DFD3256DD7F68C14C58B209BDD96E_inline (void* ___0_source, int32_t ___1_index, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

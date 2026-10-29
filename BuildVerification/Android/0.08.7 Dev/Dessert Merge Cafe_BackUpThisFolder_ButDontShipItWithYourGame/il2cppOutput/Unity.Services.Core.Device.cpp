@@ -400,7 +400,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void AndroidUtils_SharedPreferencesPutString_
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97957
+// Method Definition Index: 98020
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* EngineInstallationId_GetOrCreateIdentifier_mDFE1DBFAB1EF5971A39F3618094D375B0424A277 (EngineInstallationId_tD34B294F39E285757308AF1A03474ACFD513A9CA* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -410,7 +410,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* EngineInstallationId_GetOrCreateIde
 		return L_0;
 	}
 }
-// Method Definition Index: 97958
+// Method Definition Index: 98021
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EngineInstallationId__ctor_m3DA969A78EEC8A653BE1E04C1E0716863F929CB7 (EngineInstallationId_tD34B294F39E285757308AF1A03474ACFD513A9CA* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -427,7 +427,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EngineInstallationId__ctor_m3DA969A78EEC
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97959
+// Method Definition Index: 98022
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void InstallationId__ctor_m4F1DE6BA6692F53DBB59AE191892391A0C4CB065 (InstallationId_tA5712B394172DB4DBA3B5F9A67D5522D37E2B873* __this, RuntimeObject* ___0_engineInstallationId, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -457,7 +457,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void InstallationId__ctor_m4F1DE6BA6692F53DBB
 		return;
 	}
 }
-// Method Definition Index: 97960
+// Method Definition Index: 98023
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* InstallationId_GetOrCreateIdentifier_mB808E735A25CB3357E33337F9A4B737DDAB6B40F (InstallationId_tA5712B394172DB4DBA3B5F9A67D5522D37E2B873* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -480,7 +480,7 @@ IL_0013:
 		return L_2;
 	}
 }
-// Method Definition Index: 97961
+// Method Definition Index: 98024
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void InstallationId_CreateIdentifier_mC089486FCD96983C9186689C41D1D75E36EFB90C (InstallationId_tA5712B394172DB4DBA3B5F9A67D5522D37E2B873* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -627,7 +627,7 @@ IL_00c2:
 		return;
 	}
 }
-// Method Definition Index: 97962
+// Method Definition Index: 98025
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* InstallationId_ReadIdentifierFromFile_m126AF7B4F947DBB382AA8848D51FEA52C91C3E7C (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -643,7 +643,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* InstallationId_ReadIdentifierFromFi
 		return L_0;
 	}
 }
-// Method Definition Index: 97963
+// Method Definition Index: 98026
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void InstallationId_WriteIdentifierToFile_m67273AD8773FDBEE468B0BB7F502B3383AB9A6C4 (String_t* ___0_identifier, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -660,7 +660,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void InstallationId_WriteIdentifierToFile_m67
 		return;
 	}
 }
-// Method Definition Index: 97964
+// Method Definition Index: 98027
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* InstallationId_GenerateGuid_m7220D8C5AE5B4DCA4F4C01A6F921FF66C23E855A (const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -683,7 +683,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* InstallationId_GenerateGuid_m7220D8
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97965
+// Method Definition Index: 98028
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* AndroidUtils_GetUnityActivity_m88FEFFE4C2DCE674DAF38136C651C836701A4F70 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -754,7 +754,7 @@ IL_0023:
 		return L_5;
 	}
 }
-// Method Definition Index: 97966
+// Method Definition Index: 98029
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* AndroidUtils_GetSharedPreferences_m6F51F6E0B2E32618CAC0E0B067A68669A1E2E078 (AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ___0_context, String_t* ___1_name, int32_t ___2_mode, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -787,7 +787,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2B
 		return L_8;
 	}
 }
-// Method Definition Index: 97967
+// Method Definition Index: 98030
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* AndroidUtils_GetSharedPreferences_m8755F37D93E44616FCB22B70BA4204BDEAD68721 (String_t* ___0_name, int32_t ___1_mode, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -855,7 +855,7 @@ IL_001b:
 		return L_7;
 	}
 }
-// Method Definition Index: 97968
+// Method Definition Index: 98031
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* AndroidUtils_SharedPreferencesGetString_mA87E9B301E07EF2C8D008A5AC77350D2E5906271 (String_t* ___0_name, String_t* ___1_key, String_t* ___2_defValue, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -924,7 +924,7 @@ IL_001d:
 		return L_8;
 	}
 }
-// Method Definition Index: 97969
+// Method Definition Index: 98032
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* AndroidUtils_SharedPreferencesGetString_mC07FAAD6DED55337A7C55ADE690FF6B2897AEB6E (AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ___0_preferences, String_t* ___1_key, String_t* ___2_defValue, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1022,7 +1022,7 @@ IL_0040:
 		return L_17;
 	}
 }
-// Method Definition Index: 97970
+// Method Definition Index: 98033
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void AndroidUtils_SharedPreferencesPutString_m0E5667A51792E3CCF838E8A87285717B0F690899 (String_t* ___0_name, String_t* ___1_key, String_t* ___2_value, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1087,7 +1087,7 @@ IL_001c:
 		return;
 	}
 }
-// Method Definition Index: 97971
+// Method Definition Index: 98034
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void AndroidUtils_SharedPreferencesPutString_mA6254CC994E7CE80F42DC58262C8F478BE41ED05 (AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ___0_preferences, String_t* ___1_key, String_t* ___2_value, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1156,7 +1156,7 @@ IL_0004:
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97974
+// Method Definition Index: 98037
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAdsIdentifier_get_UserId_m4E41B6AEB6405B6BFA7D4E52FE3F66478A18D90A (UnityAdsIdentifier_t8D3A8D6DB9A1FB469E2E7F3D58B30C3D0D71DA56* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1166,7 +1166,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAdsIdentifier_get_UserId_m4E41
 		return L_0;
 	}
 }
-// Method Definition Index: 97975
+// Method Definition Index: 98038
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier_set_UserId_mA2519CC19694D24C35D6E2E72B79E2CE34DACA4F (UnityAdsIdentifier_t8D3A8D6DB9A1FB469E2E7F3D58B30C3D0D71DA56* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1176,7 +1176,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier_set_UserId_mA2519CC19
 		return;
 	}
 }
-// Method Definition Index: 97976
+// Method Definition Index: 98039
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAdsIdentifier_get_IdentifierForInstallAndroid_m9468812B9ADE3F29594C0831B833097C3E60EDD6 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1194,7 +1194,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAdsIdentifier_get_IdentifierFo
 		return L_0;
 	}
 }
-// Method Definition Index: 97977
+// Method Definition Index: 98040
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier_set_IdentifierForInstallAndroid_mF2399D3966F017BAF29565F319D37DEF1962D04E (String_t* ___0_value, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1211,7 +1211,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier_set_IdentifierForInst
 		return;
 	}
 }
-// Method Definition Index: 97978
+// Method Definition Index: 98041
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier__ctor_mFD5085EB0AD902D689B820D13D697CE640E2E7B8 (UnityAdsIdentifier_t8D3A8D6DB9A1FB469E2E7F3D58B30C3D0D71DA56* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1228,7 +1228,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAdsIdentifier__ctor_mFD5085EB0AD902
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97979
+// Method Definition Index: 98042
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAnalyticsIdentifier_get_UserId_m15964ABDB88E2D752C471143ED9C5A32017989CE (UnityAnalyticsIdentifier_tAB8DD85C666D878FC108C324E10DF6528B5BDA5D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1244,7 +1244,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityAnalyticsIdentifier_get_UserId
 		return L_0;
 	}
 }
-// Method Definition Index: 97980
+// Method Definition Index: 98043
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAnalyticsIdentifier_set_UserId_m2751FA3CB0A777DAC8AA56ECBE8945EED55CAC3C (UnityAnalyticsIdentifier_tAB8DD85C666D878FC108C324E10DF6528B5BDA5D* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1284,7 +1284,7 @@ IL_0015:
 		return;
 	}
 }
-// Method Definition Index: 97981
+// Method Definition Index: 98044
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAnalyticsIdentifier__ctor_mE19B73CB1414B5AC0619E8EF1366C0164B06D14B (UnityAnalyticsIdentifier_tAB8DD85C666D878FC108C324E10DF6528B5BDA5D* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1301,7 +1301,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityAnalyticsIdentifier__ctor_mE19B73CB
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97982
+// Method Definition Index: 98045
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityEngineIdentifier_get_UserId_m34135DB2F190D05C1B89D8BA6BC2344C8F18C796 (UnityEngineIdentifier_t1EB294A627497D2103614B8365E7861F72E0DA83* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1319,7 +1319,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* UnityEngineIdentifier_get_UserId_m3
 		return L_1;
 	}
 }
-// Method Definition Index: 97983
+// Method Definition Index: 98046
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityEngineIdentifier_set_UserId_mCA38EC3A0364B91D605849C3390177F6006B0E99 (UnityEngineIdentifier_t1EB294A627497D2103614B8365E7861F72E0DA83* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1327,7 +1327,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityEngineIdentifier_set_UserId_mCA38EC
 		return;
 	}
 }
-// Method Definition Index: 97984
+// Method Definition Index: 98047
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void UnityEngineIdentifier__ctor_mC73AC45F64384198D95BB0BDC3799FE5796A1A36 (UnityEngineIdentifier_t1EB294A627497D2103614B8365E7861F72E0DA83* __this, RuntimeObject* ___0_engineInstallationId, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

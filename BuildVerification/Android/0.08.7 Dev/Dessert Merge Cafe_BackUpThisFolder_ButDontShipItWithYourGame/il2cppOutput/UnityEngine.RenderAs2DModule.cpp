@@ -85,7 +85,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Attribute__ctor_m79ED1BF1EE36D1E417BA89A
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97472
+// Method Definition Index: 97559
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_mEB803648DF667ECA50D661689CE20CD75239CD41 (EmbeddedAttribute_tBA2613C80CE04CDD5F0D03723A7454296C10BA5B* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -102,7 +102,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_mEB803648DF667EC
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97473
+// Method Definition Index: 97560
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_m566490389527EEBD269F3F860BDD72D500E5CF83 (RefSafetyRulesAttribute_t7175D017D5CC9763D764EF7407C5FB6683C4D75D* __this, int32_t ___0_p, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -121,7 +121,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_m566490389
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97474
+// Method Definition Index: 97561
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RenderAs2DUtil_InitializeCanRenderAs2D_mE5CB68451AF6AE5EBC965EE700A067DA8CF5EEA5 (const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -131,7 +131,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RenderAs2DUtil_InitializeCanRenderAs2D_m
 	_il2cpp_icall_func = (RenderAs2DUtil_InitializeCanRenderAs2D_mE5CB68451AF6AE5EBC965EE700A067DA8CF5EEA5_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.RenderAs2DUtil::InitializeCanRenderAs2D()");
 	_il2cpp_icall_func();
 }
-// Method Definition Index: 97475
+// Method Definition Index: 97562
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RenderAs2DUtil_DisposeCanRenderAs2D_mBCFB3191DF91EBE61CF3A915D17EA2B0121B2997 (const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

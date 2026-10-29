@@ -4,7 +4,10 @@
   "references": [
     "SweetMerge.Analytics.Runtime",
     "Unity.Services.Authentication",
-    "Google.Play.Games"
+    "Unity.Services.Core",
+    "Google.Play.Games",
+    "Unity.TextMeshPro",
+    "Unity.ugui"
   ],
   "includePlatforms": [
     "Android",

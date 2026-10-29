@@ -156,12 +156,20 @@ public sealed class AndroidBuildIdentityGuardTests
     }
 
     [Test]
-    public void AutomaticReleaseTargetApiIsRejected()
+    public void AutomaticReleaseTargetApiIsAccepted()
     {
-        AssertRejected(CreateSnapshot(
+        AssertAccepted(CreateSnapshot(
             false,
             targetApiIsAutomatic: true,
             targetApiLevel: null), false);
+    }
+
+    [Test]
+    public void ReleaseMinimumApiBelow29IsRejected()
+    {
+        AssertRejected(CreateSnapshot(
+            false,
+            minimumApiLevel: 28), false);
     }
 
     [Test]
@@ -209,7 +217,7 @@ public sealed class AndroidBuildIdentityGuardTests
         bool[] sceneExists = null,
         bool? usesIl2Cpp = true,
         bool? arm64Enabled = true,
-        int? minimumApiLevel = 32,
+        int? minimumApiLevel = null,
         bool? targetApiIsAutomatic = null,
         int? targetApiLevel = null,
         bool profileModeAvailable = true,
@@ -228,6 +236,8 @@ public sealed class AndroidBuildIdentityGuardTests
             profileDevelopmentBuild = development;
         if (!requestedDevelopmentBuild.HasValue)
             requestedDevelopmentBuild = development;
+        if (!minimumApiLevel.HasValue && androidSettingsAvailable)
+            minimumApiLevel = development ? 32 : 29;
         if (scenePaths == null && scenesAvailable)
             scenePaths = new[] { MainBakeryScene, GameScene };
         if (sceneEnabled == null && scenesAvailable)

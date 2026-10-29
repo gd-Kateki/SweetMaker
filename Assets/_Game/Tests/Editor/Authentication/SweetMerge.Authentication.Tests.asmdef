@@ -2,7 +2,10 @@
   "name": "SweetMerge.Authentication.Tests",
   "rootNamespace": "SweetMerge.Authentication.Tests",
   "references": [
-    "SweetMerge.Authentication.Runtime"
+    "SweetMerge.Authentication.Runtime",
+    "Google.Play.Games",
+    "Unity.TextMeshPro",
+    "Unity.ugui"
   ],
   "includePlatforms": [
     "Editor"

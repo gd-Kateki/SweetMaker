@@ -1051,7 +1051,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CCheckCandidateProgramsU3Ed__11_SetSta
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78632
+// Method Definition Index: 78633
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass32_0__ctor_m83A2E3C7F62FB102FA60011CD995DA3BF0CAA1E0 (U3CU3Ec__DisplayClass32_0_t6031D6DD604DFC14B50A96681D916121B207E2EB* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1060,7 +1060,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass32_0__ctor_m83A2E3C
 		return;
 	}
 }
-// Method Definition Index: 78633
+// Method Definition Index: 78634
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* U3CU3Ec__DisplayClass32_0_U3CQueryProductDetailsParamsProductListU3Eb__0_m8FE77C7D82E8C0F084BA9982C70C93B39E54517E (U3CU3Ec__DisplayClass32_0_t6031D6DD604DFC14B50A96681D916121B207E2EB* __this, String_t* ___0_product, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1080,7 +1080,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2B
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78668
+// Method Definition Index: 78669
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_Util_m47C6A91676C64286AACF0E3965378474D97D94BD (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1089,7 +1089,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_Uti
 		return L_0;
 	}
 }
-// Method Definition Index: 78669
+// Method Definition Index: 78670
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_TelemetryDiagnostics_mBCD7A08A1BF1FEBD04777F9B92DC070244159A74 (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1098,7 +1098,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_Tel
 		return L_0;
 	}
 }
-// Method Definition Index: 78670
+// Method Definition Index: 78671
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientFactory__ctor_m122459DC457ED11DD449D2BAD2B5B7E3B1111260 (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, RuntimeObject* ___0_util, RuntimeObject* ___1_telemetryDiagnostics, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1113,7 +1113,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientFactory__ctor_m122459DC457E
 		return;
 	}
 }
-// Method Definition Index: 78671
+// Method Definition Index: 78672
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* BillingClientFactory_Instance_m3F426C4F5A2E08BEC14C5F49CCBD61C9EF98107B (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1163,7 +1163,7 @@ IL_002a:
 		return L_9;
 	}
 }
-// Method Definition Index: 78672
+// Method Definition Index: 78673
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_CreateExternalBillingProgramClient_m7DAEBA36E2CB2D3C9769804C68D645CC248A6054 (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1183,7 +1183,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_CreateExt
 		return L_2;
 	}
 }
-// Method Definition Index: 78673
+// Method Definition Index: 78674
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_CreateExternalBillingProgramClient_m7A0916A48D1A7A86D068FA5D1FEAAE8C886359CA (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, int32_t ___0_billingProgram, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1212,7 +1212,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_CreateExt
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78674
+// Method Definition Index: 78675
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* BillingClientBase_get_m_BillingClient_m231F1046AC5D5EABF2FCAD98D86B175855E38C6C (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1221,7 +1221,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2B
 		return L_0;
 	}
 }
-// Method Definition Index: 78675
+// Method Definition Index: 78676
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_set_m_BillingClient_m585130A75A4D556170F0C7688DE561087851901F (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1232,7 +1232,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_set_m_BillingClient_m5
 		return;
 	}
 }
-// Method Definition Index: 78676
+// Method Definition Index: 78677
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientBase_get_m_Util_m248A18E9865EB680F40BC825E5B703744EC83F5F (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1241,7 +1241,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientBase_get_m_Util_m
 		return L_0;
 	}
 }
-// Method Definition Index: 78677
+// Method Definition Index: 78678
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientBase_get_m_TelemetryDiagnostics_mA716B5BD8C5FDDF1337E14EB1C8493E533FDB167 (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1250,7 +1250,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* BillingClientBase_get_m_Teleme
 		return L_0;
 	}
 }
-// Method Definition Index: 78678
+// Method Definition Index: 78679
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase__ctor_m5038E648B36CFD2D59C9DCD35112910823C7469C (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, RuntimeObject* ___0_util, RuntimeObject* ___1_telemetryDiagnostics, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1265,7 +1265,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase__ctor_m5038E648B36CFD2
 		return;
 	}
 }
-// Method Definition Index: 78679
+// Method Definition Index: 78680
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_StartConnection_mB4BC7E079546885C62DCEB63C6BAC6DFDC1F3BEE (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, RuntimeObject* ___0_billingClientStateListener, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1290,7 +1290,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_StartConnection_mB4BC7
 		return;
 	}
 }
-// Method Definition Index: 78680
+// Method Definition Index: 78681
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_EndConnection_m63B64A6B34CA8B25BF755EA9C1DA754946D1D5FF (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1311,7 +1311,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void BillingClientBase_EndConnection_m63B64A6
 		return;
 	}
 }
-// Method Definition Index: 78681
+// Method Definition Index: 78682
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool BillingClientBase_IsReady_m0E6A2232E2826265BFD830C2FC5E496132B62A37 (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1334,7 +1334,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool BillingClientBase_IsReady_m0E6A2232E2826
 		return L_2;
 	}
 }
-// Method Definition Index: 78682
+// Method Definition Index: 78683
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t BillingClientBase_GetConnectionState_m3DFA37DD4FAF34BE1ED4AE91E04198066AB6F3F0 (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1357,7 +1357,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t BillingClientBase_GetConnectionState_
 		return (int32_t)(L_2);
 	}
 }
-// Method Definition Index: 78683
+// Method Definition Index: 78684
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaClass_tE6296B30CC4BF84434A9B765267F3FD0DD8DDB03* BillingClientBase_GetBillingClientClass_mC70E3B0904F197BC31ED141E8239DDEC071CE2D2 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1441,7 +1441,7 @@ IL2CPP_EXTERN_C void BillingProgramReportingDetails_t121EEE9653AA1866E02F8C9931A
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78684
+// Method Definition Index: 78685
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_m178BFA132A0AEE31E36EEE932AE36002A1E60391 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1466,7 +1466,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_m178B
 		return;
 	}
 }
-// Method Definition Index: 78685
+// Method Definition Index: 78686
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_mB6A3D19EA617C7AC7573D2478B1B1A5CA85079E2 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, RuntimeObject* ___0_factory, RuntimeObject* ___1_util, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1490,7 +1490,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_mB6A3
 		return;
 	}
 }
-// Method Definition Index: 78686
+// Method Definition Index: 78687
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_m8FF2FF7788EAD5A29A364BF7505060EF4FB19E67 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, RuntimeObject* ___0_factory, RuntimeObject* ___1_util, int32_t ___2_billingProgram, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1515,7 +1515,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient__ctor_m8FF2
 		return;
 	}
 }
-// Method Definition Index: 78687
+// Method Definition Index: 78688
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_StartConnection_m419FF104F37B4D17F1379B44F9C647BC34050453 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, Action_tD00B0A84D7945E50C2DFFC28EFEE6ED44ED2AD07* ___0_onConnected, Action_1_tF6EBD1EABF12C4673F29930B310E5777E337B51C* ___1_onDisconnected, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1526,7 +1526,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_StartConnec
 		return;
 	}
 }
-// Method Definition Index: 78688
+// Method Definition Index: 78689
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_StartConnectionAsync_m6E40A249CABF31147CA8BE7087DBD066FEABF189 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, Action_tD00B0A84D7945E50C2DFFC28EFEE6ED44ED2AD07* ___0_onConnected, Action_1_tF6EBD1EABF12C4673F29930B310E5777E337B51C* ___1_onDisconnected, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1560,7 +1560,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_StartConnec
 		return;
 	}
 }
-// Method Definition Index: 78689
+// Method Definition Index: 78690
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* ExternalBillingProgramClient_CreateStateListener_m211C92463922C7D33B080115AE615ADBA0E6BCDC (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1577,7 +1577,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* ExternalBillingProgramClient_C
 		return L_1;
 	}
 }
-// Method Definition Index: 78690
+// Method Definition Index: 78691
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_EndConnection_mC1F5438428385F9BC3948DEE39948BE3CC1B0D95 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1594,7 +1594,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClient_EndConnecti
 		return;
 	}
 }
-// Method Definition Index: 78691
+// Method Definition Index: 78692
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool ExternalBillingProgramClient_IsReady_m6F207E1306F9A5FC2F8C04CDF6F4BFFFCF3D7A98 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1612,7 +1612,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool ExternalBillingProgramClient_IsReady_m6F
 		return L_1;
 	}
 }
-// Method Definition Index: 78692
+// Method Definition Index: 78693
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t ExternalBillingProgramClient_GetConnectionState_m0320FFCEF07773103491DC3BEB3D645527E31067 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1630,7 +1630,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t ExternalBillingProgramClient_GetConne
 		return L_1;
 	}
 }
-// Method Definition Index: 78693
+// Method Definition Index: 78694
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF065* ExternalBillingProgramClient_IsBillingProgramAvailableAsync_mFCE0A82718363D5088F665952DEC7C98FF0EF4F5 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1641,7 +1641,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF
 		return L_1;
 	}
 }
-// Method Definition Index: 78694
+// Method Definition Index: 78695
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF065* ExternalBillingProgramClient_LaunchExternalLink_mF4013F7C07151DB61155BF9456420E5F5452EA37 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, String_t* ___0_externalLinkUrl, int32_t ___1_linkType, int32_t ___2_launchMode, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1685,7 +1685,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF
 		return L_11;
 	}
 }
-// Method Definition Index: 78695
+// Method Definition Index: 78696
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t81FFFF5AA777FC52E33F336F7D6700F21C92E9D4* ExternalBillingProgramClient_CreateBillingProgramReportingDetailsAsync_m4376B90D53C84DD91A9FAE0514F319F83B492685 (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1726,7 +1726,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t81FFFF5AA777FC52E33F336F7D6700F21C92E
 		return L_8;
 	}
 }
-// Method Definition Index: 78696
+// Method Definition Index: 78697
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t824317F4B958F7512E8F7300511752937A6C6043* ExternalBillingProgramClient_TryConnect_mCC4B4C032524A099F2EDA945C137FF923C3B664F (ExternalBillingProgramClient_t1EA83F2521C9B28811980DF7FBB70F20839D0D7D* __this, RuntimeObject* ___0_client, Action_tD00B0A84D7945E50C2DFFC28EFEE6ED44ED2AD07* ___1_onConnected, Action_1_tF6EBD1EABF12C4673F29930B310E5777E337B51C* ___2_onDisconnected, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1794,7 +1794,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t824317F4B958F7512E8F7300511752937A6C6
 		return L_18;
 	}
 }
-// Method Definition Index: 78697
+// Method Definition Index: 78698
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF065* ExternalBillingProgramClient_CheckAvailability_mF054EB6D51065B86575221AB125FEE00171036A7 (RuntimeObject* ___0_client, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1843,7 +1843,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Task_1_t3AA62171CED0E34D91FABA63FA144A9CF8DBF
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78698
+// Method Definition Index: 78699
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass12_0__ctor_mC8AD043CD72004050FF75F44633958967200B64C (U3CU3Ec__DisplayClass12_0_t4FC0F1A5A9DAE3CB19DE6026A8ADFAC0F9836F46* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1852,7 +1852,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass12_0__ctor_mC8AD043
 		return;
 	}
 }
-// Method Definition Index: 78699
+// Method Definition Index: 78700
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass12_0_U3CLaunchExternalLinkU3Eb__0_mA324D03195D0700AE820FF31176D2E2BCE1B7B0E (U3CU3Ec__DisplayClass12_0_t4FC0F1A5A9DAE3CB19DE6026A8ADFAC0F9836F46* __this, RuntimeObject* ___0_googleBillingResult, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1882,7 +1882,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass12_0_U3CLaunchExter
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78700
+// Method Definition Index: 78701
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass13_0__ctor_m822E99515D728A0120805A99BAB873002D063421 (U3CU3Ec__DisplayClass13_0_t01D22CE37AD3F2101CF801CDB2361F6E71957CA5* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1891,7 +1891,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass13_0__ctor_m822E995
 		return;
 	}
 }
-// Method Definition Index: 78701
+// Method Definition Index: 78702
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass13_0_U3CCreateBillingProgramReportingDetailsAsyncU3Eb__0_m33B48FD0A91F83B0803E50831CD532484682C9A2 (U3CU3Ec__DisplayClass13_0_t01D22CE37AD3F2101CF801CDB2361F6E71957CA5* __this, RuntimeObject* ___0_googleBillingResult, String_t* ___1_externalTransactionToken, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -1933,7 +1933,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass13_0_U3CCreateBilli
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78702
+// Method Definition Index: 78703
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass14_0__ctor_mB58A1047964E9DC81EB6C1767A6165BB1BE6C430 (U3CU3Ec__DisplayClass14_0_tE5B95579924759C9AA75B67FA008E0D5B8090DE4* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1942,7 +1942,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass14_0__ctor_mB58A104
 		return;
 	}
 }
-// Method Definition Index: 78703
+// Method Definition Index: 78704
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass14_0_U3CTryConnectU3Eb__0_mE21E3FE8F06380D5263E2ACB39CCEAD2161A91E1 (U3CU3Ec__DisplayClass14_0_tE5B95579924759C9AA75B67FA008E0D5B8090DE4* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1973,7 +1973,7 @@ IL_0018:
 		return;
 	}
 }
-// Method Definition Index: 78704
+// Method Definition Index: 78705
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass14_0_U3CTryConnectU3Eb__1_m4633CBBEE4ADAB896D2C9DD885BE94FABD78662C (U3CU3Ec__DisplayClass14_0_tE5B95579924759C9AA75B67FA008E0D5B8090DE4* __this, int32_t ___0_code, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -2013,7 +2013,7 @@ IL_0018:
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78705
+// Method Definition Index: 78706
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass15_0__ctor_m06B0D4D5A91A720F5D285AF2B968BD0330FA55F9 (U3CU3Ec__DisplayClass15_0_t68D256BB924D7EBA8B53FF595E68FD57F7D9FA03* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -2022,7 +2022,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass15_0__ctor_m06B0D4D
 		return;
 	}
 }
-// Method Definition Index: 78706
+// Method Definition Index: 78707
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass15_0_U3CCheckAvailabilityU3Eb__0_mFC1935530611506C54E09AD863FF73382E7B3AB8 (U3CU3Ec__DisplayClass15_0_t68D256BB924D7EBA8B53FF595E68FD57F7D9FA03* __this, RuntimeObject* ___0_result, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2052,7 +2052,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass15_0_U3CCheckAvaila
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78707
+// Method Definition Index: 78708
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CStartConnectionAsyncU3Ed__6_MoveNext_m867677DC32F54F5DAB361000432661551BC6E307 (U3CStartConnectionAsyncU3Ed__6_t693BB8D18DC796E23DBDB908D2FDB11557866DAB* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2224,7 +2224,7 @@ IL2CPP_EXTERN_C  void U3CStartConnectionAsyncU3Ed__6_MoveNext_m867677DC32F54F5DA
 	_thisAdjusted = il2cpp_codegen_get_raw_data<U3CStartConnectionAsyncU3Ed__6_t693BB8D18DC796E23DBDB908D2FDB11557866DAB>(__this);
 	U3CStartConnectionAsyncU3Ed__6_MoveNext_m867677DC32F54F5DAB361000432661551BC6E307(_thisAdjusted, method);
 }
-// Method Definition Index: 78708
+// Method Definition Index: 78709
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CStartConnectionAsyncU3Ed__6_SetStateMachine_mFABDEDE292C92E34CDBE524AAD11F03091ADB461 (U3CStartConnectionAsyncU3Ed__6_t693BB8D18DC796E23DBDB908D2FDB11557866DAB* __this, RuntimeObject* ___0_stateMachine, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -2249,7 +2249,7 @@ IL2CPP_EXTERN_C  void U3CStartConnectionAsyncU3Ed__6_SetStateMachine_mFABDEDE292
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78709
+// Method Definition Index: 78710
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal__ctor_m67B1134635B72F55AC1324561BABA294F6A3C312 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, RuntimeObject* ___0_util, RuntimeObject* ___1_telemetryDiagnostics, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2388,7 +2388,7 @@ IL_007f:
 		return;
 	}
 }
-// Method Definition Index: 78710
+// Method Definition Index: 78711
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal__ctor_mC069B80A2333E4E781E86B804A8B919A07862EB8 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, RuntimeObject* ___0_util, RuntimeObject* ___1_telemetryDiagnostics, int32_t ___2_billingProgram, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2491,7 +2491,7 @@ IL_0073:
 		return;
 	}
 }
-// Method Definition Index: 78711
+// Method Definition Index: 78712
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal_IsBillingProgramAvailableAsync_mE6DC016F22894CCFA0B8D89483F62E6FC1592992 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, Action_1_tBBC611382C7211FB870AB6B82164F24B27C1B421* ___0_onBillingProgramAvailabilityResponse, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2542,7 +2542,7 @@ IL_003c:
 		return;
 	}
 }
-// Method Definition Index: 78712
+// Method Definition Index: 78713
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal_CheckCandidatePrograms_mF8A28A0A44F919281ED7FBA78EE85FC394CD4154 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, Action_1_tBBC611382C7211FB870AB6B82164F24B27C1B421* ___0_callback, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -2573,7 +2573,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal_Che
 		return;
 	}
 }
-// Method Definition Index: 78713
+// Method Definition Index: 78714
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal_LaunchExternalLink_m6C7B63C4737BBFDF3A2212AB1764A3C28961D755 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, String_t* ___0_externalLinkUrl, Action_1_tBBC611382C7211FB870AB6B82164F24B27C1B421* ___1_onLaunchExternalLinkResponse, int32_t ___2_linkType, int32_t ___3_launchMode, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2683,7 +2683,7 @@ IL_0062:
 		return;
 	}
 }
-// Method Definition Index: 78714
+// Method Definition Index: 78715
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ExternalBillingProgramClientInternal_launchExternalLinkParams_m3D97372B547C5A20935D00AE25FD5C7A48A95ABA (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, String_t* ___0_externalLinkUrl, int32_t ___1_linkType, int32_t ___2_launchMode, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -2878,7 +2878,7 @@ IL_00d2:
 		return L_41;
 	}
 }
-// Method Definition Index: 78715
+// Method Definition Index: 78716
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal_CreateBillingProgramReportingDetailsAsync_m8C67AFB9A783D9518FFE7CF71B218413DE7D5026 (ExternalBillingProgramClientInternal_t9F848855CC99E5AE59A4450CB0E557F53759DD94* __this, Action_2_t59817802D6DA0A3D34426E2CF45E56A181B394C9* ___0_onCreateBillingProgramReportingDetailsResponse, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3054,7 +3054,7 @@ IL_00a4:
 		return;
 	}
 }
-// Method Definition Index: 78716
+// Method Definition Index: 78717
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaClass_tE6296B30CC4BF84434A9B765267F3FD0DD8DDB03* ExternalBillingProgramClientInternal_GetBillingProgramReportingDetailsParamsClass_m9499DC0D3FE512E3F568B87ABE56A7747EDA202C (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3090,7 +3090,7 @@ IL_0016:
 		return L_2;
 	}
 }
-// Method Definition Index: 78717
+// Method Definition Index: 78718
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaClass_tE6296B30CC4BF84434A9B765267F3FD0DD8DDB03* ExternalBillingProgramClientInternal_GetLaunchExternalLinkParamsClass_m7E0748383C70F4902B146BD9B94BD1AB56E55885 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3126,7 +3126,7 @@ IL_0016:
 		return L_2;
 	}
 }
-// Method Definition Index: 78718
+// Method Definition Index: 78719
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR AndroidJavaClass_tE6296B30CC4BF84434A9B765267F3FD0DD8DDB03* ExternalBillingProgramClientInternal_GetAndroidUriClass_m5158D1444DA1A1C103E1823D9F19934B224775B9 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3162,7 +3162,7 @@ IL_0016:
 		return L_2;
 	}
 }
-// Method Definition Index: 78719
+// Method Definition Index: 78720
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal__cctor_mBBDAF343F66A5A7B02DE0D05FB9ABFBA0C9FA6F0 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3194,7 +3194,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ExternalBillingProgramClientInternal__cc
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78720
+// Method Definition Index: 78721
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass11_0__ctor_m1CCC5706F2F63E43916AA91079993366555FDBC1 (U3CU3Ec__DisplayClass11_0_t0C77BDC792496A52CC358C8C36FD19877EE04299* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3203,7 +3203,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass11_0__ctor_m1CCC570
 		return;
 	}
 }
-// Method Definition Index: 78721
+// Method Definition Index: 78722
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass11_0_U3CCheckCandidateProgramsU3Eb__0_m03A154465A409F17F9D71BA432FDAB591C4481CD (U3CU3Ec__DisplayClass11_0_t0C77BDC792496A52CC358C8C36FD19877EE04299* __this, RuntimeObject* ___0_result, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3224,7 +3224,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CU3Ec__DisplayClass11_0_U3CCheckCandid
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 78722
+// Method Definition Index: 78723
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CCheckCandidateProgramsU3Ed__11_MoveNext_m76CDD0309F3A9AD9552B5F5C32212897BD6A809C (U3CCheckCandidateProgramsU3Ed__11_t243CB3C50C2960C8921074533F698919AD2042A9* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -3456,7 +3456,7 @@ IL2CPP_EXTERN_C  void U3CCheckCandidateProgramsU3Ed__11_MoveNext_m76CDD0309F3A9A
 	_thisAdjusted = il2cpp_codegen_get_raw_data<U3CCheckCandidateProgramsU3Ed__11_t243CB3C50C2960C8921074533F698919AD2042A9>(__this);
 	U3CCheckCandidateProgramsU3Ed__11_MoveNext_m76CDD0309F3A9AD9552B5F5C32212897BD6A809C(_thisAdjusted, method);
 }
-// Method Definition Index: 78723
+// Method Definition Index: 78724
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CCheckCandidateProgramsU3Ed__11_SetStateMachine_m08533DCAF3ED02E5C15698E45EF92693EFBBF386 (U3CCheckCandidateProgramsU3Ed__11_t243CB3C50C2960C8921074533F698919AD2042A9* __this, RuntimeObject* ___0_stateMachine, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3509,7 +3509,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* Debug_get_unityLog
 		return L_0;
 	}
 }
-// Method Definition Index: 78668
+// Method Definition Index: 78669
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_Util_m47C6A91676C64286AACF0E3965378474D97D94BD_inline (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3518,7 +3518,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFacto
 		return L_0;
 	}
 }
-// Method Definition Index: 78669
+// Method Definition Index: 78670
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFactory_get_m_TelemetryDiagnostics_mBCD7A08A1BF1FEBD04777F9B92DC070244159A74_inline (BillingClientFactory_t42E435536BB03EC2EA8631448546D1CDFEAA8F8A* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3527,7 +3527,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* BillingClientFacto
 		return L_0;
 	}
 }
-// Method Definition Index: 78674
+// Method Definition Index: 78675
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* BillingClientBase_get_m_BillingClient_m231F1046AC5D5EABF2FCAD98D86B175855E38C6C_inline (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3543,7 +3543,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void Action_Invoke_m7126A54DACA72
 	typedef void (*FunctionPointerType) (RuntimeObject*, const RuntimeMethod*);
 	((FunctionPointerType)__this->___invoke_impl)((Il2CppObject*)__this->___method_code, reinterpret_cast<RuntimeMethod*>(__this->___method));
 }
-// Method Definition Index: 78675
+// Method Definition Index: 78676
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void BillingClientBase_set_m_BillingClient_m585130A75A4D556170F0C7688DE561087851901F_inline (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, AndroidJavaObject_t8FFB930F335C1178405B82AC2BF512BB1EEF9EB0* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -3554,7 +3554,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void BillingClientBase_set_m_Bill
 		return;
 	}
 }
-// Method Definition Index: 78676
+// Method Definition Index: 78677
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR RuntimeObject* BillingClientBase_get_m_Util_m248A18E9865EB680F40BC825E5B703744EC83F5F_inline (BillingClientBase_t80C93116BDC805DE0E53876D9BF74F7E60DBA24E* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

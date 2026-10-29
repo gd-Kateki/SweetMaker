@@ -102,7 +102,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ScriptableObject__ctor_mD037FDB0B487295E
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98169
+// Method Definition Index: 98232
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Welcome2DScript_Open2DLandingPage_m6DDE3D5C86AA75D77DE5607C0E0A61E8A0E40283 (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -120,7 +120,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Welcome2DScript_Open2DLandingPage_m6DDE3
 		return;
 	}
 }
-// Method Definition Index: 98170
+// Method Definition Index: 98233
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Welcome2DScript__ctor_m1509132DE576967C2CC30381248BC411314D2066 (Welcome2DScript_t26D60C4AB7258C13CACECC551B6AC2F01EF09329* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

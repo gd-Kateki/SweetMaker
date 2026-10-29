@@ -21299,7 +21299,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ObjectEqualityComparer_1__ctor_m8F2640C4
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-// Method Definition Index: 76242
+// Method Definition Index: 76243
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR int32_t InstanceGPUHandle_GetHashCode_m0E6AED72A26A82375170F183C1AD65AB6D2DEB41_inline (InstanceGPUHandle_t8EACDB955745A0FDB92320591781CFAB124C0BE9* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

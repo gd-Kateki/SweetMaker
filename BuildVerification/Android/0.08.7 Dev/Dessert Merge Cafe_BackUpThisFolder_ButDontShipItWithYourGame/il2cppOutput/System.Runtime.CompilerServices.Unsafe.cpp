@@ -131,7 +131,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Attribute__ctor_m79ED1BF1EE36D1E417BA89A
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97991
+// Method Definition Index: 98054
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Unsafe_InitBlockUnaligned_m7622CF2152EE7AF62EF3B7E596C75A5F01D9D2ED (void* ___0_startAddress, uint8_t ___1_value, uint32_t ___2_byteCount, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -151,7 +151,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Unsafe_InitBlockUnaligned_m7622CF2152EE7
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97998
+// Method Definition Index: 98061
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void NonVersionableAttribute__ctor_m0ADAC9DE3EE89069011DA00E4AF296F598A6B91E (NonVersionableAttribute_tA3DDBC1E36556A09C3CEBAF8234FC6609A496D6D* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -168,7 +168,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void NonVersionableAttribute__ctor_m0ADAC9DE3
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97999
+// Method Definition Index: 98062
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void NativeIntegerAttribute__ctor_mBDAB5520BC98665A2B58370527D6BAF64917D0C1 (NativeIntegerAttribute_t80987D8E425EEDF1C26C9E7F7A8D34D1C5D2631F* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -197,7 +197,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void NativeIntegerAttribute__ctor_mBDAB5520BC
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98000
+// Method Definition Index: 98063
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_mD2BC23ADD852FC1DD7D00E1790D4877AEE78E6A3 (EmbeddedAttribute_t8BDDAF1F91037A92898D95EE798AA3AF4D8D9686* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

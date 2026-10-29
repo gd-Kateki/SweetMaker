@@ -97,7 +97,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Identifiers_GetInstallationId_Injected_m
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98164
+// Method Definition Index: 98227
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m23ADF1498B8192FF483B16671176A23FF080A473 (EmbeddedAttribute_t3A55882D1943AA20098488558D3A36CAB83E27C0* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -114,7 +114,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m23ADF1498B8192F
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98165
+// Method Definition Index: 98228
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_m17AB5F5781C187C96BA0D7009156058E4949AEAE (RefSafetyRulesAttribute_t5EDDD0FC3B4950DE440176C5EC0781219D958800* __this, int32_t ___0_p, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -133,7 +133,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_m17AB5F578
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98166
+// Method Definition Index: 98229
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* Identifiers_get_installationId_mD3ECC6BF716CA29158D977D82861214A105AA6B9 (const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -143,7 +143,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* Identifiers_get_installationId_mD3E
 		return L_0;
 	}
 }
-// Method Definition Index: 98167
+// Method Definition Index: 98230
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* Identifiers_GetInstallationId_mE83CB40B3E23BE88A50981DF00B8806D654D0A81 (const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -184,7 +184,7 @@ IL_0011:
 		return L_2;
 	}
 }
-// Method Definition Index: 98168
+// Method Definition Index: 98231
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Identifiers_GetInstallationId_Injected_m1FD37BA76BAF82DD4EDF8CBEC26081E587B576AB (ManagedSpanWrapper_tE5AE0420F9CEEE99A6586A5D9E7E73C92BC01455* ___0_ret, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

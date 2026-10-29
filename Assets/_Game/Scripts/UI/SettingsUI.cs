@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using SweetMerge.Analytics;
+using SweetMerge.Authentication;
 
 public sealed class SettingsUI : MonoBehaviour
 {
@@ -45,6 +46,7 @@ public sealed class SettingsUI : MonoBehaviour
         ValidateReferences();
         RefreshGameVersion();
         EnsureAnalyticsConsentControl();
+        EnsureAccountSettingsControl();
     }
 
     private void OnEnable()
@@ -776,5 +778,36 @@ public sealed class SettingsUI : MonoBehaviour
         AnalyticsConsentSettingsControl.Attach(
             settingsContent,
             AnalyticsBootstrap.Instance);
+    }
+
+    private void EnsureAccountSettingsControl()
+    {
+        if (overlayRoot == null)
+            return;
+
+        Transform[] descendants =
+            overlayRoot.GetComponentsInChildren<Transform>(true);
+        Transform settingsContent = null;
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            if (descendants[i].name == "SettingsScrollContent")
+            {
+                settingsContent = descendants[i];
+                break;
+            }
+        }
+
+        if (settingsContent == null)
+        {
+            Debug.LogError(
+                "SettingsUI could not find SettingsScrollContent for " +
+                "the account section.",
+                this);
+            return;
+        }
+
+        GooglePlayGamesAccountSettingsControl.Attach(
+            settingsContent,
+            GooglePlayGamesAuthenticationCoordinator.Instance);
     }
 }

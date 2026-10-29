@@ -1566,6 +1566,7 @@ extern void SettingsUI_SetFeedback_m7487B5022E58944EDB5A7F2FBD64368ABA54D105 (vo
 extern void SettingsUI_ValidateReferences_m5F508941A5EAEDBE3530A5FAB5503A01D679811F (void);
 extern void SettingsUI_ReportMissing_m1CF5104E41347AC12336A6D1BAE5DECA19D05644 (void);
 extern void SettingsUI_EnsureAnalyticsConsentControl_mD280E7429F5BF18B9D1C5FB9BCCC28A9F93B66D0 (void);
+extern void SettingsUI_EnsureAccountSettingsControl_mF02A387C1E8D37103E0BC0F5CD39348363F281C4 (void);
 extern void SettingsUI__ctor_m0DD0A55CED25F64F5070A86DC7A3B7BE49537538 (void);
 extern void U3CU3Ec__DisplayClass45_0__ctor_m1DD026BFBB23DA858841EEAB0259DF64F3C87B5F (void);
 extern void U3CU3Ec__DisplayClass45_0_U3CHandleSfxEnabledChangedU3Eb__0_m1E350C1481F3483EFFB0A23854A0529910636C90 (void);
@@ -1666,7 +1667,7 @@ extern void U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_IEnumerator_Re
 extern void U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_IEnumerator_get_Current_m2B7C0DFAB89D81175CFF7EF824C33608C38D642D (void);
 extern void DessertDebugTools_SpawnDebugDessert_m460322E41D3A131F8A12CDEB8A2FF7D453D0DCD6 (void);
 extern void DessertDebugTools__ctor_m91FDBC08D5123D5E2618C6A2396A0BDB5DB1DA95 (void);
-static Il2CppMethodPointer s_methodPointers[1664] = 
+static Il2CppMethodPointer s_methodPointers[1665] = 
 {
 	SfxClipEntry__ctor_mEF1B103C9B82B723769370CD8939A41216589674,
 	AudioManager_ClampNormalized_mCBA84E8DC1FABA1FBAB143B73650B03FE376AF1C,
@@ -3232,6 +3233,7 @@ static Il2CppMethodPointer s_methodPointers[1664] =
 	SettingsUI_ValidateReferences_m5F508941A5EAEDBE3530A5FAB5503A01D679811F,
 	SettingsUI_ReportMissing_m1CF5104E41347AC12336A6D1BAE5DECA19D05644,
 	SettingsUI_EnsureAnalyticsConsentControl_mD280E7429F5BF18B9D1C5FB9BCCC28A9F93B66D0,
+	SettingsUI_EnsureAccountSettingsControl_mF02A387C1E8D37103E0BC0F5CD39348363F281C4,
 	SettingsUI__ctor_m0DD0A55CED25F64F5070A86DC7A3B7BE49537538,
 	U3CU3Ec__DisplayClass45_0__ctor_m1DD026BFBB23DA858841EEAB0259DF64F3C87B5F,
 	U3CU3Ec__DisplayClass45_0_U3CHandleSfxEnabledChangedU3Eb__0_m1E350C1481F3483EFFB0A23854A0529910636C90,
@@ -3337,7 +3339,7 @@ IL2CPP_EXTERN_C const Il2CppCodeGenModule g_AssemblyU2DCSharp_CodeGenModule;
 const Il2CppCodeGenModule g_AssemblyU2DCSharp_CodeGenModule = 
 {
 	"Assembly-CSharp.dll",
-	1664,
+	1665,
 	s_methodPointers,
 	0,
 	NULL,

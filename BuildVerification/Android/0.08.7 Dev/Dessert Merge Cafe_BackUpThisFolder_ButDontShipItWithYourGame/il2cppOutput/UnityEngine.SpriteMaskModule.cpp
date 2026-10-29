@@ -94,7 +94,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool SpriteMaskUtility_HasSpriteMaskInLayerRa
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97476
+// Method Definition Index: 97563
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m6D304AD5293B8A76BD9CCDC8984253182FD5476D (EmbeddedAttribute_tC1EFE339FB14BE608943A1F4001F22A30C53873C* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -111,7 +111,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m6D304AD5293B8A7
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97477
+// Method Definition Index: 97564
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_mCEDCFCA0E2A72F2FF6F27D117E92FF8AE5157D13 (RefSafetyRulesAttribute_t73AF31CAA47D9F0EB94F80C14120729B39CDA8C4* __this, int32_t ___0_p, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -130,7 +130,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_mCEDCFCA0E
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97478
+// Method Definition Index: 97565
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool SpriteMaskUtility_HasSpriteMaskInLayerRange_m7E522D077F4992310FECE3D2911B0C1EE1F72F6B (SortingLayerRange_t96D04CFB4E8824978FEB2CFFFCFEAC37E56D52C9 ___0_range, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -140,7 +140,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool SpriteMaskUtility_HasSpriteMaskInLayerRa
 		return L_0;
 	}
 }
-// Method Definition Index: 97479
+// Method Definition Index: 97566
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool SpriteMaskUtility_HasSpriteMaskInLayerRange_Injected_m2C4AA54A7B3110F8F11DEEA22FBA36A1CC77B7CD (SortingLayerRange_t96D04CFB4E8824978FEB2CFFFCFEAC37E56D52C9* ___0_range, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

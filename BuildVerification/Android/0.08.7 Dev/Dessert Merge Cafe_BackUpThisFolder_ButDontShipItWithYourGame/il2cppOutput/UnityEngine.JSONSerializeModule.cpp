@@ -355,7 +355,7 @@ inline void ReadOnlySpan_1__ctor_m0152E50B40750679B83FF9F30CA539FFBB98EEE8_inlin
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97387
+// Method Definition Index: 97474
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m54E2F4D46C6DA226F7F814E2B2709D39B40D6785 (EmbeddedAttribute_tE08296068D2B643C811AAD87C48D86953E485592* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -372,7 +372,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_m54E2F4D46C6DA22
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97388
+// Method Definition Index: 97475
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_mEC922F778E83EBE5136CDA3D149115E8E577E9B4 (RefSafetyRulesAttribute_t798574CCEE26F4B5D3C32ECCB80F7EF32E536566* __this, int32_t ___0_p, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -391,7 +391,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_mEC922F778
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97389
+// Method Definition Index: 97476
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* JsonUtility_ToJsonInternal_mB893BE1511779B2E36B24BC77D2FB52BF5894CDD (RuntimeObject* ___0_obj, bool ___1_prettyPrint, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -455,7 +455,7 @@ IL_0022:
 		return L_6;
 	}
 }
-// Method Definition Index: 97390
+// Method Definition Index: 97477
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* JsonUtility_FromJsonInternal_m6C8155071DFF33D870873F945D1E4C965D1FE6C0 (String_t* ___0_json, RuntimeObject* ___1_objectToOverwrite, Type_t* ___2_type, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -528,7 +528,7 @@ IL_003a:
 		return L_12;
 	}
 }
-// Method Definition Index: 97391
+// Method Definition Index: 97478
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* JsonUtility_ToJson_m28CC6843B9D3723D88AD13EA3829B71FDE7826BA (RuntimeObject* ___0_obj, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -539,7 +539,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* JsonUtility_ToJson_m28CC6843B9D3723
 		return L_1;
 	}
 }
-// Method Definition Index: 97392
+// Method Definition Index: 97479
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* JsonUtility_ToJson_m53A1FEE0D388CF3A629E093C04B5E1A6D5463B53 (RuntimeObject* ___0_obj, bool ___1_prettyPrint, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -600,7 +600,7 @@ IL_002c:
 		return L_7;
 	}
 }
-// Method Definition Index: 97394
+// Method Definition Index: 97481
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* JsonUtility_FromJson_m6DF4F85BE40F8A96BAFEC189306813ECE30DF44A (String_t* ___0_json, Type_t* ___1_type, const RuntimeMethod* method) 
 {
 	CHECKED_LOCAL(Type_t_StaticInit);
@@ -683,7 +683,7 @@ IL_0053:
 		return L_17;
 	}
 }
-// Method Definition Index: 97395
+// Method Definition Index: 97482
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void JsonUtility_ToJsonInternal_Injected_mD9920AF91B9B0D863E19C90D6FD5D920C5D99B2D (RuntimeObject* ___0_obj, bool ___1_prettyPrint, ManagedSpanWrapper_tE5AE0420F9CEEE99A6586A5D9E7E73C92BC01455* ___2_ret, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -693,7 +693,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void JsonUtility_ToJsonInternal_Injected_mD99
 	_il2cpp_icall_func = (JsonUtility_ToJsonInternal_Injected_mD9920AF91B9B0D863E19C90D6FD5D920C5D99B2D_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.JsonUtility::ToJsonInternal_Injected(System.Object,System.Boolean,UnityEngine.Bindings.ManagedSpanWrapper&)");
 	_il2cpp_icall_func(___0_obj, ___1_prettyPrint, ___2_ret);
 }
-// Method Definition Index: 97396
+// Method Definition Index: 97483
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* JsonUtility_FromJsonInternal_Injected_mBDEBD5493BD3D6BE8B8066104D0D2D56806D7D89 (ManagedSpanWrapper_tE5AE0420F9CEEE99A6586A5D9E7E73C92BC01455* ___0_json, RuntimeObject* ___1_objectToOverwrite, Type_t* ___2_type, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -707,7 +707,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* JsonUtility_FromJsonInternal_I
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-// Method Definition Index: 96007
+// Method Definition Index: 96008
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR bool StringMarshaller_TryMarshalEmptyOrNullString_mA7E06E9C8BEF97EC745F7DE392C854F5F5B49999_inline (String_t* ___0_s, ManagedSpanWrapper_tE5AE0420F9CEEE99A6586A5D9E7E73C92BC01455* ___1_managedSpanWrapper, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

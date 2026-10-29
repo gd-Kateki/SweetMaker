@@ -445,7 +445,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void MonoBehaviour__ctor_m592DB0105CA0BC97AA1
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 73605
+// Method Definition Index: 73606
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3__ctor_mAA324844FF9997A16BAC186B328CBF7D80BF32FE (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, int32_t ___0_U3CU3E1__state, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -456,7 +456,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3__ctor
 		return;
 	}
 }
-// Method Definition Index: 73606
+// Method Definition Index: 73607
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3_System_IDisposable_Dispose_mF0C68CE93C3322063F959EB3DF6B1F2EDBE60FF8 (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -464,7 +464,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3_Syste
 		return;
 	}
 }
-// Method Definition Index: 73607
+// Method Definition Index: 73608
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool U3CReportAfterLayoutSettlesU3Ed__3_MoveNext_mF882FAB622E63CE80FB53DE2A55A8185131293CB (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -537,7 +537,7 @@ IL_0059:
 		return (bool)0;
 	}
 }
-// Method Definition Index: 73608
+// Method Definition Index: 73609
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_Generic_IEnumeratorU3CSystem_ObjectU3E_get_Current_m93AB16675D07D9EE3C0E2991526717F5ECE365DD (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -546,7 +546,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* U3CReportAfterLayoutSettlesU3E
 		return L_0;
 	}
 }
-// Method Definition Index: 73609
+// Method Definition Index: 73610
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_IEnumerator_Reset_mCA35218347CCA3ECAA0951C12B064EBB0939F8B7 (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -556,7 +556,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void U3CReportAfterLayoutSettlesU3Ed__3_Syste
 		IL2CPP_RAISE_MANAGED_EXCEPTION(L_0, ((RuntimeMethod*)il2cpp_codegen_initialize_runtime_metadata_inline((uintptr_t*)&U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_IEnumerator_Reset_mCA35218347CCA3ECAA0951C12B064EBB0939F8B7_RuntimeMethod_var)));
 	}
 }
-// Method Definition Index: 73610
+// Method Definition Index: 73611
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* U3CReportAfterLayoutSettlesU3Ed__3_System_Collections_IEnumerator_get_Current_m2B7C0DFAB89D81175CFF7EF824C33608C38D642D (U3CReportAfterLayoutSettlesU3Ed__3_t24A10F7869507F5CE535EEC965D10DCFA0FA7AC6* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -573,7 +573,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR RuntimeObject* U3CReportAfterLayoutSettlesU3E
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 73611
+// Method Definition Index: 73612
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DessertDebugTools_SpawnDebugDessert_m460322E41D3A131F8A12CDEB8A2FF7D453D0DCD6 (DessertDebugTools_t50E68917D5D152A121C0414EC7FAD2EF1984A146* __this, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -685,7 +685,7 @@ IL_0077:
 		return;
 	}
 }
-// Method Definition Index: 73612
+// Method Definition Index: 73613
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DessertDebugTools__ctor_m91FDBC08D5123D5E2618C6A2396A0BDB5DB1DA95 (DessertDebugTools_t50E68917D5D152A121C0414EC7FAD2EF1984A146* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

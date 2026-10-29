@@ -32653,7 +32653,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR bool UniversalRenderPipelineAsset
 		return L_0;
 	}
 }
-// Method Definition Index: 87698
+// Method Definition Index: 87699
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR bool AdaptivePerformanceRenderSettings_get_SkipTransparentObjects_mF14292D682D98CD5D4BF34B9CA606FDE38918F6E_inline (const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -34084,7 +34084,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void Vector4__ctor_m96B2CD8B862B2
 		return;
 	}
 }
-// Method Definition Index: 97689
+// Method Definition Index: 97776
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void OnTileValidationLayer_set_errorMessageHowToResolve_mEFA1C92F19E63255F451FA8161EBF8FF2F2754F1_inline (OnTileValidationLayer_tAEDF1398E8A79E0E1EF1CF405C8A6CD604C8B858* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -34104,7 +34104,7 @@ IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR bool ValidationHandler_get_active
 		return L_0;
 	}
 }
-// Method Definition Index: 97686
+// Method Definition Index: 97773
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void OnTileValidationLayer_set_renderGraph_m8DCA2A883D5EB8FA39830B7E94D80CB97E59423E_inline (OnTileValidationLayer_tAEDF1398E8A79E0E1EF1CF405C8A6CD604C8B858* __this, RenderGraph_t73ECE03B3CA3D0D17F1448D64AE020E81592AA1E* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

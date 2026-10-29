@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
 using System;
 using System.Linq;
+using GooglePlayGames;
+using SweetMerge.Authentication;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Profile;
@@ -61,9 +63,6 @@ internal static class AndroidBuildIdentityGuard
         "Assets/Settings/Build Profiles/Android Dev.asset";
     internal const string ReleaseProfilePath =
         "Assets/Settings/Build Profiles/Android Release.asset";
-
-    private const int RequiredMinimumApiLevel = 32;
-    private const int RequiredReleaseTargetApiLevel = 36;
 
     private static readonly string[] RequiredScenes =
     {
@@ -161,6 +160,12 @@ internal static class AndroidBuildIdentityGuard
                 "'.";
         }
 
+        string oauthConfigurationError =
+            ValidateGooglePlayGamesOAuthConfiguration(
+                snapshot.ApplicationIdentifier);
+        if (oauthConfigurationError != null)
+            return oauthConfigurationError;
+
         if (snapshot.ScenePaths == null ||
             snapshot.SceneEnabled == null ||
             snapshot.SceneExists == null)
@@ -211,38 +216,35 @@ internal static class AndroidBuildIdentityGuard
         if (!snapshot.MinimumApiLevel.HasValue)
             return "Could not determine the effective Android minimum API level.";
 
-        if (snapshot.MinimumApiLevel.Value != RequiredMinimumApiLevel)
-            return "Android minimum API level must remain API " +
-                RequiredMinimumApiLevel +
-                "; found API " +
-                snapshot.MinimumApiLevel.Value +
-                ".";
-
         if (!snapshot.TargetApiIsAutomatic.HasValue)
             return "Could not determine the effective Android target API setting.";
 
-        if (expectedDevelopmentBuild)
-        {
-            if (!snapshot.TargetApiIsAutomatic.Value &&
-                (!snapshot.TargetApiLevel.HasValue ||
-                 snapshot.TargetApiLevel.Value <= 0))
-            {
-                return "The effective Development Android target API is unknown or invalid.";
-            }
+        return GooglePlayGamesAndroidBuildRequirements.ValidateApiLevels(
+            snapshot.MinimumApiLevel.Value,
+            snapshot.TargetApiIsAutomatic.Value,
+            snapshot.TargetApiLevel,
+            expectedDevelopmentBuild);
+    }
 
+    private static string ValidateGooglePlayGamesOAuthConfiguration(
+        string applicationIdentifier)
+    {
+        PlayGamesSettings settings =
+            AssetDatabase.LoadAssetAtPath<PlayGamesSettings>(
+                "Assets/GooglePlayGames/Resources/PlayGamesSettings.asset");
+
+        try
+        {
+            GooglePlayGamesWebClientResolver.Resolve(
+                applicationIdentifier,
+                settings == null ? null : settings.WebClientId,
+                GooglePlayGamesWebClientResolver.ProductionWebClientId);
             return null;
         }
-
-        if (snapshot.TargetApiIsAutomatic.Value ||
-            !snapshot.TargetApiLevel.HasValue ||
-            snapshot.TargetApiLevel.Value < RequiredReleaseTargetApiLevel)
+        catch (System.InvalidOperationException)
         {
-            return "Release Android builds require an explicit target API level of at least " +
-                RequiredReleaseTargetApiLevel +
-                ".";
+            return "Android build is blocked because its Google Play Games Web OAuth client mapping is missing or invalid.";
         }
-
-        return null;
     }
 
     private static AndroidBuildIdentitySnapshot CaptureSnapshot(

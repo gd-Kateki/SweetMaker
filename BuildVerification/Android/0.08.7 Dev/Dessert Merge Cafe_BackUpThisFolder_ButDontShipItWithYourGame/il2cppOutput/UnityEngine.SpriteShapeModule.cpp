@@ -441,7 +441,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Renderer__ctor_m8B4EE9696B155A1B0A2CF13E
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97305
+// Method Definition Index: 97392
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_mD1F1EF0EB61F129446D60FB364EF88BC80AAE4F9 (EmbeddedAttribute_t2960FED0BCAD0DF00DD6F9063EB874CC345C5294* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -458,7 +458,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EmbeddedAttribute__ctor_mD1F1EF0EB61F129
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97306
+// Method Definition Index: 97393
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void RefSafetyRulesAttribute__ctor_m1C4F824B010FB2AE4A0E74431DC0F0B8B91A0D9E (RefSafetyRulesAttribute_t262E0F7C94899F5EC2AAD71352B46995B09093E6* __this, int32_t ___0_p, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -535,7 +535,7 @@ IL2CPP_EXTERN_C void SpriteShapeParameters_tC047BDC50B45EE3C0035646195EFA31FB89F
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97307
+// Method Definition Index: 97394
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_geomIndex_m14DE47F211B8A0689AE1CBD62C3A1EEFF0605E25 (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, int32_t ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -545,7 +545,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_geomIndex_m14DE47
 		return;
 	}
 }
-// Method Definition Index: 97308
+// Method Definition Index: 97395
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeSegment_get_indexCount_mB1823401E991934E00A50147D40297C300AF456A (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -554,7 +554,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeSegment_get_indexCount_mB1
 		return L_0;
 	}
 }
-// Method Definition Index: 97309
+// Method Definition Index: 97396
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_indexCount_m28732D6B993D21A6327A1A0CEC2AA9EDCCA2C4A1 (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, int32_t ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -564,7 +564,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_indexCount_m28732
 		return;
 	}
 }
-// Method Definition Index: 97310
+// Method Definition Index: 97397
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeSegment_get_vertexCount_m7FAC6E2254D9AC12C0293E26EEC5BE64832F7381 (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -573,7 +573,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeSegment_get_vertexCount_m7
 		return L_0;
 	}
 }
-// Method Definition Index: 97311
+// Method Definition Index: 97398
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_vertexCount_mFF8D13BF27EC6010581D458BB131F118EF52A0F3 (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, int32_t ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -583,7 +583,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_vertexCount_mFF8D
 		return;
 	}
 }
-// Method Definition Index: 97312
+// Method Definition Index: 97399
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_spriteIndex_mDAFA4E1F6BB47EE7540C6CD46CC5376652DADC13 (SpriteShapeSegment_tB32CE039E823A27997165CD087F6DE1906C4C8D5* __this, int32_t ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -609,7 +609,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeSegment_set_spriteIndex_mDAFA
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 97313
+// Method Definition Index: 97400
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_Prepare_m3EB1D60213EC54306CEC059519D22E2754072950 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, JobHandle_t5DF5F99902FED3C801A81C05205CEA6CE039EF08 ___0_handle, SpriteShapeParameters_tC047BDC50B45EE3C0035646195EFA31FB89F2E45 ___1_shapeParams, SpriteU5BU5D_tCEE379E10CAD9DBFA770B331480592548ED0EA1B* ___2_sprites, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -640,7 +640,7 @@ IL_000f:
 		return;
 	}
 }
-// Method Definition Index: 97316
+// Method Definition Index: 97403
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetSegmentCount_m649276042B95E37EE26246F371675D7123480EC5 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_geomCount, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -671,7 +671,7 @@ IL_000f:
 		return;
 	}
 }
-// Method Definition Index: 97317
+// Method Definition Index: 97404
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshDataCount_m7F8F41487DABF81F7DF3B4334452EE0C8A7095F6 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_vertexCount, int32_t ___1_indexCount, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -703,7 +703,7 @@ IL_000f:
 		return;
 	}
 }
-// Method Definition Index: 97318
+// Method Definition Index: 97405
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshChannelInfo_m08D74539463B0B415A4F0A9D9863D4E79A76E7AF (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_vertexCount, int32_t ___1_indexCount, int32_t ___2_hotChannelMask, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -736,7 +736,7 @@ IL_000f:
 		return;
 	}
 }
-// Method Definition Index: 97319
+// Method Definition Index: 97406
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR SpriteChannelInfo_t059F8D7ED52326BD2136B9AC41287F3E82FDE4CA SpriteShapeRenderer_GetDataInfo_m8BEE8EE1332F043EA4FF0CFDF2F0C2882BDF800D (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_arrayType, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -770,7 +770,7 @@ IL_000f:
 		return L_3;
 	}
 }
-// Method Definition Index: 97320
+// Method Definition Index: 97407
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR SpriteChannelInfo_t059F8D7ED52326BD2136B9AC41287F3E82FDE4CA SpriteShapeRenderer_GetChannelInfo_m6B622671C214A2920BAC1DF0190DEC62ABA7BADA (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_channel, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -804,7 +804,7 @@ IL_000f:
 		return L_3;
 	}
 }
-// Method Definition Index: 97321
+// Method Definition Index: 97408
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetLocalAABB_m50672DFB7F3EF0AB13FF725A86EA3DA718C8F080 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, Bounds_t367E830C64BBF235ED8C3B2F8CF6254FDCAD39C3 ___0_bounds, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -834,7 +834,7 @@ IL_000f:
 		return;
 	}
 }
-// Method Definition Index: 97322
+// Method Definition Index: 97409
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeRenderer_GetSplineMeshCount_mB0789A1FCA7CCC40FA3083EF173146088719A62A (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -865,7 +865,7 @@ IL_000f:
 		return L_2;
 	}
 }
-// Method Definition Index: 97323
+// Method Definition Index: 97410
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR NativeArray_1_t596D8D9BF28AE72A671779EB28469319AC3F1147 SpriteShapeRenderer_GetBounds_mB1109C67BE9B7A2376B92299C07B89E25026E42A (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -875,7 +875,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR NativeArray_1_t596D8D9BF28AE72A671779EB284693
 		return L_0;
 	}
 }
-// Method Definition Index: 97324
+// Method Definition Index: 97411
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR NativeArray_1_t2BC742D9A03AF608A0AB5B638F49639E1C7BD6ED SpriteShapeRenderer_GetSegments_m20EAF8C9AA9B74C31053A0F69B60B15D7967AA20 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_dataSize, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -887,7 +887,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR NativeArray_1_t2BC742D9A03AF608A0AB5B638F4963
 		return L_1;
 	}
 }
-// Method Definition Index: 97325
+// Method Definition Index: 97412
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannels_mBFF908DA30D2D2A9650F917211D83F6A5795D755 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_dataSize, NativeArray_1_t275C00CC374DEA66C69B3BB3992116F315A8E934* ___1_indices, NativeSlice_1_t4B5C42A704ED060AB92A8716135FE435B1E6C23A* ___2_vertices, NativeSlice_1_tBDD0B6C963222DE23BD34911416213E058F9FBAF* ___3_texcoords, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -917,7 +917,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannels_mBFF908D
 		return;
 	}
 }
-// Method Definition Index: 97326
+// Method Definition Index: 97413
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannels_m08BD580C754823A2578D887BEEF70AA43019DB8F (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, int32_t ___0_dataSize, NativeArray_1_t275C00CC374DEA66C69B3BB3992116F315A8E934* ___1_indices, NativeSlice_1_t4B5C42A704ED060AB92A8716135FE435B1E6C23A* ___2_vertices, NativeSlice_1_tBDD0B6C963222DE23BD34911416213E058F9FBAF* ___3_texcoords, NativeSlice_1_tA687F314957178F2A299D03D59B960DDC218680F* ___4_tangents, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -952,7 +952,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannels_m08BD580
 		return;
 	}
 }
-// Method Definition Index: 97327
+// Method Definition Index: 97414
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer__ctor_m44BF2C8BE32D32910B2E162D0830BFC36694D6A6 (SpriteShapeRenderer_tE998BB73CF661079736CCC23617E597AB230A4AC* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -961,7 +961,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer__ctor_m44BF2C8BE32D3
 		return;
 	}
 }
-// Method Definition Index: 97328
+// Method Definition Index: 97415
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_Prepare_Injected_mDA45CC3C11063151FB393BA8E8B44867BE975376 (intptr_t ___0__unity_self, JobHandle_t5DF5F99902FED3C801A81C05205CEA6CE039EF08* ___1_handle, SpriteShapeParameters_tC047BDC50B45EE3C0035646195EFA31FB89F2E45* ___2_shapeParams, SpriteU5BU5D_tCEE379E10CAD9DBFA770B331480592548ED0EA1B* ___3_sprites, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -971,7 +971,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_Prepare_Injected_mDA
 	_il2cpp_icall_func = (SpriteShapeRenderer_Prepare_Injected_mDA45CC3C11063151FB393BA8E8B44867BE975376_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::Prepare_Injected(System.IntPtr,Unity.Jobs.JobHandle&,UnityEngine.U2D.SpriteShapeParameters&,UnityEngine.Sprite[])");
 	_il2cpp_icall_func(___0__unity_self, ___1_handle, ___2_shapeParams, ___3_sprites);
 }
-// Method Definition Index: 97329
+// Method Definition Index: 97416
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetSegmentCount_Injected_mBF100934A747787A951947B49F38787982470AB5 (intptr_t ___0__unity_self, int32_t ___1_geomCount, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -981,7 +981,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetSegmentCount_Inje
 	_il2cpp_icall_func = (SpriteShapeRenderer_SetSegmentCount_Injected_mBF100934A747787A951947B49F38787982470AB5_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::SetSegmentCount_Injected(System.IntPtr,System.Int32)");
 	_il2cpp_icall_func(___0__unity_self, ___1_geomCount);
 }
-// Method Definition Index: 97330
+// Method Definition Index: 97417
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshDataCount_Injected_mDC7106ABC3B49CE5B5D354A61241F980D5A4128B (intptr_t ___0__unity_self, int32_t ___1_vertexCount, int32_t ___2_indexCount, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -991,7 +991,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshDataCount_Inj
 	_il2cpp_icall_func = (SpriteShapeRenderer_SetMeshDataCount_Injected_mDC7106ABC3B49CE5B5D354A61241F980D5A4128B_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::SetMeshDataCount_Injected(System.IntPtr,System.Int32,System.Int32)");
 	_il2cpp_icall_func(___0__unity_self, ___1_vertexCount, ___2_indexCount);
 }
-// Method Definition Index: 97331
+// Method Definition Index: 97418
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshChannelInfo_Injected_mB82C67188169523B1CBFC4F532D246CA9F910480 (intptr_t ___0__unity_self, int32_t ___1_vertexCount, int32_t ___2_indexCount, int32_t ___3_hotChannelMask, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1001,7 +1001,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetMeshChannelInfo_I
 	_il2cpp_icall_func = (SpriteShapeRenderer_SetMeshChannelInfo_Injected_mB82C67188169523B1CBFC4F532D246CA9F910480_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::SetMeshChannelInfo_Injected(System.IntPtr,System.Int32,System.Int32,System.Int32)");
 	_il2cpp_icall_func(___0__unity_self, ___1_vertexCount, ___2_indexCount, ___3_hotChannelMask);
 }
-// Method Definition Index: 97332
+// Method Definition Index: 97419
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetDataInfo_Injected_mC6251133ED4834D29B479EF13B211A73817A487F (intptr_t ___0__unity_self, int32_t ___1_arrayType, SpriteChannelInfo_t059F8D7ED52326BD2136B9AC41287F3E82FDE4CA* ___2_ret, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1011,7 +1011,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetDataInfo_Injected
 	_il2cpp_icall_func = (SpriteShapeRenderer_GetDataInfo_Injected_mC6251133ED4834D29B479EF13B211A73817A487F_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::GetDataInfo_Injected(System.IntPtr,UnityEngine.U2D.SpriteShapeDataType,UnityEngine.U2D.SpriteChannelInfo&)");
 	_il2cpp_icall_func(___0__unity_self, ___1_arrayType, ___2_ret);
 }
-// Method Definition Index: 97333
+// Method Definition Index: 97420
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannelInfo_Injected_m027D34C874A1A16F2BB36E548C887AF5B62BDCF2 (intptr_t ___0__unity_self, int32_t ___1_channel, SpriteChannelInfo_t059F8D7ED52326BD2136B9AC41287F3E82FDE4CA* ___2_ret, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1021,7 +1021,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_GetChannelInfo_Injec
 	_il2cpp_icall_func = (SpriteShapeRenderer_GetChannelInfo_Injected_m027D34C874A1A16F2BB36E548C887AF5B62BDCF2_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::GetChannelInfo_Injected(System.IntPtr,UnityEngine.Rendering.VertexAttribute,UnityEngine.U2D.SpriteChannelInfo&)");
 	_il2cpp_icall_func(___0__unity_self, ___1_channel, ___2_ret);
 }
-// Method Definition Index: 97334
+// Method Definition Index: 97421
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetLocalAABB_Injected_m4D381B8A76DF76FB7AA8A52D44C8EB2802B19124 (intptr_t ___0__unity_self, Bounds_t367E830C64BBF235ED8C3B2F8CF6254FDCAD39C3* ___1_bounds, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -1031,7 +1031,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void SpriteShapeRenderer_SetLocalAABB_Injecte
 	_il2cpp_icall_func = (SpriteShapeRenderer_SetLocalAABB_Injected_m4D381B8A76DF76FB7AA8A52D44C8EB2802B19124_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.U2D.SpriteShapeRenderer::SetLocalAABB_Injected(System.IntPtr,UnityEngine.Bounds&)");
 	_il2cpp_icall_func(___0__unity_self, ___1_bounds);
 }
-// Method Definition Index: 97335
+// Method Definition Index: 97422
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t SpriteShapeRenderer_GetSplineMeshCount_Injected_m8EB1F051BF5101331D1E585EBE5CF54B71D439CA (intptr_t ___0__unity_self, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>

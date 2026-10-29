@@ -110,7 +110,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Attribute__ctor_m79ED1BF1EE36D1E417BA89A
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98001
+// Method Definition Index: 98064
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataContractAttribute__ctor_mAFB75FDCDDBB5925CCE916496408E843E9DDB6BC (DataContractAttribute_tD065D7D14CC8AA548815166AB8B8210D1B3C699F* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -119,7 +119,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataContractAttribute__ctor_mAFB75FDCDDB
 		return;
 	}
 }
-// Method Definition Index: 98002
+// Method Definition Index: 98065
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataContractAttribute_get_IsReference_mEC2FFE0351B0DD896E7805670D6A614B1AE4C101 (DataContractAttribute_tD065D7D14CC8AA548815166AB8B8210D1B3C699F* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -128,7 +128,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataContractAttribute_get_IsReference_mE
 		return L_0;
 	}
 }
-// Method Definition Index: 98003
+// Method Definition Index: 98066
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataContractAttribute_set_Name_mD6136EF537543C289BE7F68B31EFAE0F0AAC75B2 (DataContractAttribute_tD065D7D14CC8AA548815166AB8B8210D1B3C699F* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -148,7 +148,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataContractAttribute_set_Name_mD6136EF5
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98004
+// Method Definition Index: 98067
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute__ctor_m077F867534BAD9865D6DD156A8FBBB4068283A42 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -159,7 +159,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute__ctor_m077F867534BAD
 		return;
 	}
 }
-// Method Definition Index: 98005
+// Method Definition Index: 98068
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* DataMemberAttribute_get_Name_m8C4BF39A517D901076BAFF6FF89DD53C5F4B2B3E (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -168,7 +168,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* DataMemberAttribute_get_Name_m8C4BF
 		return L_0;
 	}
 }
-// Method Definition Index: 98006
+// Method Definition Index: 98069
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_Name_mCF9CB9ED10BD17E99D79CC5CA33431F2135971DF (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -180,7 +180,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_Name_mCF9CB9ED10
 		return;
 	}
 }
-// Method Definition Index: 98007
+// Method Definition Index: 98070
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t DataMemberAttribute_get_Order_m34D8C756AE07BD345011D887546DF54D71898956 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -189,7 +189,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t DataMemberAttribute_get_Order_m34D8C7
 		return L_0;
 	}
 }
-// Method Definition Index: 98008
+// Method Definition Index: 98071
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataMemberAttribute_get_IsRequired_m318C586E28E349EA87096FE6FE473B4C4FD58C73 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -198,7 +198,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataMemberAttribute_get_IsRequired_m318C
 		return L_0;
 	}
 }
-// Method Definition Index: 98009
+// Method Definition Index: 98072
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_IsRequired_m660325F5E5D02CE9563D6E28CBC725A90ED63078 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, bool ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -208,7 +208,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_IsRequired_m6603
 		return;
 	}
 }
-// Method Definition Index: 98010
+// Method Definition Index: 98073
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataMemberAttribute_get_EmitDefaultValue_m430708B4CFB34DD522B6D01A66CE8FDEDCC088E8 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -217,7 +217,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool DataMemberAttribute_get_EmitDefaultValue
 		return L_0;
 	}
 }
-// Method Definition Index: 98011
+// Method Definition Index: 98074
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_EmitDefaultValue_m3E31B38EB7B3B88A198F23D2B121A3D4F45D43C4 (DataMemberAttribute_t8AE446BE9032B9BC8E7B2EDC785F5C6FA0E5BB73* __this, bool ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -235,7 +235,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void DataMemberAttribute_set_EmitDefaultValue
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
-// Method Definition Index: 98012
+// Method Definition Index: 98075
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EnumMemberAttribute__ctor_m3F91AFEBFAFB8DA2B8527180896657BC30BA94E3 (EnumMemberAttribute_t65B5E85E642C96791DD6AE5EAD0276350954126F* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -244,7 +244,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EnumMemberAttribute__ctor_m3F91AFEBFAFB8
 		return;
 	}
 }
-// Method Definition Index: 98013
+// Method Definition Index: 98076
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* EnumMemberAttribute_get_Value_mB41126B613B9FD1CD8A05D08FCEC4B6663864BE9 (EnumMemberAttribute_t65B5E85E642C96791DD6AE5EAD0276350954126F* __this, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
@@ -253,7 +253,7 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* EnumMemberAttribute_get_Value_mB411
 		return L_0;
 	}
 }
-// Method Definition Index: 98014
+// Method Definition Index: 98077
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void EnumMemberAttribute_set_Value_mF6DD8C5291188BCA38A2073FDEA4C76EF1692EB6 (EnumMemberAttribute_t65B5E85E642C96791DD6AE5EAD0276350954126F* __this, String_t* ___0_value, const RuntimeMethod* method) 
 {
 	//<source_info:<no-source>:1>
