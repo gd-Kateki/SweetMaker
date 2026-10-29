@@ -13,12 +13,7 @@ namespace SweetMerge.Analytics.Tests
     {
         private sealed class FakeRuntime : IAnalyticsBootstrapRuntime
         {
-            public string ApplicationIdentifier { get; set; }
-            public ServicesInitializationState ServicesState { get; set; }
             public ConsentState ConsentState { get; set; }
-            public Task InitializationTask { get; set; } = Task.CompletedTask;
-            public int InitializationCount { get; private set; }
-            public string InitializedEnvironment { get; private set; }
 
             public event Action<ConsentState> ConsentStateChanged;
 
@@ -29,16 +24,29 @@ namespace SweetMerge.Analytics.Tests
                 ConsentState = consentState;
                 ConsentStateChanged?.Invoke(consentState);
             }
+        }
+
+        private sealed class FakeServicesRuntime :
+            IUnityServicesInitializationRuntime
+        {
+            public string ApplicationIdentifier { get; set; }
+            public ServicesInitializationState ServicesState { get; set; }
+            public Task InitializationTask { get; set; } = Task.CompletedTask;
+            public int InitializationCount { get; private set; }
+            public string InitializedEnvironment { get; private set; }
 
             public Task InitializeServicesAsync(string environmentName)
             {
                 InitializationCount++;
                 InitializedEnvironment = environmentName;
+                if (InitializationTask.Status == TaskStatus.RanToCompletion)
+                    ServicesState = ServicesInitializationState.Initialized;
                 return InitializationTask;
             }
         }
 
         private readonly List<string> warnings = new List<string>();
+        private FakeServicesRuntime servicesRuntime;
 
         [SetUp]
         public void ClearWarnings()
@@ -55,7 +63,7 @@ namespace SweetMerge.Analytics.Tests
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(0, runtime.InitializationCount);
+                Assert.AreEqual(0, servicesRuntime.InitializationCount);
                 Assert.AreEqual(
                     ConsentStatus.Unspecified,
                     runtime.ConsentState.AnalyticsIntent);
@@ -71,7 +79,7 @@ namespace SweetMerge.Analytics.Tests
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(0, runtime.InitializationCount);
+                Assert.AreEqual(0, servicesRuntime.InitializationCount);
                 Assert.AreEqual(ConsentStatus.Denied, runtime.ConsentState.AnalyticsIntent);
             }
         }
@@ -86,45 +94,51 @@ namespace SweetMerge.Analytics.Tests
                 runtime.SetConsentState(CreateConsentState(ConsentStatus.Granted));
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(1, runtime.InitializationCount);
-                Assert.AreEqual("development", runtime.InitializedEnvironment);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
+                Assert.AreEqual(
+                    "development",
+                    servicesRuntime.InitializedEnvironment);
             }
         }
 
         [TestCase(
-            AnalyticsBootstrapCoordinator.DevelopmentApplicationIdentifier,
+            UnityServicesInitializationCoordinator.DevelopmentApplicationIdentifier,
             "development")]
         [TestCase(
-            AnalyticsBootstrapCoordinator.ProductionApplicationIdentifier,
+            UnityServicesInitializationCoordinator.ProductionApplicationIdentifier,
             "production")]
         public async Task GrantedConsentInitializesInResolvedEnvironment(
             string applicationIdentifier,
             string expectedEnvironment)
         {
             var runtime = CreateRuntime(ConsentStatus.Granted);
-            runtime.ApplicationIdentifier = applicationIdentifier;
-            using (var coordinator = CreateCoordinator(runtime))
+            using (var coordinator = CreateCoordinator(
+                       runtime,
+                       applicationIdentifier))
             {
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(1, runtime.InitializationCount);
-                Assert.AreEqual(expectedEnvironment, runtime.InitializedEnvironment);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
+                Assert.AreEqual(
+                    expectedEnvironment,
+                    servicesRuntime.InitializedEnvironment);
                 Assert.IsTrue(coordinator.IsAnalyticsReady);
             }
         }
 
         [TestCase(
-            AnalyticsBootstrapCoordinator.DevelopmentApplicationIdentifier,
+            UnityServicesInitializationCoordinator.DevelopmentApplicationIdentifier,
             "development")]
         [TestCase(
-            AnalyticsBootstrapCoordinator.ProductionApplicationIdentifier,
+            UnityServicesInitializationCoordinator.ProductionApplicationIdentifier,
             "production")]
         public void KnownApplicationIdentifiersResolveToExactEnvironment(
             string applicationIdentifier,
             string expectedEnvironment)
         {
-            bool resolved = AnalyticsBootstrapCoordinator.TryResolveEnvironment(
+            bool resolved =
+                UnityServicesInitializationCoordinator.TryResolveEnvironment(
                 applicationIdentifier,
                 out string environmentName);
 
@@ -139,15 +153,14 @@ namespace SweetMerge.Analytics.Tests
         public async Task UnknownApplicationIdentifierFailsClosed(string identifier)
         {
             var runtime = CreateRuntime(ConsentStatus.Granted);
-            runtime.ApplicationIdentifier = identifier;
-            using (var coordinator = CreateCoordinator(runtime))
+            using (var coordinator = CreateCoordinator(runtime, identifier))
             {
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(0, runtime.InitializationCount);
-                Assert.AreEqual(1, warnings.Count);
-                StringAssert.Contains("unsupported application identifier", warnings[0]);
+                Assert.AreEqual(0, servicesRuntime.InitializationCount);
+                Assert.IsTrue(warnings.Exists(warning =>
+                    warning.Contains("unsupported application identifier")));
             }
         }
 
@@ -162,7 +175,7 @@ namespace SweetMerge.Analytics.Tests
                 runtime.SetConsentState(CreateConsentState(ConsentStatus.Granted));
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(1, runtime.InitializationCount);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
             }
         }
 
@@ -171,9 +184,12 @@ namespace SweetMerge.Analytics.Tests
         {
             var completion = new TaskCompletionSource<bool>();
             var runtime = CreateRuntime(ConsentStatus.Granted);
-            runtime.InitializationTask = completion.Task;
+            var servicesInitializer = CreateServicesInitializer();
+            servicesRuntime.InitializationTask = completion.Task;
 
-            using (var coordinator = CreateCoordinator(runtime))
+            using (var coordinator = CreateCoordinator(
+                       runtime,
+                       servicesInitializer))
             {
                 coordinator.Start();
                 Task initialization = coordinator.TryInitializeIfAuthorizedAsync();
@@ -185,8 +201,28 @@ namespace SweetMerge.Analytics.Tests
 
                 Assert.AreEqual(ConsentStatus.Denied, runtime.ConsentState.AnalyticsIntent);
                 Assert.AreEqual(ConsentStatus.Granted, runtime.ConsentState.AdsIntent);
-                Assert.AreEqual(1, runtime.InitializationCount);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
                 Assert.IsFalse(coordinator.IsAnalyticsReady);
+            }
+        }
+
+        [Test]
+        public async Task WithdrawalAfterInitializationDisablesAnalyticsReadiness()
+        {
+            var runtime = CreateRuntime(ConsentStatus.Granted);
+            using (var coordinator = CreateCoordinator(runtime))
+            {
+                coordinator.Start();
+                await coordinator.TryInitializeIfAuthorizedAsync();
+
+                Assert.IsTrue(coordinator.IsAnalyticsReady);
+                coordinator.WithdrawAnalyticsConsent();
+
+                Assert.AreEqual(
+                    ConsentStatus.Denied,
+                    runtime.ConsentState.AnalyticsIntent);
+                Assert.IsFalse(coordinator.IsAnalyticsReady);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
             }
         }
 
@@ -214,9 +250,12 @@ namespace SweetMerge.Analytics.Tests
         public async Task InitializationFailureIsBoundedAndNotRetried()
         {
             var runtime = CreateRuntime(ConsentStatus.Granted);
-            runtime.InitializationTask = Task.FromException(
+            var servicesInitializer = CreateServicesInitializer();
+            servicesRuntime.InitializationTask = Task.FromException(
                 new InvalidOperationException("test failure"));
-            using (var coordinator = CreateCoordinator(runtime))
+            using (var coordinator = CreateCoordinator(
+                       runtime,
+                       servicesInitializer))
             {
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
@@ -224,9 +263,9 @@ namespace SweetMerge.Analytics.Tests
                 runtime.SetConsentState(CreateConsentState(ConsentStatus.Granted));
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(1, runtime.InitializationCount);
-                Assert.AreEqual(1, warnings.Count);
-                StringAssert.Contains("gameplay will continue", warnings[0]);
+                Assert.AreEqual(1, servicesRuntime.InitializationCount);
+                Assert.IsTrue(warnings.Exists(warning =>
+                    warning.Contains("gameplay will continue")));
             }
         }
 
@@ -234,15 +273,18 @@ namespace SweetMerge.Analytics.Tests
         public async Task ExistingUnityServicesOwnerPreventsDuplicateInitialization()
         {
             var runtime = CreateRuntime(ConsentStatus.Granted);
-            runtime.ServicesState = ServicesInitializationState.Initializing;
-            using (var coordinator = CreateCoordinator(runtime))
+            var servicesInitializer = CreateServicesInitializer(
+                ServicesInitializationState.Initializing);
+            using (var coordinator = CreateCoordinator(
+                       runtime,
+                       servicesInitializer))
             {
                 coordinator.Start();
                 await coordinator.TryInitializeIfAuthorizedAsync();
 
-                Assert.AreEqual(0, runtime.InitializationCount);
-                Assert.AreEqual(1, warnings.Count);
-                StringAssert.Contains("initialization owner", warnings[0]);
+                Assert.AreEqual(0, servicesRuntime.InitializationCount);
+                Assert.IsTrue(warnings.Exists(warning =>
+                    warning.Contains("another initializer owns")));
             }
         }
 
@@ -264,16 +306,46 @@ namespace SweetMerge.Analytics.Tests
         {
             return new FakeRuntime
             {
-                ApplicationIdentifier =
-                    AnalyticsBootstrapCoordinator.DevelopmentApplicationIdentifier,
-                ServicesState = ServicesInitializationState.Uninitialized,
                 ConsentState = CreateConsentState(analyticsConsent)
             };
         }
 
-        private AnalyticsBootstrapCoordinator CreateCoordinator(FakeRuntime runtime)
+        private AnalyticsBootstrapCoordinator CreateCoordinator(
+            FakeRuntime runtime,
+            string applicationIdentifier =
+                UnityServicesInitializationCoordinator.DevelopmentApplicationIdentifier)
         {
-            return new AnalyticsBootstrapCoordinator(runtime, warnings.Add);
+            return CreateCoordinator(
+                runtime,
+                CreateServicesInitializer(
+                    applicationIdentifier:
+                        applicationIdentifier));
+        }
+
+        private AnalyticsBootstrapCoordinator CreateCoordinator(
+            FakeRuntime runtime,
+            UnityServicesInitializationCoordinator servicesInitializer)
+        {
+            return new AnalyticsBootstrapCoordinator(
+                runtime,
+                servicesInitializer,
+                warnings.Add);
+        }
+
+        private UnityServicesInitializationCoordinator CreateServicesInitializer(
+            ServicesInitializationState servicesState =
+                ServicesInitializationState.Uninitialized,
+            string applicationIdentifier =
+                UnityServicesInitializationCoordinator.DevelopmentApplicationIdentifier)
+        {
+            servicesRuntime = new FakeServicesRuntime
+            {
+                ApplicationIdentifier = applicationIdentifier,
+                ServicesState = servicesState
+            };
+            return new UnityServicesInitializationCoordinator(
+                servicesRuntime,
+                warnings.Add);
         }
 
         private static ConsentState CreateConsentState(

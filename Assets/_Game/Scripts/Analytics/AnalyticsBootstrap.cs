@@ -1,7 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Unity.Services.Core;
-using Unity.Services.Core.Environments;
 using UnityEngine;
 using UnityEngine.UnityConsent;
 
@@ -17,23 +15,16 @@ namespace SweetMerge.Analytics
 
     internal interface IAnalyticsBootstrapRuntime
     {
-        string ApplicationIdentifier { get; }
-        ServicesInitializationState ServicesState { get; }
         event Action<ConsentState> ConsentStateChanged;
 
         ConsentState GetConsentState();
         void SetConsentState(ConsentState consentState);
-        Task InitializeServicesAsync(string environmentName);
     }
 
     internal sealed class AnalyticsBootstrapCoordinator : IDisposable
     {
-        internal const string DevelopmentApplicationIdentifier =
-            "com.offcutstudios.dessertmergecafe.dev";
-        internal const string ProductionApplicationIdentifier =
-            "com.offcutstudios.dessertmergecafe";
-
         private readonly IAnalyticsBootstrapRuntime runtime;
+        private readonly UnityServicesInitializationCoordinator servicesInitializer;
         private readonly Action<string> logWarning;
         private bool started;
         private bool disposed;
@@ -48,10 +39,13 @@ namespace SweetMerge.Analytics
 
         internal AnalyticsBootstrapCoordinator(
             IAnalyticsBootstrapRuntime runtime,
+            UnityServicesInitializationCoordinator servicesInitializer,
             Action<string> logWarning)
         {
             this.runtime = runtime ??
                 throw new ArgumentNullException(nameof(runtime));
+            this.servicesInitializer = servicesInitializer ??
+                throw new ArgumentNullException(nameof(servicesInitializer));
             this.logWarning = logWarning ??
                 throw new ArgumentNullException(nameof(logWarning));
         }
@@ -75,23 +69,7 @@ namespace SweetMerge.Analytics
                 return Task.CompletedTask;
 
             initializationAttempted = true;
-            if (!TryResolveEnvironment(
-                    runtime.ApplicationIdentifier,
-                    out string environmentName))
-            {
-                logWarning(
-                    "Analytics bootstrap skipped: unsupported application identifier.");
-                return Task.CompletedTask;
-            }
-
-            if (runtime.ServicesState != ServicesInitializationState.Uninitialized)
-            {
-                logWarning(
-                    "Analytics bootstrap skipped: Unity Services already has an initialization owner.");
-                return Task.CompletedTask;
-            }
-
-            initializationTask = InitializeAndObserveAsync(environmentName);
+            initializationTask = InitializeAndObserveAsync();
             return initializationTask;
         }
 
@@ -126,35 +104,18 @@ namespace SweetMerge.Analytics
                 runtime.ConsentStateChanged -= HandleConsentStateChanged;
         }
 
-        internal static bool TryResolveEnvironment(
-            string applicationIdentifier,
-            out string environmentName)
-        {
-            switch (applicationIdentifier)
-            {
-                case DevelopmentApplicationIdentifier:
-                    environmentName = "development";
-                    return true;
-                case ProductionApplicationIdentifier:
-                    environmentName = "production";
-                    return true;
-                default:
-                    environmentName = null;
-                    return false;
-            }
-        }
-
-        private async Task InitializeAndObserveAsync(string environmentName)
+        private async Task InitializeAndObserveAsync()
         {
             try
             {
-                await runtime.InitializeServicesAsync(environmentName);
+                await servicesInitializer.RequestInitializationAsync();
                 initializationSucceeded = true;
             }
-            catch (Exception)
+            catch (Exception exception)
             {
                 logWarning(
-                    "Analytics initialization failed; gameplay will continue without Analytics.");
+                    "Analytics initialization failed; gameplay will continue without Analytics. " +
+                    exception.Message);
             }
         }
 
@@ -172,11 +133,6 @@ namespace SweetMerge.Analytics
         private sealed class UnityAnalyticsBootstrapRuntime :
             IAnalyticsBootstrapRuntime
         {
-            public string ApplicationIdentifier => Application.identifier;
-
-            public ServicesInitializationState ServicesState =>
-                UnityServices.State;
-
             public event Action<ConsentState> ConsentStateChanged
             {
                 add { EndUserConsent.consentStateChanged += value; }
@@ -188,13 +144,6 @@ namespace SweetMerge.Analytics
 
             public void SetConsentState(ConsentState consentState) =>
                 EndUserConsent.SetConsentState(consentState);
-
-            public Task InitializeServicesAsync(string environmentName)
-            {
-                var options = new InitializationOptions()
-                    .SetEnvironmentName(environmentName);
-                return UnityServices.InitializeAsync(options);
-            }
         }
 
         private static AnalyticsBootstrap instance;
@@ -242,6 +191,7 @@ namespace SweetMerge.Analytics
             runtime.ConsentStateChanged += HandleConsentStateChanged;
             coordinator = new AnalyticsBootstrapCoordinator(
                 runtime,
+                UnityServicesInitializationCoordinator.Shared,
                 Debug.LogWarning);
             coordinator.Start();
         }

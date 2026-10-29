@@ -1,0 +1,21 @@
+{
+  "name": "SweetMerge.Authentication.Runtime",
+  "rootNamespace": "SweetMerge.Authentication",
+  "references": [
+    "SweetMerge.Analytics.Runtime",
+    "Unity.Services.Authentication",
+    "Google.Play.Games"
+  ],
+  "includePlatforms": [
+    "Android",
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
