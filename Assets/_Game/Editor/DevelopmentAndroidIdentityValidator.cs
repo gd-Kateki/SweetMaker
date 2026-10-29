@@ -83,6 +83,11 @@ internal sealed class DevelopmentAndroidIdentityValidator :
                 "'.");
         }
 
+        DevelopmentFirebaseConfigurationValidator
+            .EnsureDevelopmentBuildOnly(isDevelopmentBuild);
+        FirebaseBuildCoordinator.ValidateBuildEnvironment(
+            isDevelopmentBuild);
+
         Debug.Log(
             (isDevelopmentBuild
                 ? "DEVELOPMENT BUILD IDENTITY"

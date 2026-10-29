@@ -20,7 +20,7 @@ dependencyResolutionManagement {
 // Android Resolver Repos Start
         def unityProjectPath = $/file:///**DIR_UNITYPROJECT**/$.replace("\\", "/")
         maven {
-            url (unityProjectPath + "/Assets/GeneratedLocalRepo/Firebase/m2repository") // Assets/Firebase/Editor/AnalyticsDependencies.xml:17, Assets/Firebase/Editor/AppDependencies.xml:21, Assets/Firebase/Editor/CrashlyticsDependencies.xml:19
+            url ((unityProjectPath + "/Assets/GeneratedLocalRepo/Firebase/m2repository").replace(" ", "%20")) // Assets/Firebase/Editor/AnalyticsDependencies.xml:17, Assets/Firebase/Editor/AppDependencies.xml:21, Assets/Firebase/Editor/CrashlyticsDependencies.xml:19
         }
         mavenLocal()
 // Android Resolver Repos End
