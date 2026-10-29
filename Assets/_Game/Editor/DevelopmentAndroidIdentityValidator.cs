@@ -1,8 +1,6 @@
 #if UNITY_EDITOR
-using System;
 using UnityEditor;
 using UnityEditor.Build;
-using UnityEditor.Build.Profile;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -10,13 +8,13 @@ internal sealed class DevelopmentAndroidIdentityValidator :
     IPreprocessBuildWithReport
 {
     internal const string DevelopmentIdentifier =
-        "com.offcutstudios.dessertmergecafe.dev";
+        AndroidBuildIdentityGuard.DevelopmentIdentifier;
     internal const string ReleaseIdentifier =
-        "com.offcutstudios.dessertmergecafe";
+        AndroidBuildIdentityGuard.ReleaseIdentifier;
     internal const string DevelopmentProfilePath =
-        "Assets/Settings/Build Profiles/Android Dev.asset";
+        AndroidBuildIdentityGuard.DevelopmentProfilePath;
     internal const string ReleaseProfilePath =
-        "Assets/Settings/Build Profiles/Android Release.asset";
+        AndroidBuildIdentityGuard.ReleaseProfilePath;
 
     public int callbackOrder => 0;
 
@@ -29,86 +27,25 @@ internal sealed class DevelopmentAndroidIdentityValidator :
         if (report.summary.platform != BuildTarget.Android)
             return;
 
-        BuildProfile activeProfile = BuildProfile.GetActiveBuildProfile();
-        string profilePath = NormalizeAssetPath(
-            AssetDatabase.GetAssetPath(activeProfile));
         bool isDevelopmentBuild =
             (report.summary.options & BuildOptions.Development) != 0;
-        string expectedProfilePath = isDevelopmentBuild
-            ? DevelopmentProfilePath
-            : ReleaseProfilePath;
-        string expectedIdentifier = isDevelopmentBuild
-            ? DevelopmentIdentifier
-            : ReleaseIdentifier;
-
-        if (!string.Equals(
-                profilePath,
-                expectedProfilePath,
-                StringComparison.Ordinal))
-        {
-            throw new BuildFailedException(
-                "Android build used profile '" +
-                (profilePath ?? "<none>") +
-                "'; expected '" +
-                expectedProfilePath +
-                "'.");
-        }
-
-        string effectiveIdentifier;
-        try
-        {
-            effectiveIdentifier =
-                PlayerSettings.GetApplicationIdentifier(
-                    NamedBuildTarget.Android);
-        }
-        catch (Exception exception)
-        {
-            throw new BuildFailedException(
-                "Could not read the effective Android application ID: " +
-                exception.Message);
-        }
-
-        if (!string.Equals(
-                effectiveIdentifier,
-                expectedIdentifier,
-                StringComparison.Ordinal))
-        {
-            throw new BuildFailedException(
-                "Android profile identity mismatch for '" +
-                profilePath +
-                "'. Expected '" +
-                expectedIdentifier +
-                "' but found '" +
-                (effectiveIdentifier ?? "<null>") +
-                "'.");
-        }
-
-        DevelopmentFirebaseConfigurationValidator
-            .EnsureDevelopmentBuildOnly(isDevelopmentBuild);
-        FirebaseBuildCoordinator.ValidateBuildEnvironment(
-            isDevelopmentBuild);
+        AndroidBuildIdentitySnapshot identity =
+            AndroidBuildIdentityGuard.Validate(report);
 
         Debug.Log(
             (isDevelopmentBuild
                 ? "DEVELOPMENT BUILD IDENTITY"
                 : "RELEASE BUILD IDENTITY") +
             " | Profile: " +
-            profilePath +
+            identity.ActiveProfilePath +
             " | Android application ID: " +
-            effectiveIdentifier +
+            identity.ApplicationIdentifier +
             (isDevelopmentBuild
                 ? " | Save mode: " +
                     SavePathPolicy.ModeName +
                     " | Save directory: " +
                     SavePathPolicy.GetSaveDirectory()
                 : string.Empty));
-    }
-
-    private static string NormalizeAssetPath(string path)
-    {
-        return string.IsNullOrWhiteSpace(path)
-            ? null
-            : path.Replace('\\', '/');
     }
 }
 #endif

@@ -1,20 +1,7 @@
 <dependencies>
   <packages>
-    <package>com.google.android.gms:play-services-base:18.11.1</package>
-    <package>com.google.firebase:firebase-analytics:24.0.0</package>
-    <package>com.google.firebase:firebase-analytics-unity:14.1.0</package>
-    <package>com.google.firebase:firebase-app-unity:14.1.0</package>
-    <package>com.google.firebase:firebase-common:23.0.0</package>
-    <package>com.google.firebase:firebase-crashlytics-ndk:21.0.1</package>
-    <package>com.google.firebase:firebase-crashlytics-unity:14.1.0</package>
   </packages>
   <files>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-analytics-unity/14.1.0/firebase-analytics-unity-14.1.0.aar</file>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-analytics-unity/14.1.0/firebase-analytics-unity-14.1.0.pom</file>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-app-unity/14.1.0/firebase-app-unity-14.1.0.aar</file>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-app-unity/14.1.0/firebase-app-unity-14.1.0.pom</file>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-crashlytics-unity/14.1.0/firebase-crashlytics-unity-14.1.0.aar</file>
-    <file>Assets/GeneratedLocalRepo/Firebase/m2repository/com/google/firebase/firebase-crashlytics-unity/14.1.0/firebase-crashlytics-unity-14.1.0.pom</file>
   </files>
   <settings>
     <setting name="androidAbis" value="arm64-v8a" />

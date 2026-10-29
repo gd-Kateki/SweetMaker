@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using SweetMerge.Analytics;
 
 public sealed class SettingsUI : MonoBehaviour
 {
@@ -43,6 +44,7 @@ public sealed class SettingsUI : MonoBehaviour
     {
         ValidateReferences();
         RefreshGameVersion();
+        EnsureAnalyticsConsentControl();
     }
 
     private void OnEnable()
@@ -743,5 +745,36 @@ public sealed class SettingsUI : MonoBehaviour
                 referenceName + "'.",
                 this);
         }
+    }
+
+    private void EnsureAnalyticsConsentControl()
+    {
+        if (overlayRoot == null)
+            return;
+
+        Transform[] descendants =
+            overlayRoot.GetComponentsInChildren<Transform>(true);
+        Transform settingsContent = null;
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            if (descendants[i].name == "SettingsScrollContent")
+            {
+                settingsContent = descendants[i];
+                break;
+            }
+        }
+
+        if (settingsContent == null)
+        {
+            Debug.LogError(
+                "SettingsUI could not find SettingsScrollContent for " +
+                "Analytics privacy controls.",
+                this);
+            return;
+        }
+
+        AnalyticsConsentSettingsControl.Attach(
+            settingsContent,
+            AnalyticsBootstrap.Instance);
     }
 }
