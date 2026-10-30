@@ -22,6 +22,21 @@ public sealed class RebirthUI : MonoBehaviour
     private TMP_Text requirementsText;
 
     [SerializeField]
+    private TMP_Text requiredDessertText;
+
+    [SerializeField]
+    private TMP_Text tierProgressText;
+
+    [SerializeField]
+    private TMP_Text cashRequirementText;
+
+    [SerializeField]
+    private TMP_Text eligibilityText;
+
+    [SerializeField]
+    private TMP_Text campaignStatusText;
+
+    [SerializeField]
     private Button rebirthButton;
 
     [SerializeField]
@@ -227,17 +242,41 @@ public sealed class RebirthUI : MonoBehaviour
                 if (!progressionManager.CampaignComplete)
                 {
                     requirementsText.text =
-                        "All Rebirths Complete\n" + FinalObjectiveText;
+                        "All Rebirths Complete";
+                    SetRequirementText(campaignStatusText, FinalObjectiveText);
                 }
                 else
                 {
                     requirementsText.text =
                         progressionManager.CampaignCompletionPersistence ==
                         CampaignCompletionPersistenceState.Saved
-                            ? CampaignCompleteText
-                            : CampaignCompletionPendingText;
+                            ? "Campaign Complete!"
+                            : "Completion not saved";
+                    SetRequirementText(
+                        campaignStatusText,
+                        progressionManager.CampaignCompletionPersistence ==
+                        CampaignCompletionPersistenceState.Saved
+                            ? "Eternal Dragon's Dessert created."
+                            : "Tier 30 was created, but campaign progress could not be saved.");
                 }
             }
+            else if (!progressionManager.CampaignComplete)
+            {
+                SetRequirementText(campaignStatusText, FinalObjectiveText);
+            }
+            else
+            {
+                SetRequirementText(
+                    campaignStatusText,
+                    progressionManager.CampaignCompletionPersistence ==
+                    CampaignCompletionPersistenceState.Saved
+                        ? "Eternal Dragon's Dessert created."
+                        : "Tier 30 was created, but campaign progress could not be saved.");
+            }
+            SetRequirementText(requiredDessertText, string.Empty);
+            SetRequirementText(tierProgressText, string.Empty);
+            SetRequirementText(cashRequirementText, string.Empty);
+            SetRequirementText(eligibilityText, string.Empty);
 
             SetButtonState(false, "COMPLETE");
             SetReadyIndicator(false);
@@ -271,12 +310,21 @@ public sealed class RebirthUI : MonoBehaviour
         if (requirementsText != null)
         {
             requirementsText.text =
-                $"REBIRTH {progressionManager.NextRebirthNumber}\n" +
-                $"Create T{requiredTier} {requiredDessertName}: " +
-                $"{FormatTierProgress(createdTier, requiredTier, tierReady)}\n" +
-                $"Cash held: ${cashHeld:N0} / ${requiredCash:N0}\n" +
-                $"Eligibility: {(eligible ? "READY" : "Requirements incomplete")}";
+                $"REBIRTH {progressionManager.NextRebirthNumber}";
         }
+        SetRequirementText(
+            requiredDessertText,
+            $"Create T{requiredTier} {requiredDessertName}");
+        SetRequirementText(
+            tierProgressText,
+            FormatTierProgress(createdTier, requiredTier, tierReady));
+        SetRequirementText(
+            cashRequirementText,
+            $"Cash held: ${cashHeld:N0} / ${requiredCash:N0}");
+        SetRequirementText(
+            eligibilityText,
+            $"Eligibility: {(eligible ? "READY" : "Requirements incomplete")}");
+        SetRequirementText(campaignStatusText, string.Empty);
 
         SetButtonState(eligible && !rebirthClickInProgress, "REBIRTH");
     }
@@ -306,6 +354,15 @@ public sealed class RebirthUI : MonoBehaviour
         return tierReady
             ? $"T{createdTier} / T{requiredTier} - MET"
             : $"T{createdTier} / T{requiredTier}";
+    }
+
+    private static void SetRequirementText(TMP_Text text, string value)
+    {
+        if (text == null)
+            return;
+
+        text.text = value;
+        text.gameObject.SetActive(!string.IsNullOrEmpty(value));
     }
 
     private void SetButtonState(bool interactable, string label)
@@ -371,6 +428,11 @@ public sealed class RebirthUI : MonoBehaviour
     {
         if (requirementsText != null)
             requirementsText.text = "Rebirth unavailable";
+        SetRequirementText(requiredDessertText, string.Empty);
+        SetRequirementText(tierProgressText, string.Empty);
+        SetRequirementText(cashRequirementText, string.Empty);
+        SetRequirementText(eligibilityText, string.Empty);
+        SetRequirementText(campaignStatusText, string.Empty);
         SetButtonState(false, "REBIRTH");
         SetReadyIndicator(false);
         SetEntryButtonState("PRESTIGE");

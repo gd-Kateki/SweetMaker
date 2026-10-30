@@ -141,7 +141,7 @@ public sealed class EnergyHudUI : MonoBehaviour
         int currentEnergy = progressionManager.CurrentEnergy;
         int maximumEnergy = progressionManager.MaximumEnergy;
         energyText.text =
-            $"ENERGY  {currentEnergy}/{maximumEnergy}";
+            $"{currentEnergy}/{maximumEnergy}";
 
         bool isFull = currentEnergy >= maximumEnergy;
         countdownText.gameObject.SetActive(!isFull);
