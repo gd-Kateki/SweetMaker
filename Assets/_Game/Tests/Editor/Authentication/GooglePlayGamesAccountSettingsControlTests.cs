@@ -94,6 +94,7 @@ namespace SweetMerge.Authentication.Tests
             await CreateControlAsync();
 
             Assert.AreEqual(0, runtime.InitializationCount);
+            Assert.AreEqual(0, runtime.CachedSessionRestorationCount);
             Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
             Assert.AreEqual(0, runtime.UnityAuthenticationCount);
             Assert.AreEqual("Not connected.", control.StatusText.text);
@@ -132,26 +133,16 @@ namespace SweetMerge.Authentication.Tests
         }
 
         [Test]
-        public async Task PreviousSessionIsRestoredOnlyAfterButtonPress()
+        public async Task PreviousSessionIsRestoredAutomaticallyWhenSettingsOpens()
         {
             await CreateControlAsync(
                 GooglePlayGamesSessionStatus.PreviousSessionAvailable,
                 cachedSessionTokenExists: true);
 
-            Assert.AreEqual(
-                "Previous session available. Reconnect to verify.",
-                control.StatusText.text);
-            Assert.AreEqual("Reconnect", control.ConnectButton
-                .GetComponentInChildren<TMPro.TMP_Text>().text);
-            Assert.AreEqual(0, runtime.InitializationCount);
-            Assert.AreEqual(0, runtime.CachedSessionRestorationCount);
-
-            control.ConnectButton.onClick.Invoke();
-            await control.InteractionTask;
-
             Assert.AreEqual(1, runtime.InitializationCount);
             Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
             Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
+            Assert.AreEqual(0, runtime.UnityAuthenticationCount);
             Assert.AreEqual(
                 "Connected to Google Play Games.",
                 control.StatusText.text);
@@ -165,10 +156,8 @@ namespace SweetMerge.Authentication.Tests
                     TaskCreationOptions.RunContinuationsAsynchronously);
             await CreateControlAsync(
                 GooglePlayGamesSessionStatus.PreviousSessionAvailable,
-                cachedSessionTokenExists: true);
-            runtime.RestorationTask = restorationCompletion.Task;
-
-            control.ConnectButton.onClick.Invoke();
+                cachedSessionTokenExists: true,
+                restorationTask: restorationCompletion.Task);
 
             Assert.AreEqual(
                 "Restoring your previous session...",
@@ -179,7 +168,7 @@ namespace SweetMerge.Authentication.Tests
 
             restorationCompletion.SetResult(
                 GooglePlayGamesSessionStatus.GooglePlayGamesConnected);
-            await control.InteractionTask;
+            await coordinator.RestoreSessionAsync();
             Assert.AreEqual(
                 "Connected to Google Play Games.",
                 control.StatusText.text);
@@ -190,20 +179,25 @@ namespace SweetMerge.Authentication.Tests
         {
             await CreateControlAsync(
                 GooglePlayGamesSessionStatus.PreviousSessionAvailable,
-                cachedSessionTokenExists: true);
-            runtime.RestorationTask = Task.FromException<
-                GooglePlayGamesSessionStatus>(
-                new InvalidOperationException("restore failed"));
-
-            control.ConnectButton.onClick.Invoke();
-            await control.InteractionTask;
+                cachedSessionTokenExists: true,
+                restorationTask: Task.FromException<
+                    GooglePlayGamesSessionStatus>(
+                    new InvalidOperationException("restore failed")));
 
             Assert.AreEqual(
                 GooglePlayGamesSessionStatus.RestorationFailed,
                 coordinator.SessionStatus);
+            StringAssert.Contains("Could not reconnect", control.FeedbackText.text);
             Assert.AreEqual("Reconnect", control.ConnectButton
                 .GetComponentInChildren<TMPro.TMP_Text>().text);
             Assert.IsTrue(control.ConnectButton.interactable);
+
+            await control.RefreshAsync();
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.RestorationFailed,
+                coordinator.SessionStatus);
+            StringAssert.Contains("Could not reconnect", control.FeedbackText.text);
+            Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
 
             runtime.RestorationTask = Task.FromResult(
                 GooglePlayGamesSessionStatus.GooglePlayGamesConnected);
@@ -211,6 +205,35 @@ namespace SweetMerge.Authentication.Tests
             await control.InteractionTask;
 
             Assert.AreEqual(2, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(
+                "Connected to Google Play Games.",
+                control.StatusText.text);
+        }
+
+        [Test]
+        public async Task RepeatedRefreshDoesNotDuplicateAutomaticRestoration()
+        {
+            var restorationCompletion =
+                new TaskCompletionSource<GooglePlayGamesSessionStatus>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+            await CreateControlAsync(
+                GooglePlayGamesSessionStatus.PreviousSessionAvailable,
+                cachedSessionTokenExists: true,
+                restorationTask: restorationCompletion.Task);
+
+            await control.RefreshAsync();
+            await control.RefreshAsync();
+            Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
+
+            Task restoration = coordinator.RestoreSessionAsync();
+            restorationCompletion.SetResult(
+                GooglePlayGamesSessionStatus.GooglePlayGamesConnected);
+            await restoration;
+            await control.RefreshAsync();
+
+            Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
             Assert.AreEqual(
                 "Connected to Google Play Games.",
                 control.StatusText.text);
@@ -341,7 +364,8 @@ namespace SweetMerge.Authentication.Tests
 
         private async Task CreateControlAsync(
             GooglePlayGamesSessionStatus sessionStatus,
-            bool cachedSessionTokenExists)
+            bool cachedSessionTokenExists,
+            Task<GooglePlayGamesSessionStatus> restorationTask = null)
         {
             settingsContentObject = new GameObject(
                 "SettingsScrollContent",
@@ -352,6 +376,8 @@ namespace SweetMerge.Authentication.Tests
             runtime = new FakeRuntime();
             runtime.SessionStatus = sessionStatus;
             runtime.CachedSessionTokenExists = cachedSessionTokenExists;
+            if (restorationTask != null)
+                runtime.RestorationTask = restorationTask;
             coordinator =
                 new GooglePlayGamesAuthenticationCoordinator(runtime);
             control = GooglePlayGamesAccountSettingsControl.Attach(

@@ -147,6 +147,8 @@ namespace SweetMerge.Authentication
         private Task interactionTask = Task.CompletedTask;
         private bool subscribed;
         private bool built;
+        private bool automaticRestorationAttempted;
+        private bool restorationFailureAwaitingManualRetry;
 
         internal TMP_Text StatusText => statusText;
         internal TMP_Text FeedbackText => feedbackText;
@@ -246,9 +248,13 @@ namespace SweetMerge.Authentication
                 connectButton.interactable = false;
             Render();
 
-            return RequiresSessionRestoration(coordinator.SessionStatus)
-                ? RestoreSessionAndRenderAsync()
-                : SignInAndRenderAsync();
+            if (RequiresSessionRestoration(coordinator.SessionStatus))
+            {
+                restorationFailureAwaitingManualRetry = false;
+                return RestoreSessionAndRenderAsync();
+            }
+
+            return SignInAndRenderAsync();
         }
 
         private void BuildControls()
@@ -432,6 +438,8 @@ namespace SweetMerge.Authentication
             {
                 Unsubscribe();
                 coordinator = value;
+                automaticRestorationAttempted = false;
+                restorationFailureAwaitingManualRetry = false;
             }
 
             if (isActiveAndEnabled)
@@ -465,9 +473,31 @@ namespace SweetMerge.Authentication
 
         private async Task RefreshAndRenderAsync()
         {
+            if (restorationFailureAwaitingManualRetry)
+            {
+                if (this != null && isActiveAndEnabled)
+                    Render();
+                return;
+            }
+
             await coordinator.RefreshSessionStatusAsync();
             if (this == null || !isActiveAndEnabled)
                 return;
+
+            if (!automaticRestorationAttempted &&
+                coordinator.SessionStatus ==
+                    GooglePlayGamesSessionStatus.PreviousSessionAvailable)
+            {
+                automaticRestorationAttempted = true;
+                await coordinator.RestoreSessionAsync();
+                if (this == null)
+                    return;
+                restorationFailureAwaitingManualRetry =
+                    coordinator.SessionStatus ==
+                    GooglePlayGamesSessionStatus.RestorationFailed;
+                if (!isActiveAndEnabled)
+                    return;
+            }
 
             Render();
         }
@@ -484,9 +514,14 @@ namespace SweetMerge.Authentication
         private async Task RestoreSessionAndRenderAsync()
         {
             await coordinator.RestoreSessionAsync();
-            if (this == null || !isActiveAndEnabled)
+            if (this == null)
                 return;
 
+            restorationFailureAwaitingManualRetry =
+                coordinator.SessionStatus ==
+                GooglePlayGamesSessionStatus.RestorationFailed;
+            if (!isActiveAndEnabled)
+                return;
             Render();
         }
 

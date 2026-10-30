@@ -114,27 +114,43 @@ namespace SweetMerge.Authentication
             public Task<PlayGamesAuthenticationStatus>
                 AuthenticateWithPlayGamesAsync()
             {
+                if (PlayGamesPlatform.Instance.IsAuthenticated())
+                {
+                    return Task.FromResult(
+                        PlayGamesAuthenticationStatus.Success);
+                }
+
                 var completion =
                     new TaskCompletionSource<PlayGamesAuthenticationStatus>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
 
-                PlayGamesPlatform.Instance.ManuallyAuthenticate(status =>
+                PlayGamesPlatform.Instance.Authenticate(status =>
                 {
-                    switch (status)
+                    if (status == SignInStatus.Success)
                     {
-                        case SignInStatus.Success:
-                            completion.TrySetResult(
-                                PlayGamesAuthenticationStatus.Success);
-                            break;
-                        case SignInStatus.Canceled:
-                            completion.TrySetResult(
-                                PlayGamesAuthenticationStatus.Cancelled);
-                            break;
-                        default:
-                            completion.TrySetResult(
-                                PlayGamesAuthenticationStatus.Failed);
-                            break;
+                        completion.TrySetResult(
+                            PlayGamesAuthenticationStatus.Success);
+                        return;
                     }
+
+                    PlayGamesPlatform.Instance.ManuallyAuthenticate(manualStatus =>
+                    {
+                        switch (manualStatus)
+                        {
+                            case SignInStatus.Success:
+                                completion.TrySetResult(
+                                    PlayGamesAuthenticationStatus.Success);
+                                break;
+                            case SignInStatus.Canceled:
+                                completion.TrySetResult(
+                                    PlayGamesAuthenticationStatus.Cancelled);
+                                break;
+                            default:
+                                completion.TrySetResult(
+                                    PlayGamesAuthenticationStatus.Failed);
+                                break;
+                        }
+                    });
                 });
 
                 return completion.Task;
@@ -391,8 +407,12 @@ namespace SweetMerge.Authentication
                              GooglePlayGamesSessionStatus
                                  .PreviousSessionAvailable)
                 {
-                    state = GooglePlayGamesAuthenticationState.SignedOut;
-                    failure = GooglePlayGamesAuthenticationFailure.None;
+                    if (state != GooglePlayGamesAuthenticationState.Failed &&
+                        state != GooglePlayGamesAuthenticationState.Cancelled)
+                    {
+                        state = GooglePlayGamesAuthenticationState.SignedOut;
+                        failure = GooglePlayGamesAuthenticationFailure.None;
+                    }
                 }
 
                 changed = sessionStatus != refreshedStatus;

@@ -766,5 +766,110 @@ namespace SweetMerge.Authentication.Tests
                 GooglePlayGamesSessionStatus.GooglePlayGamesConnected,
                 coordinator.SessionStatus);
         }
+        [Test]
+        public async Task RefreshSessionStatusPreservesFailedStateWhenNotConnected()
+        {
+            var runtime = new FakeRuntime
+            {
+                PlayGamesTask = Task.FromResult(
+                    PlayGamesAuthenticationStatus.Failed),
+                SessionStatus = GooglePlayGamesSessionStatus.NotConnected
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.Failed,
+                await coordinator.SignInAsync());
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.Failed,
+                coordinator.State);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.PlayGamesAuthentication,
+                coordinator.Failure);
+
+            GooglePlayGamesSessionStatus refreshedStatus =
+                await coordinator.RefreshSessionStatusAsync();
+
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.NotConnected,
+                refreshedStatus);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.Failed,
+                coordinator.State);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.PlayGamesAuthentication,
+                coordinator.Failure);
+        }
+
+        [Test]
+        public async Task RefreshSessionStatusPreservesCancelledStateWhenNotConnected()
+        {
+            var runtime = new FakeRuntime
+            {
+                PlayGamesTask = Task.FromResult(
+                    PlayGamesAuthenticationStatus.Cancelled),
+                SessionStatus = GooglePlayGamesSessionStatus.NotConnected
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.Cancelled,
+                await coordinator.SignInAsync());
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.Cancelled,
+                coordinator.State);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.None,
+                coordinator.Failure);
+
+            GooglePlayGamesSessionStatus refreshedStatus =
+                await coordinator.RefreshSessionStatusAsync();
+
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.NotConnected,
+                refreshedStatus);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.Cancelled,
+                coordinator.State);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.None,
+                coordinator.Failure);
+        }
+
+        [Test]
+        public async Task RefreshSessionStatusTransitionsSignedInUnverifiedToSignedOutWhenNotConnected()
+        {
+            var runtime = new FakeRuntime
+            {
+                SessionStatus =
+                    GooglePlayGamesSessionStatus.SignedInUnverified
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.SignedInUnverified,
+                await coordinator.RefreshSessionStatusAsync());
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.SignedInUnverified,
+                coordinator.State);
+
+            runtime.SessionStatus = GooglePlayGamesSessionStatus.NotConnected;
+
+            GooglePlayGamesSessionStatus refreshedStatus =
+                await coordinator.RefreshSessionStatusAsync();
+
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.NotConnected,
+                refreshedStatus);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationState.SignedOut,
+                coordinator.State);
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.None,
+                coordinator.Failure);
+        }
     }
 }
