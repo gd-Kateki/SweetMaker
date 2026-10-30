@@ -6,8 +6,6 @@ using UnityEngine.UI;
 public sealed class EnergyHudUI : MonoBehaviour
 {
     private const float RefreshInterval = 0.25f;
-    private const float MaximumEnergy = 30f;
-
     [SerializeField]
     private RectTransform hudRoot;
 
@@ -46,7 +44,8 @@ public sealed class EnergyHudUI : MonoBehaviour
             return;
         }
 
-        plusButton.interactable = false;
+        plusButton.gameObject.SetActive(true);
+        plusButton.interactable = true;
         BindProgressionManager();
         Refresh();
     }
@@ -151,7 +150,7 @@ public sealed class EnergyHudUI : MonoBehaviour
             int remainingSeconds = Mathf.Clamp(
                 Mathf.CeilToInt(progressionManager.SecondsUntilNextEnergy),
                 0,
-                (int)MaximumEnergy * 60);
+                progressionManager.MaximumEnergy * 60);
             countdownText.text =
                 "Next +1  " +
                 TimeSpan.FromSeconds(remainingSeconds).ToString(@"m\:ss");

@@ -5,6 +5,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 public class CafeProgressionHudUITests
 {
@@ -32,7 +33,7 @@ public class CafeProgressionHudUITests
     }
 
     [Test]
-    public void InitialTitleAndStarRenderingUsesProgressionApis()
+    public void InitialTitleAndFiveVisualStarPositionsUseProgressionApis()
     {
         object progression = CreateProgression(3);
         object hud = CreateHud(progression);
@@ -40,16 +41,16 @@ public class CafeProgressionHudUITests
         InvokeRefresh(hud);
 
         Assert.AreEqual("Rising Cafe", GetText(hud, "titleText"));
-        Assert.AreEqual("2/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 2);
     }
 
     [Test]
-    public void ProgressionEventRefreshesTitleAndStars()
+    public void ProgressionEventRefreshesTitleAndVisualStars()
     {
         object progression = CreateProgression(0);
         object hud = CreateHud(progression);
         Assert.AreEqual("Humble Beginnings", GetText(hud, "titleText"));
-        Assert.AreEqual("1/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 1);
 
         Assert.IsTrue(RestoreRebirthProgression(
             progression,
@@ -58,7 +59,7 @@ public class CafeProgressionHudUITests
             false));
 
         Assert.AreEqual("Established Cafe", GetText(hud, "titleText"));
-        Assert.AreEqual("3/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 3);
     }
 
     [Test]
@@ -67,7 +68,7 @@ public class CafeProgressionHudUITests
         object progression = CreateProgression(0);
         object hud = CreateHud(progression);
         Assert.AreEqual("Humble Beginnings", GetText(hud, "titleText"));
-        Assert.AreEqual("1/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 1);
 
         Assert.IsTrue(RestoreRebirthProgression(
             progression,
@@ -75,8 +76,33 @@ public class CafeProgressionHudUITests
             0,
             false));
 
+        LogDiagnosticState(progression, hud);
         Assert.AreEqual("Renowned Cafe", GetText(hud, "titleText"));
-        Assert.AreEqual("4/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 4);
+    }
+
+    [TestCase(0, "Humble Beginnings", 1)]
+    [TestCase(1, "Aspiring Baker", 1)]
+    [TestCase(3, "Rising Cafe", 2)]
+    [TestCase(5, "Established Cafe", 3)]
+    [TestCase(7, "Renowned Cafe", 4)]
+    [TestCase(10, "Legendary Cafe", 5)]
+    public void ExistingTitleAndStarThresholdsRenderCorrectly(
+        int rebirthCount,
+        string expectedTitle,
+        int expectedFilledStars)
+    {
+        object progression = CreateProgression(0);
+        object hud = CreateHud(progression);
+
+        Assert.IsTrue(RestoreRebirthProgression(
+            progression,
+            rebirthCount,
+            0,
+            false));
+
+        Assert.AreEqual(expectedTitle, GetText(hud, "titleText"));
+        AssertFiveStarVisuals(hud, expectedFilledStars);
     }
 
     [Test]
@@ -89,7 +115,7 @@ public class CafeProgressionHudUITests
         InvokeRefresh(hud);
 
         Assert.AreEqual(string.Empty, GetText(hud, "titleText"));
-        Assert.AreEqual(string.Empty, GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 0, false);
     }
 
     [Test]
@@ -108,12 +134,71 @@ public class CafeProgressionHudUITests
             false));
 
         Assert.AreEqual("Humble Beginnings", GetText(hud, "titleText"));
-        Assert.AreEqual("1/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 1);
 
         hudObject.SetActive(true);
         InvokeLifecycle(hud, "OnEnable");
         Assert.AreEqual("Rising Cafe", GetText(hud, "titleText"));
-        Assert.AreEqual("2/5", GetText(hud, "starText"));
+        AssertFiveStarVisuals(hud, 2);
+    }
+
+    [Test]
+    public void ExistingCafeTitlesHaveDistinctAssignedColors()
+    {
+        string[] titles =
+        {
+            "Humble Beginnings",
+            "Aspiring Baker",
+            "Sweet Apprentice",
+            "Rising Cafe",
+            "Neighborhood Favorite",
+            "Established Cafe",
+            "Celebrated Baker",
+            "Renowned Cafe",
+            "Dessert Artisan",
+            "Master of Sweets",
+            "Legendary Cafe"
+        };
+        HashSet<Color32> colors = new HashSet<Color32>();
+
+        Assert.AreEqual(11, titles.Length);
+        foreach (string title in titles)
+        {
+            Color32 color = GetTitleColor(title);
+            Assert.AreNotEqual(new Color32(255, 255, 255, 255), color,
+                title + " should not fall back to the default title color.");
+            Assert.IsTrue(colors.Add(color),
+                title + " has a color shared with another Cafe Title.");
+        }
+        Assert.AreEqual(11, colors.Count);
+    }
+
+    [Test]
+    public void TitleChangeAppliesExpectedCatalogColor()
+    {
+        object progression = CreateProgression(0);
+        object hud = CreateHud(progression);
+
+        AssertTitleColor(GetTextColor(hud),
+            GetTitleColor("Humble Beginnings"));
+
+        Assert.IsTrue(RestoreRebirthProgression(progression, 10, 0, false));
+        Assert.AreEqual("Legendary Cafe", GetText(hud, "titleText"));
+        AssertTitleColor(GetTextColor(hud),
+            GetTitleColor("Legendary Cafe"));
+        AssertFiveStarVisuals(hud, 5);
+    }
+
+    [Test]
+    public void MissingTitleAndStarReferencesAreHandledGracefully()
+    {
+        LogAssert.Expect(LogType.Error,
+            "CafeProgressionHudUI: PlayerProgressionManager is unavailable.");
+        object hud = CreateHud(null, false);
+
+        Assert.DoesNotThrow(() => InvokeRefresh(hud));
+        Assert.IsNull(GetPrivateField(hud, "titleText"));
+        Assert.IsNull(GetPrivateField(hud, "starImages"));
     }
 
     private object CreateProgression(int rebirthCount)
@@ -153,6 +238,11 @@ public class CafeProgressionHudUITests
 
     private object CreateHud(object progression)
     {
+        return CreateHud(progression, true);
+    }
+
+    private object CreateHud(object progression, bool createVisualReferences)
+    {
         Type hudType = FindType("CafeProgressionHudUI");
         Type tmpTextType = FindType("TMPro.TextMeshProUGUI");
 
@@ -163,23 +253,44 @@ public class CafeProgressionHudUITests
         createdObjects.Add(hudObject);
         object hud = hudObject.AddComponent(hudType);
 
-        GameObject titleObject = new GameObject(
-            "Title",
-            typeof(RectTransform));
-        titleObject.transform.SetParent(hudObject.transform, false);
-        Component title = titleObject.AddComponent(
-            tmpTextType);
-
-        GameObject starObject = new GameObject(
-            "Stars",
-            typeof(RectTransform));
-        starObject.transform.SetParent(hudObject.transform, false);
-        Component stars = starObject.AddComponent(
-            tmpTextType);
-
         SetPrivateField(hud, "progressionManager", progression);
-        SetPrivateField(hud, "titleText", title);
-        SetPrivateField(hud, "starText", stars);
+        if (createVisualReferences)
+        {
+            GameObject titleObject = new GameObject(
+                "Title",
+                typeof(RectTransform));
+            titleObject.transform.SetParent(hudObject.transform, false);
+            Component title = titleObject.AddComponent(
+                tmpTextType);
+
+            Type imageType = FindType("UnityEngine.UI.Image");
+            Image[] stars = new Image[5];
+            Sprite filledSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                "Assets/_Game/Art/UI_Assets/Game_UI/CafeStarFilled.png");
+            Sprite outlineSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                "Assets/_Game/Art/UI_Assets/Game_UI/CafeStarOutline.png");
+            Assert.IsNotNull(filledSprite, "Filled cafe star sprite must exist.");
+            Assert.IsNotNull(outlineSprite, "Outline cafe star sprite must exist.");
+
+            for (int i = 0; i < stars.Length; i++)
+            {
+                GameObject starObject = new GameObject(
+                    "Star " + (i + 1),
+                    typeof(RectTransform));
+                starObject.transform.SetParent(hudObject.transform, false);
+                stars[i] = (Image)starObject.AddComponent(imageType);
+            }
+
+            SetPrivateField(hud, "titleText", title);
+            SetPrivateField(hud, "starImages", stars);
+            SetPrivateField(hud, "filledStarSprite", filledSprite);
+            SetPrivateField(hud, "outlineStarSprite", outlineSprite);
+        }
+        else
+        {
+            SetPrivateField(hud, "titleText", null);
+            SetPrivateField(hud, "starImages", null);
+        }
         hudObject.SetActive(true);
         // EditMode does not dispatch lifecycle callbacks for this runtime
         // MonoBehaviour. Exercise the same subscription path as Play Mode.
@@ -223,6 +334,71 @@ public class CafeProgressionHudUITests
         method.Invoke(hud, null);
     }
 
+    private static void LogDiagnosticState(object progression, object hud)
+    {
+        string title = "<unavailable>";
+        string starState = "<unavailable>";
+
+        if (hud != null)
+        {
+            object titleComponent = GetPrivateField(hud, "titleText");
+            if (titleComponent != null)
+            {
+                PropertyInfo textProperty = titleComponent.GetType().GetProperty(
+                    "text",
+                    BindingFlags.Instance | BindingFlags.Public);
+                title = textProperty != null
+                    ? (textProperty.GetValue(titleComponent) as string ?? "<null>")
+                    : "<text unavailable>";
+            }
+            else
+            {
+                title = "<null titleText>";
+            }
+
+            object starField = GetPrivateField(hud, "starImages");
+            if (starField is Image[] stars)
+            {
+                int filledCount = 0;
+                for (int i = 0; i < stars.Length; i++)
+                {
+                    if (stars[i] != null &&
+                        stars[i].sprite != null &&
+                        stars[i].sprite == (Sprite)GetPrivateField(hud, "filledStarSprite"))
+                    {
+                        filledCount++;
+                    }
+                }
+
+                starState = stars.Length + " positions, " +
+                    filledCount + " filled";
+            }
+            else
+            {
+                starState = "<null starImages>";
+            }
+        }
+
+        string rebirthState = "<unavailable>";
+        if (progression != null)
+        {
+            PropertyInfo rebirthCountProperty = progression.GetType().GetProperty(
+                "CurrentRebirthCount",
+                BindingFlags.Instance | BindingFlags.Public);
+            rebirthState = rebirthCountProperty != null
+                ? (rebirthCountProperty.GetValue(progression)?.ToString() ?? "<null>")
+                : "<CurrentRebirthCount unavailable>";
+        }
+        else
+        {
+            rebirthState = "<null progression>";
+        }
+
+        Debug.Log(
+            "Cafe HUD save-restoration diagnostic: rebirth=" +
+            rebirthState + ", title=" + title + ", stars=" + starState);
+    }
+
     private static string GetText(object hud, string fieldName)
     {
         object textComponent = GetPrivateField(hud, fieldName);
@@ -230,6 +406,90 @@ public class CafeProgressionHudUITests
             "text",
             BindingFlags.Instance | BindingFlags.Public);
         return (string)textProperty.GetValue(textComponent);
+    }
+
+    private static Color GetTextColor(object hud)
+    {
+        object textComponent = GetPrivateField(hud, "titleText");
+        PropertyInfo colorProperty = textComponent.GetType().GetProperty(
+            "color",
+            BindingFlags.Instance | BindingFlags.Public);
+        return (Color)colorProperty.GetValue(textComponent);
+    }
+
+    private static Color32 GetTitleColor(string title)
+    {
+        Type hudType = FindType("CafeProgressionHudUI");
+        MethodInfo method = hudType.GetMethod(
+            "GetTitleColor",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(method, "Expected CafeProgressionHudUI.GetTitleColor.");
+        return (Color32)method.Invoke(null, new object[] { title });
+    }
+
+    private static void AssertTitleColor(Color actual, Color32 expected32)
+    {
+        Color expected = new Color(
+            expected32.r / 255f,
+            expected32.g / 255f,
+            expected32.b / 255f,
+            expected32.a / 255f);
+
+        Assert.That(actual.r, Is.EqualTo(expected.r).Within(0.001f));
+        Assert.That(actual.g, Is.EqualTo(expected.g).Within(0.001f));
+        Assert.That(actual.b, Is.EqualTo(expected.b).Within(0.001f));
+        Assert.That(actual.a, Is.EqualTo(expected.a).Within(0.001f));
+    }
+
+    private static void AssertFiveStarVisuals(
+        object hud,
+        int expectedFilledCount,
+        bool available = true)
+    {
+        Image[] stars = (Image[])GetPrivateField(hud, "starImages");
+        Assert.IsNotNull(stars, "Five visual star positions must exist.");
+        Assert.AreEqual(5, stars.Length, "HUD must have exactly five star positions.");
+
+        Sprite filledSprite = (Sprite)GetPrivateField(hud, "filledStarSprite");
+        Sprite outlineSprite = (Sprite)GetPrivateField(hud, "outlineStarSprite");
+        Assert.IsNotNull(filledSprite, "Filled star sprite must exist.");
+        Assert.IsNotNull(outlineSprite, "Outline star sprite must exist.");
+
+        int filledCount = 0;
+        int enabledCount = 0;
+        for (int i = 0; i < stars.Length; i++)
+        {
+            Assert.IsNotNull(stars[i], "Star position " + (i + 1) + " must exist.");
+            if (stars[i].enabled)
+                enabledCount++;
+
+            if (stars[i].sprite == filledSprite)
+                filledCount++;
+            else
+                Assert.AreEqual(outlineSprite, stars[i].sprite,
+                    "Star " + (i + 1) + " must use a filled or outline sprite.");
+        }
+
+        Assert.AreEqual(expectedFilledCount, filledCount,
+            "Unexpected filled star count.");
+        Assert.AreEqual(available ? 5 : 0, enabledCount,
+            available
+                ? "All five star positions should be enabled."
+                : "Unavailable stars should remain disabled.");
+        Assert.AreEqual(available ? 5 - expectedFilledCount : 5,
+            CountOutlineStars(stars, outlineSprite),
+            "Unexpected unfilled star count.");
+    }
+
+    private static int CountOutlineStars(Image[] stars, Sprite outlineSprite)
+    {
+        int count = 0;
+        for (int i = 0; i < stars.Length; i++)
+        {
+            if (stars[i].sprite == outlineSprite)
+                count++;
+        }
+        return count;
     }
 
     private static GameObject HudObject(object hud)

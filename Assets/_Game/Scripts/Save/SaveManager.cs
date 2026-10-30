@@ -348,15 +348,83 @@ public class SaveManager : MonoBehaviour
         }
 
         energy = JsonUtility.FromJson<EnergySaveMetadata>(json);
-        return energy != null &&
-               energy.currentEnergy >= 0 &&
-               energy.currentEnergy <= 30 &&
-               energy.energySavedUtcTicks > 0 &&
-               energy.energySavedUtcTicks <= DateTime.MaxValue.Ticks &&
-               (energy.currentEnergy == 30
-                   ? energy.energyMillisecondsUntilNextPoint == 0
-                   : energy.energyMillisecondsUntilNextPoint >= 1 &&
-                     energy.energyMillisecondsUntilNextPoint <= 60000);
+        if (energy == null ||
+            energy.currentEnergy < 0 ||
+            energy.currentEnergy >
+                PlayerProgressionManager.MaximumEnergyValue ||
+            energy.energySavedUtcTicks <= 0 ||
+            energy.energySavedUtcTicks > DateTime.MaxValue.Ticks)
+        {
+            return false;
+        }
+
+        bool legacyThirtyZeroCountdown =
+            energy.currentEnergy == 30 &&
+            energy.energyMillisecondsUntilNextPoint == 0;
+        if (legacyThirtyZeroCountdown)
+        {
+            energy.energyMillisecondsUntilNextPoint = 60000;
+            return true;
+        }
+
+        return energy.currentEnergy ==
+                   PlayerProgressionManager.MaximumEnergyValue
+               ? energy.energyMillisecondsUntilNextPoint == 0
+               : energy.energyMillisecondsUntilNextPoint >= 1 &&
+                 energy.energyMillisecondsUntilNextPoint <= 60000;
+    }
+
+    private static bool TryCreateLegacyEnergyNormalizedJson(
+        string json,
+        out string normalizedJson)
+    {
+        normalizedJson = json;
+        if (string.IsNullOrEmpty(json))
+            return false;
+
+        EnergySaveMetadata energy =
+            JsonUtility.FromJson<EnergySaveMetadata>(json);
+        if (energy == null ||
+            energy.currentEnergy != 30 ||
+            energy.energyMillisecondsUntilNextPoint != 0)
+        {
+            return false;
+        }
+
+        const string propertyPrefix =
+            "\"energyMillisecondsUntilNextPoint\":";
+        int propertyIndex = json.IndexOf(
+            propertyPrefix,
+            StringComparison.Ordinal);
+        if (propertyIndex < 0 ||
+            json.IndexOf(
+                propertyPrefix,
+                propertyIndex + propertyPrefix.Length,
+                StringComparison.Ordinal) >= 0)
+        {
+            return false;
+        }
+
+        int valueIndex = propertyIndex + propertyPrefix.Length;
+        int valueEnd = valueIndex;
+        while (valueEnd < json.Length &&
+               json[valueEnd] >= '0' &&
+               json[valueEnd] <= '9')
+        {
+            valueEnd++;
+        }
+
+        if (valueEnd == valueIndex ||
+            json.Substring(valueIndex, valueEnd - valueIndex) != "0")
+        {
+            return false;
+        }
+
+        normalizedJson =
+            json.Substring(0, valueIndex) +
+            "60000" +
+            json.Substring(valueEnd);
+        return true;
     }
 
     private static int CountJsonProperty(string json, string propertyName)
@@ -3496,6 +3564,11 @@ public class SaveManager : MonoBehaviour
         {
             return false;
         }
+        TryCreateLegacyEnergyNormalizedJson(
+            json,
+            out string normalizedComparableJson);
+        string comparisonJson =
+            normalizedComparableJson ?? json;
         int capacity = metadata.mergeSessionCustomerCapacity;
 
         if (check.mergeGameplay.hasSession &&
@@ -3522,7 +3595,7 @@ public class SaveManager : MonoBehaviour
             check.economy.totalOrdersCompleted == 0 &&
             check.economy.totalMoneyEarned == 0;
         if (!MatchesSupportedCanonicalShape(
-                json,
+                comparisonJson,
                 canonicalJson,
                 collectionSectionPresent,
                 statisticsAreZero))
@@ -3540,7 +3613,7 @@ public class SaveManager : MonoBehaviour
         if (hasEnergyMetadata)
             canonicalJson = SerializeWithEnergy(canonicalJson, energy);
         return MatchesSupportedCanonicalShape(
-            json,
+            comparisonJson,
             canonicalJson,
             collectionSectionPresent,
             statisticsAreZero);
@@ -3875,12 +3948,12 @@ public class SaveManager : MonoBehaviour
                 energyMetadata = new EnergySaveMetadata
                 {
                     currentEnergy = 30,
-                    energyMillisecondsUntilNextPoint = 0,
+                    energyMillisecondsUntilNextPoint = 60000,
                     energySavedUtcTicks = DateTime.UtcNow.Ticks
                 };
                 Debug.Log(
                     "LOAD | Legacy Save V2 profile has no Energy metadata; " +
-                    "Energy initialized to 30/30.");
+                    "Energy balance retained at 30 with a 60000 ms countdown.");
             }
 
             // No mutation is necessary: the exact serialized bytes passed strict

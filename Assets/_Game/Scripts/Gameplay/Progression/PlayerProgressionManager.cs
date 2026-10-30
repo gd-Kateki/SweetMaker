@@ -10,7 +10,7 @@ public enum CampaignCompletionPersistenceState
 
 public class PlayerProgressionManager : MonoBehaviour
 {
-    private const int MaximumEnergyValue = 30;
+    public const int MaximumEnergyValue = 100;
     private const double EnergyRegenerationIntervalSeconds = 60d;
 
     public static PlayerProgressionManager Instance

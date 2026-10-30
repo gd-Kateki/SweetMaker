@@ -79,7 +79,9 @@ internal static class DeveloperCheatCommands
         }
 
         progression.ResetEnergy();
-        return AppliedAndSaved(save, "Energy refilled to 30/30.");
+        return AppliedAndSaved(
+            save,
+            $"Energy refilled to {progression.MaximumEnergy}/{progression.MaximumEnergy}.");
     }
 
     internal static DeveloperCheatCommandResult SetRebirth(int rebirthCount)
