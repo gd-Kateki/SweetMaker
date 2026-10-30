@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using SweetMerge.Advertising;
 
 public class SceneNavigationManager : MonoBehaviour
 {
@@ -27,13 +28,22 @@ public class SceneNavigationManager : MonoBehaviour
         Instance = this;
 
         DontDestroyOnLoad(gameObject);
+        if (GetComponent<AutomaticInterstitialScheduler>() == null)
+            gameObject.AddComponent<AutomaticInterstitialScheduler>();
     }
 
     public void GoToMainBakery()
     {
-        LoadScene(
-            MainBakeryScene
-        );
+        AutomaticInterstitialScheduler scheduler =
+            AutomaticInterstitialScheduler.Instance;
+        if (scheduler != null)
+        {
+            scheduler.NavigateToHome(
+                () => LoadScene(MainBakeryScene));
+            return;
+        }
+
+        LoadScene(MainBakeryScene);
     }
 
     public void GoToMergeGameplay()

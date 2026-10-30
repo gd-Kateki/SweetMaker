@@ -11,6 +11,8 @@ public sealed class SettingsProfileData
     public bool vibrationEnabled = true;
     public bool confirmImportantActions = true;
     public bool reduceAnimations = false;
+    // Informational notice only; never an advertising consent or age signal.
+    public bool advertisingNoticeAcknowledged = false;
 
     public static SettingsProfileData CreateDefault()
     {
@@ -28,7 +30,8 @@ public sealed class SettingsProfileData
             sfxVolume = sfxVolume,
             vibrationEnabled = vibrationEnabled,
             confirmImportantActions = confirmImportantActions,
-            reduceAnimations = reduceAnimations
+            reduceAnimations = reduceAnimations,
+            advertisingNoticeAcknowledged = advertisingNoticeAcknowledged
         };
     }
 

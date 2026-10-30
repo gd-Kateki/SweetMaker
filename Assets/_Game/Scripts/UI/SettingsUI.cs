@@ -47,6 +47,7 @@ public sealed class SettingsUI : MonoBehaviour
         RefreshGameVersion();
         EnsureAnalyticsConsentControl();
         EnsureAccountSettingsControl();
+        EnsureAdvertisingNoticeControl();
     }
 
     private void OnEnable()
@@ -778,6 +779,17 @@ public sealed class SettingsUI : MonoBehaviour
         AnalyticsConsentSettingsControl.Attach(
             settingsContent,
             AnalyticsBootstrap.Instance);
+    }
+
+    private void EnsureAdvertisingNoticeControl()
+    {
+        if (overlayRoot == null) return;
+        foreach (Transform child in overlayRoot.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name != "SettingsScrollContent") continue;
+            SweetMerge.Advertising.AdvertisingNotice.AttachSettings(child, overlayRoot);
+            break;
+        }
     }
 
     private void EnsureAccountSettingsControl()

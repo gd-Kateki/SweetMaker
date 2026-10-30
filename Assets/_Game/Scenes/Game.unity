@@ -8934,7 +8934,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 1499063713
   m_SortingLayer: -3
-  m_SortingOrder: 0
+  m_SortingOrder: 1
   m_MaskInteraction: 0
   m_Sprite: {fileID: 4622923106219192096, guid: 0bd5448c84bb9404c9f6797c08e0a32f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -14659,7 +14659,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -116.4, y: 57.4}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5000001053
@@ -18543,6 +18543,7 @@ GameObject:
   - component: {fileID: 9800001003}
   - component: {fileID: 9800001004}
   - component: {fileID: 9800001005}
+  - component: {fileID: 9800001020}
   m_Layer: 0
   m_Name: CoinsPlusPlaceholder
   m_TagString: Untagged
@@ -18686,7 +18687,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -112.5, y: 57.4}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &9800001013
@@ -18789,6 +18790,22 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9800001011}
   m_CullTransparentMesh: 1
+--- !u!114 &9800001020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9800001001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e7c1a9b5d2f4e608a6c8b0d1f3e5a70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SweetMerge.Advertising.RewardedCoinsCoordinator
+  coinsPlusButton: {fileID: 9800001005}
+  coinsPlusText: {fileID: 9800001013}
+  privacyGate: {fileID: 9200000000000200002}
+  adsService: {fileID: 9200000000000200003}
 --- !u!1 &800000000000000001
 GameObject:
   m_ObjectHideFlags: 0
@@ -24512,6 +24529,115 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SettingsOverlayCancelHandler
   settingsUI: {fileID: 9200000000000100011}
+--- !u!1 &9200000000000200000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9200000000000200001}
+  - component: {fileID: 9200000000000200002}
+  - component: {fileID: 9200000000000200003}
+  - component: {fileID: 9200000000000200004}
+  m_Layer: 0
+  m_Name: DevelopmentAdsTesting
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9200000000000200001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000200000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9200000000000200002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000200000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df4569f1aa32447e818a473d9fc16fdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SweetMerge.Advertising.AdvertisingPrivacyGate
+  adultTestPrivacyRequirementsResolved: 1
+  testDeviceConfigured: 1
+  privacyPolicyUrl: https://offcut-studios.github.io/offcutstudios-legal/dessert-merge-cafe/privacy-policy/
+  advertisingDisclosure: 'Dessert Merge Cafe, published by Offcut Studios, uses Unity Ads through Unity LevelPlay to display advertisements.
+
+
+    When advertisements are requested or displayed, Unity Ads and LevelPlay may process information such as device or advertising identifiers, IP address, device and network information, approximate location, advertisement interactions, diagnostic information, and privacy choices.
+
+
+    This information may be used to deliver, measure, secure, and, where permitted, personalize advertisements.
+
+
+    The app is intended for players aged 13 and above.
+
+
+    You can accept or decline advertising. Declining advertising does not prevent you from playing Dessert Merge Cafe.
+
+
+    If you accept, you can withdraw your choice later. Withdrawal prevents subsequent advertising requests and displays controlled by the app, but cannot undo previous data processing or guarantee that an advertisement already showing will stop immediately.
+
+
+    During development testing, advertisements are available only in controlled adult test sessions. No gameplay rewards are provided for watching test advertisements.
+
+
+    Full Privacy Policy:
+
+    https://offcut-studios.github.io/offcutstudios-legal/dessert-merge-cafe/privacy-policy/'
+  disclosureVersion: DMC-ADS-DISCLOSURE-2026-10-30-V1
+  showDevelopmentPrivacyPanel: 0
+--- !u!114 &9200000000000200003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000200000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34f23c677ad74d34a129a79d3b6620f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SweetMerge.Advertising.LevelPlayAdService
+  privacyGate: {fileID: 9200000000000200002}
+  appKey: 29245cbbd
+  interstitialAdUnitId: 4gx9bo96ocyr4hiz
+  rewardedAdUnitId: hg0kom1zfpm0no12
+  interstitialPlacementName: BP_Interstitial_Android
+  rewardedPlacementName: BP_Rewarded_Android
+--- !u!114 &9200000000000200004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000200000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bc26a42e6cb4c4bb4a5f1a2d9c9a001, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SweetMerge.Advertising.RewardedEnergyDevelopmentCoordinator
+  energyPlusButton: {fileID: 5000001045}
+  energyPlusText: {fileID: 5000001054}
+  privacyGate: {fileID: 9200000000000200002}
+  adsController: {fileID: 9200000000000200003}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -24526,3 +24652,4 @@ SceneRoots:
   - {fileID: 1658527038}
   - {fileID: 927524411}
   - {fileID: 820819469}
+  - {fileID: 9200000000000200001}

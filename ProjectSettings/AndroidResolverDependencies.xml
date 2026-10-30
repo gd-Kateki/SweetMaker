@@ -1,12 +1,15 @@
 <dependencies>
   <packages>
+    <package>com.google.android.gms:play-services-ads-identifier:18.1.0</package>
     <package>com.google.android.gms:play-services-games-v2:22.1.0</package>
     <package>com.google.android.gms:play-services-nearby:18.5.0</package>
+    <package>com.unity3d.ads-mediation:mediation-sdk:9.7.0</package>
+    <package>com.unity3d.ads-mediation:unityads-adapter:5.15.0</package>
   </packages>
   <files />
   <settings>
     <setting name="androidAbis" value="arm64-v8a" />
-    <setting name="bundleId" value="com.offcutstudios.dessertmergecafe" />
+    <setting name="bundleId" value="com.offcutstudios.dessertmergecafe.dev" />
     <setting name="explodeAars" value="True" />
     <setting name="gradleBuildEnabled" value="True" />
     <setting name="gradlePropertiesTemplateEnabled" value="True" />

@@ -284,6 +284,16 @@ public class EconomyManager : MonoBehaviour
         NotifyCashAdded(amount);
     }
 
+    public bool TryAddRewardedCoins(int amount)
+    {
+        if (amount <= 0 || currentCash > int.MaxValue - amount)
+            return false;
+
+        currentCash += amount;
+        NotifyCashAdded(amount);
+        return true;
+    }
+
     public bool TryAddGameplayEarnings(
         int amount,
         out int creditedAmount)
