@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using SweetMerge.Authentication;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -29,17 +26,13 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     }
 
     private ApplicationReadinessCoordinator readinessCoordinator;
-    private GooglePlayGamesAuthenticationCoordinator authenticationCoordinator;
     private GameObject overlay;
     private TMP_Text titleText;
     private TMP_Text messageText;
     private TMP_Text noteText;
-    private Button signInButton;
     private Button retryButton;
-    private TMP_Text signInLabel;
     private TMP_Text retryLabel;
     private bool subscribed;
-    private bool authenticationInFlight;
     private Coroutine bindingCoroutine;
 
     private void Awake()
@@ -87,10 +80,6 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
             return;
 
         readinessCoordinator.StateChanged += HandleReadinessChanged;
-        authenticationCoordinator =
-            GooglePlayGamesAuthenticationCoordinator.Instance;
-        authenticationCoordinator.StateChanged +=
-            HandleAuthenticationChanged;
         subscribed = true;
         if (bindingCoroutine != null)
         {
@@ -119,20 +108,11 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
 
         if (readinessCoordinator != null)
             readinessCoordinator.StateChanged -= HandleReadinessChanged;
-        if (authenticationCoordinator != null)
-            authenticationCoordinator.StateChanged -=
-                HandleAuthenticationChanged;
         readinessCoordinator = null;
-        authenticationCoordinator = null;
         subscribed = false;
     }
 
     private void HandleReadinessChanged(ApplicationReadinessState state)
-    {
-        Refresh();
-    }
-
-    private void HandleAuthenticationChanged()
     {
         Refresh();
     }
@@ -146,7 +126,7 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
             readinessCoordinator = ApplicationReadinessCoordinator.Instance;
 
         bool ready = readinessCoordinator != null &&
-            readinessCoordinator.IsReady;
+            readinessCoordinator.CanBeginGameplay;
         overlay.SetActive(!ready);
         if (ready)
             return;
@@ -157,32 +137,19 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         titleText.text = GetTitle(state);
         messageText.text = GetMessage(
             state,
-            authenticationCoordinator != null
-                ? authenticationCoordinator.Failure
-                : GooglePlayGamesAuthenticationFailure.None,
-            authenticationCoordinator != null
-                ? authenticationCoordinator.State
-                : GooglePlayGamesAuthenticationState.SignedOut);
-        bool canAuthenticate =
-            state == ApplicationReadinessState.AuthenticationRequired ||
-            state == ApplicationReadinessState.RecoverableError &&
-            authenticationCoordinator != null &&
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn;
-        bool canRetry = state == ApplicationReadinessState.RecoverableError;
-        signInButton.gameObject.SetActive(canAuthenticate);
-        retryButton.gameObject.SetActive(canRetry && !canAuthenticate);
-        signInButton.interactable = !authenticationInFlight;
-        retryButton.interactable = !authenticationInFlight;
-        signInLabel.text = "Sign in with Google Play Games";
+            readinessCoordinator == null
+                ? null
+                : readinessCoordinator.ErrorMessage);
+        bool canRetry =
+            state == ApplicationReadinessState.TutorialProgressRequired ||
+            state == ApplicationReadinessState.RecoverableError;
+        retryButton.gameObject.SetActive(canRetry);
+        retryButton.interactable = true;
         retryLabel.text = "Try Again";
     }
 
     private void HandleActionClicked()
     {
-        if (authenticationInFlight)
-            return;
-
         if (readinessCoordinator == null)
             readinessCoordinator = ApplicationReadinessCoordinator.Instance;
         if (readinessCoordinator == null)
@@ -191,51 +158,7 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
             return;
         }
 
-        if (readinessCoordinator.State ==
-            ApplicationReadinessState.AuthenticationRequired ||
-            readinessCoordinator.State ==
-                ApplicationReadinessState.RecoverableError &&
-            authenticationCoordinator != null &&
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn)
-        {
-            _ = SignInAsync();
-            return;
-        }
-
         readinessCoordinator.Retry();
-    }
-
-    private async Task SignInAsync()
-    {
-        authenticationInFlight = true;
-        Refresh();
-        try
-        {
-            if (authenticationCoordinator == null)
-                authenticationCoordinator =
-                    GooglePlayGamesAuthenticationCoordinator.Instance;
-
-            if (authenticationCoordinator == null)
-                return;
-
-            await authenticationCoordinator.SignInAsync();
-            if (this == null)
-                return;
-
-            readinessCoordinator?.Retry();
-        }
-        catch (Exception)
-        {
-            if (this != null)
-                Refresh();
-        }
-        finally
-        {
-            authenticationInFlight = false;
-            if (this != null)
-                Refresh();
-        }
     }
 
     private void BuildInterface()
@@ -289,18 +212,14 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         messageText = CreateText(panel.transform, "Status", 18);
         messageText.text = "Please wait...";
 
-        signInButton = CreateButton(panel.transform, "SignInButton");
-        signInButton.onClick.AddListener(HandleActionClicked);
-        signInLabel = signInButton.GetComponentInChildren<TMP_Text>();
-
         retryButton = CreateButton(panel.transform, "RetryButton");
         retryButton.onClick.AddListener(HandleActionClicked);
         retryLabel = retryButton.GetComponentInChildren<TMP_Text>();
-        signInButton.gameObject.SetActive(false);
         retryButton.gameObject.SetActive(false);
 
         noteText = CreateText(panel.transform, "InternetNote", 16);
-        noteText.text = "An internet connection is required.";
+        noteText.text =
+            "Your local Save V2 stays on this device. No sign-in or cloud restore runs automatically.";
         noteText.color = new Color(0.88f, 0.84f, 0.8f, 1f);
     }
 
@@ -342,44 +261,35 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
 
     private static string GetTitle(ApplicationReadinessState state)
     {
-        return state == ApplicationReadinessState.AuthenticationRequired
-            ? "Sign in to continue"
-            : state == ApplicationReadinessState.RecoverableError
-                ? "Cafe startup needs attention"
-                : "Preparing your cafe";
+        switch (state)
+        {
+            case ApplicationReadinessState.TutorialProgressRequired:
+                return "Local tutorial recovery required";
+            case ApplicationReadinessState.GameplayRestoring:
+                return "Restoring your local cafe";
+            case ApplicationReadinessState.RecoverableError:
+                return "Local startup needs attention";
+            default:
+                return "Preparing your cafe";
+        }
     }
 
     private static string GetMessage(
         ApplicationReadinessState state,
-        GooglePlayGamesAuthenticationFailure failure,
-        GooglePlayGamesAuthenticationState authenticationState)
+        string errorMessage)
     {
-        return state == ApplicationReadinessState.AuthenticationRequired
-            ? "Sign in with Google Play Games to load your cafe progress."
-            : state == ApplicationReadinessState.RecoverableError
-                ? GetRecoveryMessage(failure, authenticationState)
-                : "Loading your cafe and tutorial progress...";
-    }
-
-    private static string GetRecoveryMessage(
-        GooglePlayGamesAuthenticationFailure failure,
-        GooglePlayGamesAuthenticationState authenticationState)
-    {
-        if (authenticationState ==
-            GooglePlayGamesAuthenticationState.Cancelled)
-            return "Sign-in was cancelled. You can try again when ready.";
-
-        switch (failure)
+        switch (state)
         {
-            case GooglePlayGamesAuthenticationFailure.PlayGamesAuthentication:
-            case GooglePlayGamesAuthenticationFailure.SessionRestoration:
-                return "Google Play Games could not sign you in. Try again.";
-            case GooglePlayGamesAuthenticationFailure.UnityAuthentication:
-                return "Account sign-in could not be completed. Try again.";
-            case GooglePlayGamesAuthenticationFailure.AuthorizationCodeUnavailable:
-                return "Google Play Games sign-in could not be verified. Try again.";
+            case ApplicationReadinessState.TutorialProgressRequired:
+                return errorMessage ??
+                    "Local tutorial progress is not verified. Retry local recovery; gameplay remains locked to avoid skipping the tutorial.";
+            case ApplicationReadinessState.GameplayRestoring:
+                return errorMessage ?? "Verifying the local merge session.";
+            case ApplicationReadinessState.RecoverableError:
+                return errorMessage ??
+                    "Local startup could not be completed. Your save was not overwritten.";
             default:
-                return "We could not finish startup. Check your connection and try again.";
+                return "Loading your local Save V2 and tutorial progress...";
         }
     }
 

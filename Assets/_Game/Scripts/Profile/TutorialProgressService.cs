@@ -1,13 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using Unity.Services.Authentication;
-using Unity.Services.CloudSave;
-using Unity.Services.CloudSave.Models;
-using Unity.Services.CloudSave.Models.Data.Player;
-using Unity.Services.Core;
-using SweetMerge.Analytics;
 
 namespace SweetMerge.Profile
 {
@@ -26,43 +18,28 @@ namespace SweetMerge.Profile
         Loading,
         Missing,
         Valid,
-        PendingWrite,
         InvalidData,
-        AuthenticationUnavailable,
         ServiceError
     }
 
     public sealed class TutorialProgressState
     {
         public TutorialProgressStatus Status { get; }
-        public string PlayerId { get; }
         public TutorialStage Stage { get; }
-        public TutorialStage CloudConfirmedStage { get; }
-        public bool IsCompleted { get; }
-        public bool IsCloudConfirmed { get; }
-        public bool HasPendingStageUpdate { get; }
-        public TutorialStage? PendingStage { get; }
+        public bool IsCompleted =>
+            Stage == TutorialStage.Completed;
+        public bool IsLocallyValidated { get; }
         public string ErrorMessage { get; }
 
         internal TutorialProgressState(
             TutorialProgressStatus status,
-            string playerId,
             TutorialStage stage,
-            TutorialStage cloudConfirmedStage,
-            bool isCompleted,
-            bool isCloudConfirmed,
-            bool hasPendingStageUpdate,
-            TutorialStage? pendingStage,
+            bool isLocallyValidated,
             string errorMessage)
         {
             Status = status;
-            PlayerId = playerId;
             Stage = stage;
-            CloudConfirmedStage = cloudConfirmedStage;
-            IsCompleted = isCompleted;
-            IsCloudConfirmed = isCloudConfirmed;
-            HasPendingStageUpdate = hasPendingStageUpdate;
-            PendingStage = pendingStage;
+            IsLocallyValidated = isLocallyValidated;
             ErrorMessage = errorMessage;
         }
 
@@ -70,13 +47,8 @@ namespace SweetMerge.Profile
         {
             return new TutorialProgressState(
                 TutorialProgressStatus.Unknown,
-                null,
-                TutorialStage.Welcome,
                 TutorialStage.Welcome,
                 false,
-                false,
-                false,
-                null,
                 null);
         }
     }
@@ -86,9 +58,8 @@ namespace SweetMerge.Profile
         Applied,
         AlreadyAtOrBeyond,
         DuplicateRequest,
-        Pending,
+        OutOfOrder,
         InvalidData,
-        AuthenticationUnavailable,
         ServiceError
     }
 
@@ -108,798 +79,212 @@ namespace SweetMerge.Profile
 
     public sealed class TutorialProgressService : IDisposable
     {
-        public const string StageKey = "cafeTutorialStage";
-        public const string CompletionKey = "cafeTutorialCompleted";
-
-        private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
         private TutorialProgressState state =
             TutorialProgressState.Initial();
-        private string activePlayerId;
-        private string stageWriteLock;
-        private string completionWriteLock;
-        private TutorialStage? pendingStage;
-        private int requestGeneration;
-        private bool initialized;
+        private bool operationInFlight;
         private bool disposed;
-        private const int MaxCloudSaveAttempts = 2;
 
         public TutorialProgressState State => state;
 
         public event Action<TutorialProgressState> StateChanged;
 
-        /// <summary>
-        /// Subscribes to Unity Authentication account changes. The owner must
-        /// call LoadAsync after initialization, then RetryPendingAsync when a
-        /// pending journal is reported.
-        /// </summary>
         public void Initialize()
         {
             ThrowIfDisposed();
-            if (initialized)
-                return;
-
-            IAuthenticationService authentication =
-                AuthenticationService.Instance;
-            authentication.SignedIn += HandleSignedIn;
-            authentication.SignedOut += HandleSignedOut;
-            initialized = true;
-            RefreshAuthenticationContext();
         }
 
-        /// <summary>
-        /// Loads both tutorial keys from Default Player Data.
-        /// </summary>
-        public async Task<TutorialProgressResult> LoadAsync()
+        public Task<TutorialProgressResult> LoadAsync()
         {
             ThrowIfDisposed();
-            Initialize();
-
-            if (!await operationGate.WaitAsync(0))
-                return Result(TutorialProgressOperation.DuplicateRequest);
+            if (!TryBeginOperation())
+                return Completed(TutorialProgressOperation.DuplicateRequest);
 
             try
             {
-                return await LoadCoreAsync();
+                return Task.FromResult(LoadCore());
             }
             finally
             {
-                operationGate.Release();
+                operationInFlight = false;
             }
         }
 
-        /// <summary>
-        /// Persists a non-completed stage if it advances the verified state.
-        /// </summary>
-        public async Task<TutorialProgressResult> AdvanceToAsync(
+        public Task<TutorialProgressResult> AdvanceToAsync(
             TutorialStage requestedStage)
         {
             ThrowIfDisposed();
-            Initialize();
-
             if (requestedStage == TutorialStage.Completed)
-                return await MarkCompletedAsync();
-
-            if (!await operationGate.WaitAsync(0))
-                return Result(TutorialProgressOperation.DuplicateRequest);
+                return MarkCompletedAsync();
+            if (!Enum.IsDefined(typeof(TutorialStage), requestedStage))
+                return Completed(TutorialProgressOperation.OutOfOrder);
+            if (!TryBeginOperation())
+                return Completed(TutorialProgressOperation.DuplicateRequest);
 
             try
             {
-                TutorialProgressResult loaded = await EnsureLoadedCoreAsync();
+                TutorialProgressResult loaded = EnsureLoaded();
                 if (loaded != null)
-                    return loaded;
+                    return Task.FromResult(loaded);
 
-                if (state.IsCompleted ||
-                    requestedStage <= state.Stage)
-                {
-                    return Result(
+                if ((int)requestedStage <= (int)state.Stage)
+                    return Completed(
                         TutorialProgressOperation.AlreadyAtOrBeyond);
-                }
+                if (requestedStage != NextStage(state.Stage))
+                    return Completed(TutorialProgressOperation.OutOfOrder);
 
-                if (!IsCurrentPlayer(activePlayerId))
-                    return AuthenticationUnavailableResult();
-
-                return await PersistStageCoreAsync(requestedStage);
+                return Task.FromResult(PersistStage(requestedStage));
             }
             finally
             {
-                operationGate.Release();
+                operationInFlight = false;
             }
         }
 
-        /// <summary>
-        /// Persists the Completed stage and completion flag, then rereads both.
-        /// </summary>
-        public async Task<TutorialProgressResult> MarkCompletedAsync()
+        public Task<TutorialProgressResult> MarkCompletedAsync()
         {
             ThrowIfDisposed();
-            Initialize();
-
-            if (!await operationGate.WaitAsync(0))
-                return Result(TutorialProgressOperation.DuplicateRequest);
+            if (!TryBeginOperation())
+                return Completed(TutorialProgressOperation.DuplicateRequest);
 
             try
             {
-                TutorialProgressResult loaded = await EnsureLoadedCoreAsync();
+                TutorialProgressResult loaded = EnsureLoaded();
                 if (loaded != null)
-                    return loaded;
+                    return Task.FromResult(loaded);
 
                 if (state.IsCompleted)
-                    return Result(
+                    return Completed(
                         TutorialProgressOperation.AlreadyAtOrBeyond);
+                if (state.Stage != TutorialStage.Order)
+                    return Completed(TutorialProgressOperation.OutOfOrder);
 
-                if (!IsCurrentPlayer(activePlayerId))
-                    return AuthenticationUnavailableResult();
-
-                return await PersistCompletionCoreAsync();
+                return Task.FromResult(PersistStage(TutorialStage.Completed));
             }
             finally
             {
-                operationGate.Release();
-            }
-        }
-
-        /// <summary>
-        /// Reconciles a pending stage or completion write by rereading, then
-        /// retries if needed.
-        /// </summary>
-        public async Task<TutorialProgressResult> RetryPendingAsync()
-        {
-            ThrowIfDisposed();
-            Initialize();
-
-            if (!await operationGate.WaitAsync(0))
-                return Result(TutorialProgressOperation.DuplicateRequest);
-
-            try
-            {
-                if (!pendingStage.HasValue)
-                    return Result(
-                        TutorialProgressOperation.AlreadyAtOrBeyond);
-
-                TutorialStage requestedStage = pendingStage.Value;
-                TutorialProgressResult loaded = await LoadCoreAsync();
-                if (loaded.Operation == TutorialProgressOperation.InvalidData ||
-                    loaded.Operation == TutorialProgressOperation
-                        .AuthenticationUnavailable ||
-                    loaded.Operation == TutorialProgressOperation.ServiceError)
-                {
-                    return loaded;
-                }
-
-                bool pendingStageIsReconciled =
-                    requestedStage == TutorialStage.Completed
-                        ? state.IsCompleted
-                        : state.IsCompleted ||
-                          state.CloudConfirmedStage >= requestedStage;
-                if (pendingStageIsReconciled)
-                {
-                    pendingStage = null;
-                    PublishVerifiedState(
-                        state.Status,
-                        state.Stage,
-                        state.IsCompleted,
-                        null,
-                        state.ErrorMessage);
-                    return Result(TutorialProgressOperation.Applied);
-                }
-
-                return requestedStage == TutorialStage.Completed
-                    ? await PersistCompletionCoreAsync()
-                    : await PersistStageCoreAsync(requestedStage);
-            }
-            finally
-            {
-                operationGate.Release();
+                operationInFlight = false;
             }
         }
 
         public void Dispose()
         {
-            if (disposed)
-                return;
-
             disposed = true;
-            requestGeneration++;
-            if (initialized)
-            {
-                IAuthenticationService authentication =
-                    AuthenticationService.Instance;
-                authentication.SignedIn -= HandleSignedIn;
-                authentication.SignedOut -= HandleSignedOut;
-            }
-
         }
 
-        private async Task<TutorialProgressResult> EnsureLoadedCoreAsync()
+        private bool TryBeginOperation()
         {
-            if (!IsCurrentPlayer(activePlayerId) ||
-                state.Status == TutorialProgressStatus.Unknown)
-            {
-                return await LoadCoreAsync();
-            }
-
-            if (state.Status == TutorialProgressStatus.InvalidData ||
-                state.Status == TutorialProgressStatus.ServiceError ||
-                state.Status ==
-                TutorialProgressStatus.AuthenticationUnavailable)
-            {
-                return ResultForState();
-            }
-
-            return null;
-        }
-
-        private async Task<TutorialProgressResult> LoadCoreAsync()
-        {
-            int operationGeneration = requestGeneration;
-            string playerId = null;
-            try
-            {
-                await UnityServicesInitializer.InitializeAsync();
-                if (!TryGetAuthenticatedPlayerId(out playerId))
-                    return AuthenticationUnavailableResult();
-
-                activePlayerId = playerId;
-                Publish(
-                    new TutorialProgressState(
-                        TutorialProgressStatus.Loading,
-                        playerId,
-                        state.Stage,
-                        state.CloudConfirmedStage,
-                        state.IsCompleted,
-                        false,
-                        pendingStage.HasValue,
-                        pendingStage,
-                        null));
-
-                if (!IsRequestCurrent(
-                        operationGeneration,
-                        playerId))
-                {
-                    return AuthenticationUnavailableResult();
-                }
-
-                Dictionary<string, Item> data =
-                    await CloudSaveService.Instance.Data.Player.LoadAsync(
-                        new HashSet<string>
-                        {
-                            StageKey,
-                            CompletionKey
-                        },
-                        new LoadOptions());
-
-                if (!IsRequestCurrent(
-                        operationGeneration,
-                        playerId))
-                {
-                    return AuthenticationUnavailableResult();
-                }
-
-                TutorialProgressResult cloudResult =
-                    ApplyCloudData(playerId, data);
-                if (cloudResult.Operation != TutorialProgressOperation.Applied)
-                    return cloudResult;
-
-                if (!TutorialProgressJournal.TryLoad(
-                        playerId,
-                        out TutorialStage journalStage,
-                        out string journalError))
-                {
-                    PublishServiceError(journalError);
-                    return Result(TutorialProgressOperation.ServiceError);
-                }
-
-                if (journalStage > TutorialStage.Welcome)
-                {
-                    if (state.IsCompleted ||
-                        (journalStage != TutorialStage.Completed &&
-                         state.CloudConfirmedStage >= journalStage))
-                    {
-                        TutorialProgressJournal.TryClear(
-                            playerId,
-                            out _);
-                        pendingStage = null;
-                    }
-                    else
-                    {
-                        pendingStage = journalStage;
-                        PublishPendingState(journalStage, null);
-                    }
-                }
-
-                return Result(TutorialProgressOperation.Applied);
-            }
-            catch (Exception exception)
-            {
-                if (disposed)
-                    return AuthenticationUnavailableResult();
-
-                if (!IsRequestCurrent(
-                        operationGeneration,
-                        playerId))
-                {
-                    return AuthenticationUnavailableResult();
-                }
-
-                PublishServiceError(exception.Message);
-                return Result(TutorialProgressOperation.ServiceError);
-            }
-        }
-
-        private TutorialProgressResult ApplyCloudData(
-            string playerId,
-            Dictionary<string, Item> data)
-        {
-            bool hasStage = data.TryGetValue(StageKey, out Item stageItem);
-            bool hasCompletion =
-                data.TryGetValue(CompletionKey, out Item completionItem);
-
-            if (hasCompletion)
-            {
-                if (!TryReadBoolean(completionItem, out bool completion))
-                {
-                    PublishInvalidData(
-                        playerId,
-                        "The tutorial completion record is malformed.");
-                    return Result(TutorialProgressOperation.InvalidData);
-                }
-
-                if (completion)
-                {
-                    completionWriteLock = completionItem.WriteLock;
-                    stageWriteLock = hasStage
-                        ? stageItem.WriteLock
-                        : null;
-                    pendingStage = null;
-                    PublishVerifiedState(
-                        TutorialProgressStatus.Valid,
-                        TutorialStage.Completed,
-                        true,
-                        null,
-                        null);
-                    return Result(TutorialProgressOperation.Applied);
-                }
-            }
-
-            TutorialStage stage = TutorialStage.Welcome;
-            if (hasStage &&
-                !TryReadStage(stageItem, out stage))
-            {
-                PublishInvalidData(
-                    playerId,
-                    "The tutorial stage record is malformed.");
-                return Result(TutorialProgressOperation.InvalidData);
-            }
-
-            if (state.PlayerId == playerId &&
-                state.CloudConfirmedStage > stage)
-            {
-                stage = state.CloudConfirmedStage;
-            }
-
-            stageWriteLock = hasStage ? stageItem.WriteLock : null;
-            completionWriteLock = hasCompletion
-                ? completionItem.WriteLock
-                : null;
-            pendingStage = pendingStage.HasValue &&
-                pendingStage.Value > stage
-                ? pendingStage
-                : null;
-
-            PublishVerifiedState(
-                hasStage || hasCompletion
-                    ? TutorialProgressStatus.Valid
-                    : TutorialProgressStatus.Missing,
-                stage,
-                false,
-                pendingStage,
-                null);
-            return Result(TutorialProgressOperation.Applied);
-        }
-
-        private async Task<TutorialProgressResult> PersistStageCoreAsync(
-            TutorialStage requestedStage)
-        {
-            if (requestedStage == TutorialStage.Completed)
-                return await PersistCompletionCoreAsync();
-
-            pendingStage = requestedStage;
-            int operationGeneration = requestGeneration;
-            string playerId = activePlayerId;
-            // The observer must call this immediately after its gameplay
-            // commit; a process crash before this journal write cannot be
-            // reconstructed without replaying gameplay.
-            if (!TutorialProgressJournal.TrySave(
-                    playerId,
-                    requestedStage,
-                    out string journalError))
-            {
-                pendingStage = null;
-                PublishServiceError(journalError);
-                return Result(TutorialProgressOperation.ServiceError);
-            }
-
-            PublishPendingState(requestedStage, null);
-            try
-            {
-                for (int attempt = 0;
-                     attempt < MaxCloudSaveAttempts;
-                     attempt++)
-                {
-                    try
-                    {
-                        await CloudSaveService.Instance.Data.Player.SaveAsync(
-                            new Dictionary<string, SaveItem>
-                            {
-                                [StageKey] = new SaveItem(
-                                    requestedStage.ToString(),
-                                    stageWriteLock)
-                            },
-                            new Unity.Services.CloudSave.Models.Data.Player.SaveOptions());
-
-                        TutorialProgressResult verified = await LoadCoreAsync();
-                        if (verified.Operation ==
-                                TutorialProgressOperation.Applied &&
-                            (state.IsCompleted ||
-                             state.CloudConfirmedStage >= requestedStage))
-                        {
-                            pendingStage = null;
-                            TutorialProgressJournal.TryClear(
-                                playerId,
-                                out _);
-                            return Result(
-                                TutorialProgressOperation.Applied);
-                        }
-
-                        if (verified.Operation !=
-                            TutorialProgressOperation.Applied)
-                            return verified;
-                    }
-                    catch (Exception exception)
-                    {
-                        if (!IsRequestCurrent(
-                                operationGeneration,
-                                playerId))
-                            return AuthenticationUnavailableResult();
-
-                        TutorialProgressResult reconciled =
-                            await LoadCoreAsync();
-                        if (reconciled.Operation !=
-                                TutorialProgressOperation.Applied)
-                            return reconciled;
-                        if (state.IsCompleted ||
-                            state.CloudConfirmedStage >= requestedStage)
-                        {
-                            pendingStage = null;
-                            TutorialProgressJournal.TryClear(
-                                playerId,
-                                out _);
-                            return Result(
-                                TutorialProgressOperation.Applied);
-                        }
-
-                        if (attempt == MaxCloudSaveAttempts - 1)
-                        {
-                            PublishPendingState(
-                                requestedStage,
-                                exception.Message);
-                            return Result(
-                                TutorialProgressOperation.Pending);
-                        }
-                    }
-                }
-                return Result(TutorialProgressOperation.Pending);
-            }
-            catch (Exception exception)
-            {
-                if (!IsRequestCurrent(
-                        operationGeneration,
-                        playerId))
-                {
-                    return AuthenticationUnavailableResult();
-                }
-
-                PublishPendingState(requestedStage, exception.Message);
-                return Result(TutorialProgressOperation.Pending);
-            }
-        }
-
-        private async Task<TutorialProgressResult> PersistCompletionCoreAsync()
-        {
-            TutorialStage requestedStage = TutorialStage.Completed;
-            pendingStage = requestedStage;
-            int operationGeneration = requestGeneration;
-            string playerId = activePlayerId;
-            // The observer must call this immediately after its gameplay
-            // commit; a process crash before this journal write cannot be
-            // reconstructed without replaying gameplay.
-            if (!TutorialProgressJournal.TrySave(
-                    playerId,
-                    requestedStage,
-                    out string journalError))
-            {
-                pendingStage = null;
-                PublishServiceError(journalError);
-                return Result(TutorialProgressOperation.ServiceError);
-            }
-
-            PublishPendingState(requestedStage, null);
-            try
-            {
-                for (int attempt = 0;
-                     attempt < MaxCloudSaveAttempts;
-                     attempt++)
-                {
-                    try
-                    {
-                        await CloudSaveService.Instance.Data.Player.SaveAsync(
-                            new Dictionary<string, SaveItem>
-                            {
-                                [StageKey] = new SaveItem(
-                                    requestedStage.ToString(),
-                                    stageWriteLock),
-                                [CompletionKey] = new SaveItem(
-                                    true,
-                                    completionWriteLock)
-                            },
-                            new Unity.Services.CloudSave.Models.Data.Player.SaveOptions());
-
-                        TutorialProgressResult verified = await LoadCoreAsync();
-                        if (verified.Operation ==
-                                TutorialProgressOperation.Applied &&
-                            state.IsCompleted)
-                        {
-                            pendingStage = null;
-                            TutorialProgressJournal.TryClear(
-                                playerId,
-                                out _);
-                            return Result(
-                                TutorialProgressOperation.Applied);
-                        }
-
-                        if (verified.Operation !=
-                            TutorialProgressOperation.Applied)
-                            return verified;
-                    }
-                    catch (Exception exception)
-                    {
-                        if (!IsRequestCurrent(
-                                operationGeneration,
-                                playerId))
-                            return AuthenticationUnavailableResult();
-
-                        TutorialProgressResult reconciled =
-                            await LoadCoreAsync();
-                        if (reconciled.Operation !=
-                                TutorialProgressOperation.Applied)
-                            return reconciled;
-                        if (state.IsCompleted)
-                        {
-                            pendingStage = null;
-                            TutorialProgressJournal.TryClear(
-                                playerId,
-                                out _);
-                            return Result(
-                                TutorialProgressOperation.Applied);
-                        }
-
-                        if (attempt == MaxCloudSaveAttempts - 1)
-                        {
-                            PublishPendingState(
-                                requestedStage,
-                                exception.Message);
-                            return Result(
-                                TutorialProgressOperation.Pending);
-                        }
-                    }
-                }
-                return Result(TutorialProgressOperation.Pending);
-            }
-            catch (Exception exception)
-            {
-                if (!IsRequestCurrent(
-                        operationGeneration,
-                        playerId))
-                {
-                    return AuthenticationUnavailableResult();
-                }
-
-                PublishPendingState(requestedStage, exception.Message);
-                return Result(TutorialProgressOperation.Pending);
-            }
-        }
-
-        private void HandleSignedIn()
-        {
-            RefreshAuthenticationContext();
-        }
-
-        private void HandleSignedOut()
-        {
-            requestGeneration++;
-            activePlayerId = null;
-            stageWriteLock = null;
-            completionWriteLock = null;
-            pendingStage = null;
-            Publish(
-                new TutorialProgressState(
-                    TutorialProgressStatus.AuthenticationUnavailable,
-                    null,
-                    TutorialStage.Welcome,
-                    TutorialStage.Welcome,
-                    false,
-                    false,
-                    false,
-                    null,
-                    "Authentication is unavailable."));
-        }
-
-        private void RefreshAuthenticationContext()
-        {
-            if (!TryGetAuthenticatedPlayerId(out string playerId))
-                return;
-
-            if (activePlayerId == playerId)
-                return;
-
-            requestGeneration++;
-            activePlayerId = playerId;
-            stageWriteLock = null;
-            completionWriteLock = null;
-            pendingStage = null;
-            Publish(TutorialProgressState.Initial());
-        }
-
-        private bool TryGetAuthenticatedPlayerId(out string playerId)
-        {
-            playerId = null;
-            if (UnityServices.State !=
-                ServicesInitializationState.Initialized)
-            {
+            if (operationInFlight)
                 return false;
-            }
 
-            IAuthenticationService authentication =
-                AuthenticationService.Instance;
-            if (!authentication.IsSignedIn ||
-                !authentication.IsAuthorized ||
-                string.IsNullOrWhiteSpace(authentication.PlayerId))
-            {
-                return false;
-            }
-
-            playerId = authentication.PlayerId;
+            operationInFlight = true;
             return true;
         }
 
-        private bool IsCurrentPlayer(string playerId)
-        {
-            return !string.IsNullOrWhiteSpace(playerId) &&
-                TryGetAuthenticatedPlayerId(out string currentPlayerId) &&
-                currentPlayerId == playerId;
-        }
-
-        private bool IsRequestCurrent(
-            int operationGeneration,
-            string playerId)
-        {
-            return !disposed &&
-                operationGeneration == requestGeneration &&
-                IsCurrentPlayer(playerId);
-        }
-
-        private static bool TryReadStage(
-            Item item,
-            out TutorialStage stage)
-        {
-            stage = TutorialStage.Welcome;
-            if (item == null || item.Value == null)
-                return false;
-
-            string value = item.Value.GetAsString();
-            return Enum.TryParse(
-                value,
-                true,
-                out stage) &&
-                Enum.IsDefined(typeof(TutorialStage), stage);
-        }
-
-        private static bool TryReadBoolean(
-            Item item,
-            out bool value)
-        {
-            value = false;
-            if (item == null || item.Value == null)
-                return false;
-
-            try
-            {
-                value = item.Value.GetAs<bool>();
-                return true;
-            }
-            catch
-            {
-                return bool.TryParse(
-                    item.Value.GetAsString(),
-                    out value);
-            }
-        }
-
-        private void PublishPendingState(
-            TutorialStage requestedStage,
-            string errorMessage)
+        private TutorialProgressResult LoadCore()
         {
             Publish(
-                new TutorialProgressState(
-                    TutorialProgressStatus.PendingWrite,
-                    activePlayerId,
+                TutorialProgressStatus.Loading,
+                state.Stage,
+                false,
+                null);
+
+            TutorialProgressJournalLoadStatus loadStatus =
+                TutorialProgressJournal.TryLoad(
+                    out TutorialStage loadedStage,
+                    out string errorMessage);
+
+            switch (loadStatus)
+            {
+                case TutorialProgressJournalLoadStatus.Missing:
+                    Publish(
+                        TutorialProgressStatus.Missing,
+                        TutorialStage.Welcome,
+                        true,
+                        null);
+                    return Result(TutorialProgressOperation.Applied);
+                case TutorialProgressJournalLoadStatus.Loaded:
+                    Publish(
+                        TutorialProgressStatus.Valid,
+                        loadedStage,
+                        true,
+                        null);
+                    return Result(TutorialProgressOperation.Applied);
+                case TutorialProgressJournalLoadStatus.InvalidData:
+                    Publish(
+                        TutorialProgressStatus.InvalidData,
+                        state.Stage,
+                        false,
+                        errorMessage);
+                    return Result(TutorialProgressOperation.InvalidData);
+                default:
+                    Publish(
+                        TutorialProgressStatus.ServiceError,
+                        state.Stage,
+                        false,
+                        errorMessage);
+                    return Result(TutorialProgressOperation.ServiceError);
+            }
+        }
+
+        private TutorialProgressResult EnsureLoaded()
+        {
+            if (state.IsLocallyValidated)
+                return null;
+
+            if (state.Status == TutorialProgressStatus.InvalidData ||
+                state.Status == TutorialProgressStatus.ServiceError)
+                return ResultForState();
+
+            TutorialProgressResult loaded = LoadCore();
+            return loaded.Operation == TutorialProgressOperation.Applied
+                ? null
+                : loaded;
+        }
+
+        private TutorialProgressResult PersistStage(
+            TutorialStage requestedStage)
+        {
+            TutorialProgressJournalSaveStatus saveStatus =
+                TutorialProgressJournal.TrySave(
                     requestedStage,
-                    state.CloudConfirmedStage,
-                    state.IsCompleted,
-                    false,
+                    out string errorMessage);
+
+            if (saveStatus == TutorialProgressJournalSaveStatus.Saved)
+            {
+                Publish(
+                    TutorialProgressStatus.Valid,
+                    requestedStage,
                     true,
-                    requestedStage,
-                    errorMessage));
-        }
+                    null);
+                return Result(TutorialProgressOperation.Applied);
+            }
 
-        private void PublishServiceError(string errorMessage)
-        {
+            TutorialProgressStatus failureStatus =
+                saveStatus == TutorialProgressJournalSaveStatus.InvalidData
+                    ? TutorialProgressStatus.InvalidData
+                    : TutorialProgressStatus.ServiceError;
             Publish(
-                new TutorialProgressState(
-                    TutorialProgressStatus.ServiceError,
-                    activePlayerId,
-                    state.Stage,
-                    state.CloudConfirmedStage,
-                    state.IsCompleted,
-                    false,
-                    pendingStage.HasValue,
-                    pendingStage,
-                    errorMessage));
+                failureStatus,
+                state.Stage,
+                false,
+                errorMessage);
+            return ResultForState();
         }
 
-        private void PublishInvalidData(
-            string playerId,
-            string errorMessage)
-        {
-            Publish(
-                new TutorialProgressState(
-                    TutorialProgressStatus.InvalidData,
-                    playerId,
-                    state.Stage,
-                    state.CloudConfirmedStage,
-                    state.IsCompleted,
-                    false,
-                    pendingStage.HasValue,
-                    pendingStage,
-                    errorMessage));
-        }
-
-        private void PublishVerifiedState(
+        private void Publish(
             TutorialProgressStatus status,
             TutorialStage stage,
-            bool isCompleted,
-            TutorialStage? pending,
+            bool isLocallyValidated,
             string errorMessage)
-        {
-            Publish(
-                new TutorialProgressState(
-                    status,
-                    activePlayerId,
-                    stage,
-                    stage,
-                    isCompleted,
-                    !pending.HasValue,
-                    pending.HasValue,
-                    pending,
-                    errorMessage));
-        }
-
-        private void Publish(TutorialProgressState nextState)
         {
             if (disposed)
                 return;
 
-            state = nextState;
+            state = new TutorialProgressState(
+                status,
+                stage,
+                isLocallyValidated,
+                errorMessage);
             StateChanged?.Invoke(state);
         }
 
@@ -911,33 +296,23 @@ namespace SweetMerge.Profile
 
         private TutorialProgressResult ResultForState()
         {
-            switch (state.Status)
-            {
-                case TutorialProgressStatus.InvalidData:
-                    return Result(TutorialProgressOperation.InvalidData);
-                case TutorialProgressStatus.AuthenticationUnavailable:
-                    return Result(
-                        TutorialProgressOperation.AuthenticationUnavailable);
-                default:
-                    return Result(TutorialProgressOperation.ServiceError);
-            }
+            return Result(
+                state.Status == TutorialProgressStatus.InvalidData
+                    ? TutorialProgressOperation.InvalidData
+                    : TutorialProgressOperation.ServiceError);
         }
 
-        private TutorialProgressResult AuthenticationUnavailableResult()
+        private Task<TutorialProgressResult> Completed(
+            TutorialProgressOperation operation)
         {
-            Publish(
-                new TutorialProgressState(
-                    TutorialProgressStatus.AuthenticationUnavailable,
-                    null,
-                    TutorialStage.Welcome,
-                    TutorialStage.Welcome,
-                    false,
-                    false,
-                    false,
-                    null,
-                    "Authentication is unavailable."));
-            return Result(
-                TutorialProgressOperation.AuthenticationUnavailable);
+            return Task.FromResult(Result(operation));
+        }
+
+        private static TutorialStage NextStage(TutorialStage stage)
+        {
+            return (int)stage < (int)TutorialStage.Completed
+                ? (TutorialStage)((int)stage + 1)
+                : TutorialStage.Completed;
         }
 
         private void ThrowIfDisposed()

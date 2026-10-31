@@ -37,7 +37,7 @@ public static class GameplayModalInputGate
             if (SceneManager.GetActiveScene().name ==
                     SceneNavigationManager.MergeGameplayScene &&
                 (ApplicationReadinessCoordinator.Instance == null ||
-                 !ApplicationReadinessCoordinator.Instance.IsReady))
+                 !ApplicationReadinessCoordinator.Instance.IsGameplayReady))
                 return true;
             return ModalLeases.Count > 0;
         }

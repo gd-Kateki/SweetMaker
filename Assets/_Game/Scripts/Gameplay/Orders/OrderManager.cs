@@ -3,8 +3,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using SweetMerge.Profile;
 public class OrderManager : MonoBehaviour
 {
+    public const string TutorialOrderDisplayName =
+        "First Cafe Tutorial Order";
+    private const int TutorialOrderBaseReward = 32;
+    private const int TutorialOrderDessertTier = 3;
+    private const int TutorialOrderQuantity = 2;
+
     internal sealed class SessionReplacementState
     {
         internal CustomerOrder[] Orders;
@@ -48,6 +55,7 @@ public class OrderManager : MonoBehaviour
             new List<CustomerOrderDefinition>();
     private int nextOrderId = 1;
     private bool isFulfilling;
+    private HybridTutorialController tutorialController;
     private CustomerOrderState[] pendingFreshSessionOrders;
     private int pendingFreshSessionNextOrderId;
     // --------------------------------------------------
@@ -115,6 +123,7 @@ public class OrderManager : MonoBehaviour
     }
     public bool IsFulfilling =>
         isFulfilling;
+    public bool IsCompletingTutorialOrder { get; private set; }
     // --------------------------------------------------
     // TEMPORARY LEGACY COMPATIBILITY
     // --------------------------------------------------
@@ -129,6 +138,26 @@ public class OrderManager : MonoBehaviour
         ActiveOrder.IsValid;
     public bool CanFulfillActiveOrder =>
         CanFulfillOrderAtIndex(0);
+
+    public static bool IsTutorialOrder(CustomerOrder order)
+    {
+        if (order == null ||
+            order.Definition != null ||
+            order.DisplayName != TutorialOrderDisplayName ||
+            order.CashReward != TutorialOrderBaseReward ||
+            order.Requirements == null ||
+            order.Requirements.Count != 1)
+            return false;
+
+        OrderRequirement requirement = order.Requirements[0];
+        return requirement != null &&
+            requirement.Dessert != null &&
+            requirement.Dessert.Tier == TutorialOrderDessertTier &&
+            requirement.Amount == TutorialOrderQuantity;
+    }
+
+    public bool HasTutorialOrderForFirstCustomer =>
+        IsTutorialOrder(GetOrderForCustomer(0));
     // ==================================================
     // UNITY
     // ==================================================
@@ -177,6 +206,14 @@ public class OrderManager : MonoBehaviour
         progressionManager
             .UpgradeLevelChanged +=
                 HandleUpgradeLevelChanged;
+        BindTutorialController();
+        while (tutorialController != null &&
+               !tutorialController.IsReady &&
+               !tutorialController.HasRecoverableError)
+            yield return null;
+        if (tutorialController != null &&
+            !tutorialController.IsReady)
+            yield break;
         // Saved orders belong to the restoration transaction; do not generate provisional IDs.
         if (MergeSessionManager.Instance == null || !MergeSessionManager.Instance.HasSession)
             RefreshCustomerSlots();
@@ -196,6 +233,7 @@ public class OrderManager : MonoBehaviour
                 .UpgradeLevelChanged -=
                     HandleUpgradeLevelChanged;
         }
+        UnbindTutorialController();
     }
     private void ResolveReferences()
 {
@@ -422,9 +460,9 @@ internal bool TryPrepareFreshSessionOrders(
     preparedOrders = new CustomerOrderState[capacity];
     for (int customerIndex = 0; customerIndex < capacity; customerIndex++)
     {
-        if (!TryGenerateProceduralOrder(
+        if (!TryCreateOrderForCustomer(
+                customerIndex,
                 nextOrderId + customerIndex,
-                CreateOrderRandom(),
                 out CustomerOrder generatedOrder))
         {
             preparedOrders = null;
@@ -452,6 +490,11 @@ internal bool TryPrepareOrderRefresh(
     preparedNextOrderId = nextOrderId;
     reason = null;
     int capacity = ActiveCustomerCount;
+    if (IsTutorialOrderRequired())
+    {
+        reason = "Customer orders cannot be refreshed while the tutorial is active.";
+        return false;
+    }
     if (isFulfilling || progressionManager == null ||
         capacity < 1 || nextOrderId <= 0 ||
         (long)nextOrderId + capacity > int.MaxValue)
@@ -480,9 +523,9 @@ internal bool TryPrepareOrderRefresh(
     for (int customerIndex = 0; customerIndex < capacity; customerIndex++)
     {
         int orderId = nextOrderId + customerIndex;
-        if (!TryGenerateProceduralOrder(
+        if (!TryCreateOrderForCustomer(
+                customerIndex,
                 orderId,
-                CreateOrderRandom(),
                 out CustomerOrder generatedOrder))
         {
             reason =
@@ -646,15 +689,17 @@ internal void PublishPreparedFreshSessionOrders()
             Debug.LogError("ORDER GENERATION FAILED | Order ID sequence exhausted.");
             return false;
         }
-        if (!TryGenerateProceduralOrder(
+        if (!TryCreateOrderForCustomer(
+                customerIndex,
                 nextOrderId,
-                CreateOrderRandom(),
                 out CustomerOrder generatedOrder))
         {
             Debug.LogError(
                 $"ORDER GENERATION FAILED | Customer {customerIndex + 1} | " +
-                "Procedural order generation found no valid order within the " +
-                "current Oven tier cap."
+                (customerIndex == 0 && IsTutorialOrderRequired()
+                    ? "The fixed Tier 3 tutorial order could not be created."
+                    : "Procedural order generation found no valid order within the " +
+                      "current Oven tier cap.")
             );
             return false;
         }
@@ -682,6 +727,117 @@ internal void PublishPreparedFreshSessionOrders()
             newOrder
         );
         return true;
+    }
+
+    private bool TryCreateOrderForCustomer(
+        int customerIndex,
+        int orderId,
+        out CustomerOrder order)
+    {
+        if (customerIndex == 0 && IsTutorialOrderRequired())
+            return TryCreateTutorialOrder(orderId, out order);
+
+        return TryGenerateProceduralOrder(
+            orderId,
+            CreateOrderRandom(),
+            out order);
+    }
+
+    private bool TryCreateTutorialOrder(
+        int orderId,
+        out CustomerOrder order)
+    {
+        order = null;
+        ResolveReferences();
+        if (orderId <= 0 ||
+            dessertSpawner == null ||
+            progressionManager == null ||
+            progressionManager.ShelfCapacity < TutorialOrderQuantity ||
+            !progressionManager.IsDessertTierUnlocked(
+                TutorialOrderDessertTier))
+            return false;
+
+        DessertDefinition dessert =
+            dessertSpawner.GetDessertDefinitionByTier(
+                TutorialOrderDessertTier);
+        if (dessert == null)
+            return false;
+
+        order = new CustomerOrder(
+            orderId,
+            TutorialOrderDisplayName,
+            TutorialOrderBaseReward,
+            new[]
+            {
+                new OrderRequirement(
+                    dessert,
+                    TutorialOrderQuantity)
+            });
+        return order.IsValidForServingPlateCapacity(
+            progressionManager.ShelfCapacity);
+    }
+
+    private bool IsTutorialOrderRequired()
+    {
+        HybridTutorialController current =
+            HybridTutorialController.Instance;
+        return current != null &&
+            current.State.IsLocallyValidated &&
+            !current.State.IsCompleted;
+    }
+
+    private void BindTutorialController()
+    {
+        HybridTutorialController current =
+            HybridTutorialController.Instance;
+        if (ReferenceEquals(tutorialController, current))
+            return;
+
+        UnbindTutorialController();
+        tutorialController = current;
+        if (tutorialController == null)
+            return;
+
+        tutorialController.TutorialCompleted +=
+            HandleTutorialCompleted;
+        tutorialController.ReadinessChanged +=
+            HandleTutorialReadinessChanged;
+    }
+
+    private void UnbindTutorialController()
+    {
+        if (tutorialController == null)
+            return;
+
+        tutorialController.TutorialCompleted -=
+            HandleTutorialCompleted;
+        tutorialController.ReadinessChanged -=
+            HandleTutorialReadinessChanged;
+        tutorialController = null;
+    }
+
+    private void HandleTutorialReadinessChanged()
+    {
+        if (tutorialController == null ||
+            !tutorialController.IsReady ||
+            (MergeSessionManager.Instance != null &&
+             MergeSessionManager.Instance.HasSession))
+            return;
+
+        RefreshCustomerSlots();
+    }
+
+    private void HandleTutorialCompleted()
+    {
+        if (isFulfilling || !IsCustomerUnlocked(0))
+            return;
+
+        CustomerOrder currentOrder = GetOrderForCustomer(0);
+        if (currentOrder != null && !IsTutorialOrder(currentOrder))
+            return;
+
+        if (GenerateOrderForCustomer(0))
+            NotifyOrderCollectionsChanged();
     }
 
     internal bool TryGenerateProceduralOrder(
@@ -967,6 +1123,15 @@ internal void PublishPreparedFreshSessionOrders()
         {
             return false;
         }
+        HybridTutorialController activeTutorial =
+            HybridTutorialController.Instance;
+        if (IsTutorialOrder(order) &&
+            activeTutorial != null &&
+            !activeTutorial.State.IsCompleted &&
+            (!activeTutorial.IsReady ||
+             !IsTutorialOrderRequired() ||
+             activeTutorial.State.Stage != TutorialStage.Order))
+            return false;
         return order.CanFulfill(
             shelfManager
         );
@@ -1022,6 +1187,15 @@ internal void PublishPreparedFreshSessionOrders()
         {
             return false;
         }
+        HybridTutorialController activeTutorial =
+            HybridTutorialController.Instance;
+        if (IsTutorialOrder(orderToComplete) &&
+            activeTutorial != null &&
+            !activeTutorial.State.IsCompleted &&
+            (!activeTutorial.IsReady ||
+             !IsTutorialOrderRequired() ||
+             activeTutorial.State.Stage != TutorialStage.Order))
+            return false;
         if (!orderToComplete
                 .TryGetDessertsForFulfillment(
                     shelfManager,
@@ -1101,16 +1275,26 @@ internal void PublishPreparedFreshSessionOrders()
                 $"Consumed: " +
                 $"{dessertsToConsume.Count}"
             );
-            // EconomyManager listens to this event.
-            OrderCompleted?.Invoke(
-                orderToComplete
-            );
+            HybridTutorialController currentTutorial =
+                HybridTutorialController.Instance;
+            IsCompletingTutorialOrder =
+                IsTutorialOrder(orderToComplete) &&
+                currentTutorial != null &&
+                currentTutorial.IsReady &&
+                currentTutorial.State.Stage == TutorialStage.Order;
+            try
+            {
+                OrderCompleted?.Invoke(orderToComplete);
+            }
+            finally
+            {
+                IsCompletingTutorialOrder = false;
+            }
             // ----------------------------------------------
             // REPLACE ONLY THIS CUSTOMER'S ORDER
             // ----------------------------------------------
-            GenerateOrderForCustomer(
-                customerIndex
-            );
+            if (customerOrders[customerIndex] == null)
+                GenerateOrderForCustomer(customerIndex);
             isFulfilling = false;
             NotifyOrderCollectionsChanged();
             return true;

@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Unity.Services.Authentication;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using SweetMerge.Analytics;
 
 namespace SweetMerge.Profile
 {
@@ -21,12 +19,9 @@ namespace SweetMerge.Profile
         private sealed class BufferedTutorialEvent
         {
             public TutorialEventKind Kind;
-            public int AccountGeneration;
-            public string PlayerId;
         }
 
         private const int EventBufferCapacity = 8;
-        private const int MaxRecoveryAttempts = 3;
 
         public static HybridTutorialController Instance { get; private set; }
 
@@ -34,29 +29,28 @@ namespace SweetMerge.Profile
         private OrderManager subscribedOrderManager;
         private TutorialProgressState state =
             TutorialProgressState.Initial();
-        private bool accountReady;
+        private bool localReady;
         private bool progressOperationInFlight;
         private bool progressLoadInFlight;
         private bool destroyed;
         private bool completionNotified;
-        private int accountGeneration;
         private bool sceneTransitionInFlight;
         private bool drainInFlight;
         private bool recoveryExhausted;
         private string recoveryError;
-        private bool servicesInitialized;
-        private bool servicesInitializationInFlight;
         private TutorialStage? operationTargetStage;
         private readonly Queue<BufferedTutorialEvent> eventBuffer =
             new Queue<BufferedTutorialEvent>();
 
         public TutorialProgressState State => state;
-        public bool IsReady => accountReady;
+        public bool IsReady => localReady;
         public bool HasRecoverableError => recoveryExhausted;
         public string RecoverableError => recoveryError;
         public event Action<TutorialProgressState> StateChanged;
         public event Action RecoveryStateChanged;
+        public event Action ReadinessChanged;
         public event Action TutorialCompleted;
+        public event Action TutorialOrderCompletionPersisted;
 
         [RuntimeInitializeOnLoadMethod(
             RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -87,80 +81,24 @@ namespace SweetMerge.Profile
 
         private void Start()
         {
-            _ = InitializeAfterUnityServicesAsync();
-        }
-
-        private async Task InitializeAfterUnityServicesAsync()
-        {
-            if (servicesInitializationInFlight || servicesInitialized)
-                return;
-
-            servicesInitializationInFlight = true;
-            try
-            {
-                await UnityServicesInitializer.InitializeAsync();
-            }
-            catch (Exception exception)
-            {
-                SetRecoveryState(
-                    true,
-                    "Tutorial services could not initialize. Retry is available.");
-                Debug.LogError(
-                    "TUTORIAL | Unity Services initialization failed: " +
-                    exception.Message);
-                servicesInitializationInFlight = false;
-                return;
-            }
-
-            if (destroyed)
-            {
-                servicesInitializationInFlight = false;
-                return;
-            }
-
-            servicesInitializationInFlight = false;
-            SetRecoveryState(false, null);
-            servicesInitialized = true;
-            progressService.Initialize();
-
-            IAuthenticationService authentication =
-                AuthenticationService.Instance;
-            authentication.SignedIn += HandleSignedIn;
-            authentication.SignedOut += HandleSignedOut;
-
             GameplayEvents.DessertSpawned += HandleDessertSpawned;
             GameplayEvents.DessertMergeCommitted +=
                 HandleDessertMergeCommitted;
             SceneManager.sceneLoaded += HandleSceneLoaded;
             SceneManager.sceneUnloaded += HandleSceneUnloaded;
-
             BindOrderManager();
-            _ = LoadAuthenticatedProgressAsync();
+            _ = LoadLocalProgressAsync();
         }
 
         private void OnDestroy()
         {
             destroyed = true;
-            accountGeneration++;
-
-            if (servicesInitialized)
-            {
-                GameplayEvents.DessertSpawned -= HandleDessertSpawned;
-                GameplayEvents.DessertMergeCommitted -=
-                    HandleDessertMergeCommitted;
-                SceneManager.sceneLoaded -= HandleSceneLoaded;
-                SceneManager.sceneUnloaded -= HandleSceneUnloaded;
-            }
-
+            GameplayEvents.DessertSpawned -= HandleDessertSpawned;
+            GameplayEvents.DessertMergeCommitted -=
+                HandleDessertMergeCommitted;
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneUnloaded -= HandleSceneUnloaded;
             UnbindOrderManager();
-
-            if (servicesInitialized)
-            {
-                IAuthenticationService authentication =
-                    AuthenticationService.Instance;
-                authentication.SignedIn -= HandleSignedIn;
-                authentication.SignedOut -= HandleSignedOut;
-            }
 
             if (progressService != null)
             {
@@ -184,35 +122,64 @@ namespace SweetMerge.Profile
 
         public void RetryProgressRecovery()
         {
-            if (destroyed || drainInFlight)
+            if (destroyed || progressLoadInFlight || drainInFlight)
                 return;
 
             SetRecoveryState(false, null);
-            if (!servicesInitialized)
-            {
-                _ = InitializeAfterUnityServicesAsync();
+            _ = LoadLocalProgressAsync();
+        }
+
+        private async Task LoadLocalProgressAsync()
+        {
+            if (destroyed ||
+                progressService == null ||
+                progressLoadInFlight)
                 return;
+
+            progressLoadInFlight = true;
+            SetLocalReady(false);
+            try
+            {
+                progressService.Initialize();
+                TutorialProgressResult loaded =
+                    await progressService.LoadAsync();
+                if (destroyed)
+                    return;
+
+                if (loaded.Operation != TutorialProgressOperation.Applied ||
+                    !loaded.State.IsLocallyValidated)
+                {
+                    string message = loaded.State.ErrorMessage ??
+                        "Local tutorial progress could not be verified. Files were preserved.";
+                    SetRecoveryState(true, message);
+                    SetLocalReady(false);
+                    return;
+                }
+
+                SetRecoveryState(false, null);
+                SetLocalReady(true);
+            }
+            catch (Exception exception)
+            {
+                if (destroyed)
+                    return;
+
+                SetRecoveryState(
+                    true,
+                    "Local tutorial progress could not be loaded: " +
+                    exception.Message);
+                SetLocalReady(false);
+                Debug.LogError(
+                    "TUTORIAL | Local progress load failed: " +
+                    exception);
+            }
+            finally
+            {
+                progressLoadInFlight = false;
             }
 
-            _ = LoadAuthenticatedProgressAsync();
-        }
-
-        private void HandleSignedIn()
-        {
-            accountGeneration++;
-            accountReady = false;
-            completionNotified = false;
-            ClearBufferedEvents();
-            _ = LoadAuthenticatedProgressAsync();
-        }
-
-        private void HandleSignedOut()
-        {
-            accountGeneration++;
-            accountReady = false;
-            completionNotified = false;
-            progressOperationInFlight = false;
-            ClearBufferedEvents();
+            if (localReady)
+                _ = DrainEventsAsync();
         }
 
         private void HandleSceneLoaded(
@@ -234,11 +201,9 @@ namespace SweetMerge.Profile
 
         private void HandleDessertSpawned(int tier)
         {
-            if (!CanAdvance(TutorialStage.Spawn))
-            {
-                if (!CanBufferDuringOperation(TutorialEventKind.Spawn))
-                    return;
-            }
+            if (!CanAdvance(TutorialStage.Spawn) &&
+                !CanBufferDuringOperation(TutorialEventKind.Spawn))
+                return;
 
             EnqueueAndDrain(TutorialEventKind.Spawn);
         }
@@ -247,11 +212,9 @@ namespace SweetMerge.Profile
             int resultingTier,
             bool isNewHighestTier)
         {
-            if (!CanAdvance(TutorialStage.Merge))
-            {
-                if (!CanBufferDuringOperation(TutorialEventKind.Merge))
-                    return;
-            }
+            if (!CanAdvance(TutorialStage.Merge) &&
+                !CanBufferDuringOperation(TutorialEventKind.Merge))
+                return;
 
             EnqueueAndDrain(TutorialEventKind.Merge);
         }
@@ -260,82 +223,16 @@ namespace SweetMerge.Profile
         {
             if (sceneTransitionInFlight ||
                 subscribedOrderManager == null ||
-                !subscribedOrderManager.isActiveAndEnabled)
+                !subscribedOrderManager.isActiveAndEnabled ||
+                state.Stage != TutorialStage.Order ||
+                !OrderManager.IsTutorialOrder(order))
                 return;
 
-            if (!CanAdvance(TutorialStage.Order))
-            {
-                if (!CanBufferDuringOperation(TutorialEventKind.Order))
-                    return;
-            }
+            if (!CanAdvance(TutorialStage.Order) &&
+                !CanBufferDuringOperation(TutorialEventKind.Order))
+                return;
 
             EnqueueAndDrain(TutorialEventKind.Order);
-        }
-
-        private async Task LoadAuthenticatedProgressAsync()
-        {
-            if (destroyed ||
-                progressService == null ||
-                progressLoadInFlight)
-                return;
-
-            IAuthenticationService authentication =
-                AuthenticationService.Instance;
-            if (!authentication.IsSignedIn ||
-                !authentication.IsAuthorized ||
-                string.IsNullOrWhiteSpace(authentication.PlayerId))
-            {
-                accountReady = false;
-                return;
-            }
-
-            progressLoadInFlight = true;
-            int loadGeneration = accountGeneration;
-            string playerId = authentication.PlayerId;
-            try
-            {
-                if (!IsCurrentAccount(loadGeneration, playerId))
-                    return;
-
-                TutorialProgressResult loaded =
-                    await progressService.LoadAsync();
-                if (!IsCurrentAccount(loadGeneration, playerId))
-                    return;
-
-                if (loaded.Operation != TutorialProgressOperation.Applied)
-                {
-                    accountReady = false;
-                    return;
-                }
-
-                if (progressService.State.HasPendingStageUpdate)
-                {
-                    TutorialProgressResult retried =
-                        await progressService.RetryPendingAsync();
-                    if (!IsCurrentAccount(loadGeneration, playerId))
-                        return;
-
-                    if (retried.Operation !=
-                            TutorialProgressOperation.Applied &&
-                        retried.Operation !=
-                            TutorialProgressOperation.AlreadyAtOrBeyond)
-                    {
-                        accountReady = false;
-                        return;
-                    }
-                }
-
-                accountReady = IsCurrentAccount(
-                        loadGeneration,
-                        playerId) &&
-                    progressService.State.IsCloudConfirmed;
-                if (accountReady)
-                    _ = DrainEventsAsync();
-            }
-            finally
-            {
-                progressLoadInFlight = false;
-            }
         }
 
         private void EnqueueAndDrain(TutorialEventKind kind)
@@ -355,43 +252,58 @@ namespace SweetMerge.Profile
             try
             {
                 while (eventBuffer.Count > 0 &&
-                       accountReady &&
+                       localReady &&
                        !destroyed)
                 {
                     BufferedTutorialEvent bufferedEvent =
                         eventBuffer.Peek();
-                    if (!IsCurrentAccount(
-                            bufferedEvent.AccountGeneration,
-                            bufferedEvent.PlayerId))
-                    {
-                        eventBuffer.Dequeue();
-                        continue;
-                    }
-
                     TutorialStage requiredStage =
                         StageForEvent(bufferedEvent.Kind);
-                    if (!CanAdvance(requiredStage))
-                    {
-                        if (progressOperationInFlight)
-                            break;
 
+                    if (state.IsCompleted ||
+                        (int)requiredStage < (int)state.Stage)
+                    {
                         eventBuffer.Dequeue();
                         continue;
                     }
 
-                    eventBuffer.Dequeue();
-                    TutorialProgressResult result =
-                        await ProcessEventAsync(bufferedEvent);
-                    if (result.Operation !=
-                            TutorialProgressOperation.Applied &&
-                        result.Operation !=
-                            TutorialProgressOperation.AlreadyAtOrBeyond)
+                    if (requiredStage != state.Stage)
                     {
-                        await RecoverPendingProgressAsync(
-                            bufferedEvent);
+                        eventBuffer.Dequeue();
+                        continue;
                     }
 
-                    operationTargetStage = null;
+                    if (bufferedEvent.Kind == TutorialEventKind.Merge &&
+                        (subscribedOrderManager == null ||
+                         !OrderManager.IsTutorialOrder(
+                             subscribedOrderManager.GetOrderForCustomer(0))))
+                    {
+                        break;
+                    }
+
+                    TutorialProgressResult result =
+                        await ProcessEventAsync(bufferedEvent);
+                    if (result.Operation ==
+                            TutorialProgressOperation.Applied ||
+                        result.Operation ==
+                            TutorialProgressOperation.AlreadyAtOrBeyond)
+                    {
+                        if (eventBuffer.Count > 0 &&
+                            ReferenceEquals(
+                                eventBuffer.Peek(),
+                                bufferedEvent))
+                            eventBuffer.Dequeue();
+                        if (bufferedEvent.Kind == TutorialEventKind.Order &&
+                            state.IsCompleted)
+                            TutorialOrderCompletionPersisted?.Invoke();
+                        continue;
+                    }
+
+                    string message = result.State.ErrorMessage ??
+                        "Tutorial progress could not be saved. Retry to recover; the gameplay event remains queued.";
+                    SetRecoveryState(true, message);
+                    SetLocalReady(false);
+                    break;
                 }
             }
             finally
@@ -422,86 +334,38 @@ namespace SweetMerge.Profile
             finally
             {
                 progressOperationInFlight = false;
+                operationTargetStage = null;
             }
-        }
-
-        private async Task RecoverPendingProgressAsync(
-            BufferedTutorialEvent bufferedEvent)
-        {
-            int generation = bufferedEvent.AccountGeneration;
-            string playerId = bufferedEvent.PlayerId;
-            for (int attempt = 0; attempt < MaxRecoveryAttempts; attempt++)
-            {
-                if (!IsCurrentAccount(generation, playerId))
-                    return;
-
-                await Task.Delay(250 * (attempt + 1));
-                TutorialProgressResult result =
-                    await progressService.RetryPendingAsync();
-                if (!IsCurrentAccount(generation, playerId))
-                    return;
-
-                if (result.Operation ==
-                        TutorialProgressOperation.Applied ||
-                    result.Operation ==
-                        TutorialProgressOperation.AlreadyAtOrBeyond)
-                {
-                    accountReady = progressService.State.IsCloudConfirmed;
-                    SetRecoveryState(false, null);
-                    return;
-                }
-            }
-
-            SetRecoveryState(
-                true,
-                "Tutorial progress could not be confirmed. Retry is available.");
-            accountReady = false;
-            if (!ContainsBufferedEvent(bufferedEvent))
-                eventBuffer.Enqueue(bufferedEvent);
-        }
-
-        private bool ContainsBufferedEvent(
-            BufferedTutorialEvent candidate)
-        {
-            foreach (BufferedTutorialEvent bufferedEvent in eventBuffer)
-            {
-                if (ReferenceEquals(bufferedEvent, candidate))
-                    return true;
-            }
-
-            return false;
         }
 
         private bool TryBufferEvent(TutorialEventKind kind)
         {
             if (destroyed ||
                 sceneTransitionInFlight ||
-                !accountReady ||
-                state.PlayerId == null)
+                !localReady ||
+                !state.IsLocallyValidated ||
+                state.IsCompleted)
                 return false;
+
+            foreach (BufferedTutorialEvent bufferedEvent in eventBuffer)
+            {
+                if (bufferedEvent.Kind == kind)
+                    return true;
+            }
 
             if (eventBuffer.Count >= EventBufferCapacity)
             {
                 SetRecoveryState(
                     true,
-                    "Tutorial event buffer is full; retry is required.");
+                    "The tutorial event buffer is full. Retry local progress recovery.");
+                SetLocalReady(false);
                 return false;
-            }
-
-            foreach (BufferedTutorialEvent bufferedEvent in eventBuffer)
-            {
-                if (bufferedEvent.AccountGeneration == accountGeneration &&
-                    bufferedEvent.PlayerId == state.PlayerId &&
-                    bufferedEvent.Kind == kind)
-                    return true;
             }
 
             eventBuffer.Enqueue(
                 new BufferedTutorialEvent
                 {
-                    Kind = kind,
-                    AccountGeneration = accountGeneration,
-                    PlayerId = state.PlayerId
+                    Kind = kind
                 });
             return true;
         }
@@ -520,16 +384,19 @@ namespace SweetMerge.Profile
                 ? TutorialStage.Welcome
                 : kind == TutorialEventKind.Spawn
                     ? TutorialStage.Spawn
-                : kind == TutorialEventKind.Merge
-                    ? TutorialStage.Merge
-                    : TutorialStage.Order;
+                    : kind == TutorialEventKind.Merge
+                        ? TutorialStage.Merge
+                        : TutorialStage.Order;
         }
 
-        private void ClearBufferedEvents()
+        private void SetLocalReady(bool ready)
         {
-            eventBuffer.Clear();
-            operationTargetStage = null;
-            SetRecoveryState(false, null);
+            if (localReady == ready)
+                return;
+
+            localReady = ready;
+            if (!destroyed)
+                ReadinessChanged?.Invoke();
         }
 
         private void SetRecoveryState(
@@ -544,30 +411,27 @@ namespace SweetMerge.Profile
                 RecoveryStateChanged?.Invoke();
         }
 
-        private bool CanAdvance(TutorialStage expectedStage)
-        {
-            return accountReady &&
-                !progressOperationInFlight &&
-                !destroyed &&
-                state.PlayerId != null &&
-                !state.IsCompleted &&
-                state.Stage == expectedStage;
-        }
-
-        private bool IsCurrentAccount(
-            int expectedGeneration,
-            string expectedPlayerId)
+        private void HandleOrderGenerated(CustomerOrder order)
         {
             if (destroyed ||
-                expectedGeneration != accountGeneration ||
-                string.IsNullOrWhiteSpace(expectedPlayerId))
-                return false;
+                state.Stage != TutorialStage.Merge ||
+                !OrderManager.IsTutorialOrder(order) ||
+                subscribedOrderManager == null ||
+                !OrderManager.IsTutorialOrder(
+                    subscribedOrderManager.GetOrderForCustomer(0)))
+                return;
 
-            IAuthenticationService authentication =
-                AuthenticationService.Instance;
-            return authentication.IsSignedIn &&
-                authentication.IsAuthorized &&
-                authentication.PlayerId == expectedPlayerId;
+            _ = DrainEventsAsync();
+        }
+
+        private bool CanAdvance(TutorialStage expectedStage)
+        {
+            return localReady &&
+                !progressOperationInFlight &&
+                !destroyed &&
+                state.IsLocallyValidated &&
+                !state.IsCompleted &&
+                state.Stage == expectedStage;
         }
 
         private void HandleProgressStateChanged(
@@ -597,8 +461,14 @@ namespace SweetMerge.Profile
             subscribedOrderManager = current;
             if (subscribedOrderManager != null)
             {
+                subscribedOrderManager.OrderCompleted -=
+                    HandleOrderCompleted;
                 subscribedOrderManager.OrderCompleted +=
                     HandleOrderCompleted;
+                subscribedOrderManager.OrderGenerated -=
+                    HandleOrderGenerated;
+                subscribedOrderManager.OrderGenerated +=
+                    HandleOrderGenerated;
             }
         }
 
@@ -609,6 +479,8 @@ namespace SweetMerge.Profile
 
             subscribedOrderManager.OrderCompleted -=
                 HandleOrderCompleted;
+            subscribedOrderManager.OrderGenerated -=
+                HandleOrderGenerated;
             subscribedOrderManager = null;
         }
     }

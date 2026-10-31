@@ -63,11 +63,11 @@ public class SceneNavigationManager : MonoBehaviour
         if (startup != null &&
             startup.IsStartupComplete &&
             applicationReadiness != null &&
-            applicationReadiness.IsReady)
+            applicationReadiness.CanBeginGameplay)
             return true;
 
         Debug.LogWarning(
-            "SCENE | Cannot enter Game until application readiness succeeds.");
+            "SCENE | Cannot enter Game until local startup and tutorial readiness succeed.");
         return false;
     }
 

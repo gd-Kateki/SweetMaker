@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using SweetMerge.Profile;
 
 public class EconomyManager : MonoBehaviour
 {
@@ -28,6 +29,10 @@ public class EconomyManager : MonoBehaviour
     private long totalOrdersCompleted;
 
     private long totalMoneyEarned;
+
+    private CustomerOrder pendingTutorialOrderReward;
+
+    private bool tutorialOrderRewardCommitted;
 
     private bool initialized;
 
@@ -243,14 +248,87 @@ public class EconomyManager : MonoBehaviour
         if (order == null)
             return;
 
+        if (orderManager != null &&
+            orderManager.IsCompletingTutorialOrder &&
+            OrderManager.IsTutorialOrder(order))
+        {
+            if (pendingTutorialOrderReward != null)
+            {
+                Debug.LogError(
+                    "TUTORIAL ORDER REWARD | A second tutorial reward arrived before the first was committed."
+                );
+                return;
+            }
+
+            pendingTutorialOrderReward = order;
+            return;
+        }
+
+        CreditCompletedOrder(order);
+    }
+
+    public bool TryCommitTutorialOrderReward()
+    {
+        if (tutorialOrderRewardCommitted)
+            return true;
+
+        if (pendingTutorialOrderReward == null ||
+            !OrderManager.IsTutorialOrder(pendingTutorialOrderReward))
+        {
+            Debug.LogError(
+                "TUTORIAL ORDER REWARD | No verified tutorial order reward is pending."
+            );
+            return false;
+        }
+
+        HybridTutorialController controller =
+            HybridTutorialController.Instance;
+        if (controller == null ||
+            !controller.IsReady ||
+            !controller.State.IsCompleted)
+        {
+            Debug.LogError(
+                "TUTORIAL ORDER REWARD | Tutorial completion is not locally persisted."
+            );
+            return false;
+        }
+
+        int finalReward =
+            CalculateOrderReward(pendingTutorialOrderReward);
+        if (finalReward > 0 &&
+            !TryAddGameplayEarnings(finalReward, out _))
+        {
+            Debug.LogError(
+                "TUTORIAL ORDER REWARD | Reward could not be credited; gameplay departure is blocked."
+            );
+            return false;
+        }
+
+        totalOrdersCompleted =
+            SaturatingAdd(totalOrdersCompleted, 1);
+
+        CustomerOrder committedOrder = pendingTutorialOrderReward;
+        pendingTutorialOrderReward = null;
+        tutorialOrderRewardCommitted = true;
+
+        Debug.Log(
+            $"ORDER REWARD | " +
+            $"Order #{committedOrder.OrderId} | " +
+            $"Base: ${committedOrder.CashReward} | " +
+            $"Multiplier: " +
+            $"x{CurrentMoneyMultiplier:0.##} | " +
+            $"Final: ${finalReward}"
+        );
+        return true;
+    }
+
+    private void CreditCompletedOrder(CustomerOrder order)
+    {
         totalOrdersCompleted =
             SaturatingAdd(totalOrdersCompleted, 1);
 
         int finalReward =
-            CalculateOrderReward(
-                order
-            );
-
+            CalculateOrderReward(order);
         if (finalReward > 0)
         {
             TryAddGameplayEarnings(

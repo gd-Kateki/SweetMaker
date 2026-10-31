@@ -1,18 +1,13 @@
 using System;
-using System.Threading.Tasks;
-using SweetMerge.Analytics;
-using SweetMerge.Authentication;
 using SweetMerge.Profile;
-using Unity.Services.Authentication;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public enum ApplicationReadinessState
 {
     Initializing,
-    AuthenticationRequired,
-    Authenticating,
-    LoadingCloudProgress,
+    TutorialProgressRequired,
+    GameplayRestoring,
     Ready,
     RecoverableError
 }
@@ -23,20 +18,21 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
 
     public ApplicationReadinessState State { get; private set; } =
         ApplicationReadinessState.Initializing;
-    public bool IsReady =>
-        State == ApplicationReadinessState.Ready;
+    public bool IsLocalStartupReady =>
+        gameStartup != null && gameStartup.IsStartupComplete;
+    public bool CanBeginGameplay =>
+        IsLocalStartupReady &&
+        !gameStartup.IsStartupBlocked &&
+        tutorialController != null &&
+        tutorialController.IsReady;
+    public bool IsGameplayReady =>
+        CanBeginGameplay && gameStartup.IsGameplayReady;
+    public bool IsReady => IsGameplayReady;
     public string ErrorMessage { get; private set; }
     public event Action<ApplicationReadinessState> StateChanged;
 
-    private GooglePlayGamesAuthenticationCoordinator authenticationCoordinator;
-    private IAuthenticationService authentication;
     private HybridTutorialController tutorialController;
     private GameStartupCoordinator gameStartup;
-    private bool servicesInitialized;
-    private bool attemptInFlight;
-    private bool subscribed;
-    private int attemptGeneration;
-    private string playerId;
     private bool destroyed;
     private GameplayModalInputGate.GameplayModalLease gameplayBlockLease;
 
@@ -65,158 +61,65 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
 
     private void Start()
     {
-        UpdateGameplayInputGate();
-        _ = StartAttemptAsync();
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        SubscribeToReadinessSources();
+        EvaluateReadiness();
     }
 
     public void Retry()
     {
-        if (destroyed || attemptInFlight)
+        if (destroyed)
             return;
 
-        if (tutorialController != null &&
-            tutorialController.HasRecoverableError)
-            tutorialController.RetryProgressRecovery();
+        SubscribeToReadinessSources();
+        if (gameStartup != null && gameStartup.IsStartupBlocked)
+            gameStartup.RetryStartup();
+        else
+            tutorialController?.RetryProgressRecovery();
 
-        _ = StartAttemptAsync();
-    }
-
-    private async Task StartAttemptAsync()
-    {
-        if (destroyed || attemptInFlight)
-            return;
-
-        attemptInFlight = true;
-        int generation = ++attemptGeneration;
-        playerId = null;
-        SetState(ApplicationReadinessState.Initializing, null);
-
-        try
-        {
-            await UnityServicesInitializer.InitializeAsync();
-            if (!IsCurrentAttempt(generation))
-                return;
-
-            servicesInitialized = true;
-            SubscribeToAuthentication();
-            authenticationCoordinator =
-                GooglePlayGamesAuthenticationCoordinator.Instance;
-            authenticationCoordinator.StateChanged -=
-                HandleAuthenticationCoordinatorChanged;
-            authenticationCoordinator.StateChanged +=
-                HandleAuthenticationCoordinatorChanged;
-
-            SetState(ApplicationReadinessState.Authenticating, null);
-            GooglePlayGamesAuthenticationResult result =
-                await authenticationCoordinator.RestoreSessionAsync();
-            if (!IsCurrentAttempt(generation))
-                return;
-
-            if (result != GooglePlayGamesAuthenticationResult.SignedIn)
-            {
-                if (authenticationCoordinator.Failure ==
-                    GooglePlayGamesAuthenticationFailure
-                        .CachedSessionUnavailable)
-                {
-                    SetState(
-                        ApplicationReadinessState.AuthenticationRequired,
-                        "Authentication is required to continue.");
-                }
-                else
-                {
-                    SetState(
-                        ApplicationReadinessState.RecoverableError,
-                        "Authentication could not be restored.");
-                }
-
-                return;
-            }
-
-            if (!TryCaptureAuthenticatedAccount(out string signedInPlayerId))
-            {
-                SetState(
-                    ApplicationReadinessState.RecoverableError,
-                    "Authentication did not provide a valid account.");
-                return;
-            }
-
-            playerId = signedInPlayerId;
-            SetState(ApplicationReadinessState.LoadingCloudProgress, null);
-            SubscribeToReadinessSources();
-            EvaluateReadiness(generation);
-        }
-        catch (Exception exception)
-        {
-            if (IsCurrentAttempt(generation))
-            {
-                SetState(
-                    ApplicationReadinessState.RecoverableError,
-                    "Startup could not be completed: " + exception.Message);
-            }
-        }
-        finally
-        {
-            if (generation == attemptGeneration)
-                attemptInFlight = false;
-        }
-    }
-
-    private void SubscribeToAuthentication()
-    {
-        if (!servicesInitialized || authentication != null)
-            return;
-
-        authentication = AuthenticationService.Instance;
-        authentication.SignedIn += HandleUnityAuthenticationChanged;
-        authentication.SignedOut += HandleUnityAuthenticationChanged;
+        EvaluateReadiness();
     }
 
     private void SubscribeToReadinessSources()
     {
-        if (subscribed)
-            return;
+        GameStartupCoordinator currentStartup =
+            GameStartupCoordinator.Instance;
+        if (!ReferenceEquals(gameStartup, currentStartup))
+        {
+            if (gameStartup != null)
+                gameStartup.StateChanged -= HandleGameStartupStateChanged;
 
-        subscribed = true;
-        SceneManager.sceneLoaded += HandleSceneLoaded;
-        SubscribeToTutorial();
-        SubscribeToGameStartup();
-    }
+            gameStartup = currentStartup;
+            if (gameStartup != null)
+                gameStartup.StateChanged += HandleGameStartupStateChanged;
+        }
 
-    private void SubscribeToTutorial()
-    {
-        HybridTutorialController current =
+        HybridTutorialController currentTutorial =
             HybridTutorialController.Instance;
-        if (ReferenceEquals(tutorialController, current))
-            return;
-
-        if (tutorialController != null)
+        if (!ReferenceEquals(tutorialController, currentTutorial))
         {
-            tutorialController.StateChanged -= HandleTutorialStateChanged;
-            tutorialController.RecoveryStateChanged -=
-                HandleTutorialRecoveryStateChanged;
+            if (tutorialController != null)
+            {
+                tutorialController.StateChanged -=
+                    HandleTutorialStateChanged;
+                tutorialController.RecoveryStateChanged -=
+                    HandleTutorialRecoveryStateChanged;
+                tutorialController.ReadinessChanged -=
+                    HandleTutorialReadinessChanged;
+            }
+
+            tutorialController = currentTutorial;
+            if (tutorialController != null)
+            {
+                tutorialController.StateChanged +=
+                    HandleTutorialStateChanged;
+                tutorialController.RecoveryStateChanged +=
+                    HandleTutorialRecoveryStateChanged;
+                tutorialController.ReadinessChanged +=
+                    HandleTutorialReadinessChanged;
+            }
         }
 
-        tutorialController = current;
-        if (tutorialController != null)
-        {
-            tutorialController.StateChanged += HandleTutorialStateChanged;
-            tutorialController.RecoveryStateChanged +=
-                HandleTutorialRecoveryStateChanged;
-        }
-    }
-
-    private void SubscribeToGameStartup()
-    {
-        GameStartupCoordinator current = GameStartupCoordinator.Instance;
-        if (ReferenceEquals(gameStartup, current))
-            return;
-
-        if (gameStartup != null)
-            gameStartup.StateChanged -= HandleGameStartupStateChanged;
-
-        gameStartup = current;
-        if (gameStartup != null)
-            gameStartup.StateChanged += HandleGameStartupStateChanged;
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -224,149 +127,82 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
         if (destroyed)
             return;
 
-        UpdateGameplayInputGate();
-        SubscribeToTutorial();
-        SubscribeToGameStartup();
-        EvaluateReadiness(attemptGeneration);
-    }
-
-    private void HandleAuthenticationCoordinatorChanged()
-    {
-        if (destroyed || !servicesInitialized)
-            return;
-
-        if (authenticationCoordinator.State !=
-            GooglePlayGamesAuthenticationState.SignedIn)
-        {
-            if (!TryCaptureAuthenticatedAccount(out _))
-            {
-                SetState(
-                    ApplicationReadinessState.AuthenticationRequired,
-                    "Authentication is required to continue.");
-            }
-            else
-            {
-                RevokeReadiness(
-                    "Google Play Games authentication is no longer verified.");
-            }
-            return;
-        }
-
-        EvaluateReadiness(attemptGeneration);
-    }
-
-    private void HandleUnityAuthenticationChanged()
-    {
-        if (destroyed)
-            return;
-
-        if (!TryCaptureAuthenticatedAccount(out string currentPlayerId) ||
-            (!string.IsNullOrEmpty(playerId) &&
-             playerId != currentPlayerId))
-        {
-            playerId = null;
-            SetState(
-                ApplicationReadinessState.AuthenticationRequired,
-                "Authentication is required to continue.");
-            return;
-        }
-
-        playerId = currentPlayerId;
-        EvaluateReadiness(attemptGeneration);
-    }
-
-    private void HandleTutorialStateChanged(TutorialProgressState nextState)
-    {
-        EvaluateReadiness(attemptGeneration);
-    }
-
-    private void HandleTutorialRecoveryStateChanged()
-    {
-        EvaluateReadiness(attemptGeneration);
+        SubscribeToReadinessSources();
+        EvaluateReadiness();
     }
 
     private void HandleGameStartupStateChanged()
     {
-        EvaluateReadiness(attemptGeneration);
+        EvaluateReadiness();
     }
 
-    private void EvaluateReadiness(int generation)
+    private void HandleTutorialStateChanged(TutorialProgressState nextState)
     {
-        if (destroyed || generation != attemptGeneration)
+        EvaluateReadiness();
+    }
+
+    private void HandleTutorialRecoveryStateChanged()
+    {
+        EvaluateReadiness();
+    }
+
+    private void HandleTutorialReadinessChanged()
+    {
+        EvaluateReadiness();
+    }
+
+    private void EvaluateReadiness()
+    {
+        if (destroyed)
             return;
 
-        SubscribeToTutorial();
-        SubscribeToGameStartup();
+        SubscribeToReadinessSources();
 
-        if (!TryCaptureAuthenticatedAccount(out string currentPlayerId) ||
-            string.IsNullOrWhiteSpace(playerId) ||
-            playerId != currentPlayerId)
+        if (gameStartup == null)
         {
-            RevokeReadiness("Authentication is no longer verified.");
+            SetState(ApplicationReadinessState.Initializing, null);
             return;
         }
 
-        if (authenticationCoordinator == null ||
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn)
-        {
-            RevokeReadiness("Authentication is no longer verified.");
-            return;
-        }
-
-        playerId = currentPlayerId;
-        if (tutorialController != null &&
-            tutorialController.HasRecoverableError)
+        if (gameStartup.IsStartupBlocked)
         {
             SetState(
                 ApplicationReadinessState.RecoverableError,
-                "Tutorial progress could not be loaded.");
+                gameStartup.LastFailureReason ??
+                "Local save startup failed. Your save has not been overwritten.");
             return;
         }
 
-        if (tutorialController == null ||
-            !tutorialController.IsReady ||
-            tutorialController.State.PlayerId != playerId)
+        if (!gameStartup.IsStartupComplete)
         {
-            SetState(ApplicationReadinessState.LoadingCloudProgress, null);
+            SetState(ApplicationReadinessState.Initializing, null);
             return;
         }
 
-        if (gameStartup == null || !gameStartup.IsStartupComplete)
+        if (tutorialController == null || !tutorialController.IsReady)
         {
-            SetState(ApplicationReadinessState.LoadingCloudProgress, null);
+            bool hasTutorialError =
+                tutorialController != null &&
+                tutorialController.HasRecoverableError;
+            SetState(
+                hasTutorialError
+                    ? ApplicationReadinessState.RecoverableError
+                    : ApplicationReadinessState.Initializing,
+                hasTutorialError
+                    ? tutorialController.RecoverableError
+                    : null);
+            return;
+        }
+
+        if (!gameStartup.IsGameplayReady)
+        {
+            SetState(
+                ApplicationReadinessState.GameplayRestoring,
+                "Verifying the local merge session.");
             return;
         }
 
         SetState(ApplicationReadinessState.Ready, null);
-    }
-
-    private bool TryCaptureAuthenticatedAccount(out string currentPlayerId)
-    {
-        currentPlayerId = null;
-        if (!servicesInitialized || authentication == null ||
-            !authentication.IsSignedIn ||
-            !authentication.IsAuthorized ||
-            string.IsNullOrWhiteSpace(authentication.PlayerId))
-            return false;
-
-        currentPlayerId = authentication.PlayerId;
-        return true;
-    }
-
-    private void RevokeReadiness(string message)
-    {
-        if (State == ApplicationReadinessState.Initializing ||
-            State == ApplicationReadinessState.AuthenticationRequired ||
-            State == ApplicationReadinessState.Authenticating)
-            return;
-
-        SetState(ApplicationReadinessState.RecoverableError, message);
-    }
-
-    private bool IsCurrentAttempt(int generation)
-    {
-        return !destroyed && generation == attemptGeneration;
     }
 
     private void SetState(
@@ -390,7 +226,7 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
         bool inGameplayScene =
             SceneManager.GetActiveScene().name ==
             SceneNavigationManager.MergeGameplayScene;
-        bool shouldBlock = inGameplayScene && !IsReady;
+        bool shouldBlock = inGameplayScene && !IsGameplayReady;
         if (shouldBlock)
         {
             if (gameplayBlockLease == null ||
@@ -411,7 +247,6 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
     private void OnDestroy()
     {
         destroyed = true;
-        attemptGeneration++;
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         if (gameplayBlockLease != null)
             gameplayBlockLease.Dispose();
@@ -422,31 +257,19 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
 
     private void Unsubscribe()
     {
-        if (authentication != null)
-        {
-            authentication.SignedIn -= HandleUnityAuthenticationChanged;
-            authentication.SignedOut -= HandleUnityAuthenticationChanged;
-            authentication = null;
-        }
-
-        if (authenticationCoordinator != null)
-        {
-            authenticationCoordinator.StateChanged -=
-                HandleAuthenticationCoordinatorChanged;
-            authenticationCoordinator = null;
-        }
-
         if (tutorialController != null)
         {
             tutorialController.StateChanged -= HandleTutorialStateChanged;
             tutorialController.RecoveryStateChanged -=
                 HandleTutorialRecoveryStateChanged;
+            tutorialController.ReadinessChanged -=
+                HandleTutorialReadinessChanged;
         }
+
         if (gameStartup != null)
             gameStartup.StateChanged -= HandleGameStartupStateChanged;
 
         tutorialController = null;
         gameStartup = null;
-        subscribed = false;
     }
 }

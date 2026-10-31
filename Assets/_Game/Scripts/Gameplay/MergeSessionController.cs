@@ -177,11 +177,12 @@ public class MergeSessionController : MonoBehaviour
                !GameStartupCoordinator.Instance.IsStartupBlocked)
             yield return null;
         while (ApplicationReadinessCoordinator.Instance != null &&
-               !ApplicationReadinessCoordinator.Instance.IsReady)
+               !ApplicationReadinessCoordinator.Instance.CanBeginGameplay)
             yield return null;
-        if (ApplicationReadinessCoordinator.Instance == null)
+        if (ApplicationReadinessCoordinator.Instance == null ||
+            !ApplicationReadinessCoordinator.Instance.CanBeginGameplay)
         {
-            FailRestoration("Application readiness coordinator is missing.");
+            FailRestoration("Local startup or required tutorial readiness is unavailable.");
             yield break;
         }
         // Also give consumers of restored progression a complete frame to initialize.
@@ -1001,7 +1002,7 @@ public class MergeSessionController : MonoBehaviour
         ApplicationReadinessCoordinator applicationReadiness =
             ApplicationReadinessCoordinator.Instance;
         if (applicationReadiness == null ||
-            !applicationReadiness.IsReady)
+            !applicationReadiness.CanBeginGameplay)
             return false;
         var coordinator = GameStartupCoordinator.Instance;
         if (coordinator == null || !coordinator.IsStartupComplete)

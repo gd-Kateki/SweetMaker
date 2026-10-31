@@ -90,6 +90,15 @@ public class GameStartupCoordinator : MonoBehaviour
         catch (System.Exception exception) { FailStartup(exception.ToString()); }
     }
 
+    internal void RetryStartup()
+    {
+        if (Status != StartupStatus.Failed)
+            return;
+
+        startupAttempted = true;
+        InitializeStartup();
+    }
+
     // SaveManager owns this transition; also used by the existing debug load tool.
     internal void BeginPersistentReload()
     {

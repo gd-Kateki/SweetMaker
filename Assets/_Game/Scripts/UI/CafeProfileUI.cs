@@ -1,6 +1,4 @@
-using System.Threading.Tasks;
 using TMPro;
-using SweetMerge.Authentication;
 using SweetMerge.Profile;
 using UnityEngine;
 using UnityEngine.UI;
@@ -27,7 +25,7 @@ public sealed class CafeProfileUI : MonoBehaviour
     private TMP_InputField namingInput;
     private TMP_Text namingErrorText;
     private TMP_Text namingConfirmationText;
-    private Button reconcileButton;
+    private Button retryLocalProfileButton;
     private Button namingContinueButton;
     private Button namingConfirmButton;
     private TMP_Text panelTitleText;
@@ -37,20 +35,12 @@ public sealed class CafeProfileUI : MonoBehaviour
     private TMP_Text ordersText;
     private PlayerProgressionManager progressionManager;
     private EconomyManager economyManager;
-    private GooglePlayGamesAuthenticationCoordinator
-        authenticationCoordinator;
-    private CafeProfileCloudReadService cloudReadService;
-    private CafeProfileCloudWriteService cloudWriteService;
     private HybridTutorialController tutorialController;
-    private string loadedPlayerId;
-    private bool profileReadInProgress;
-    private bool profileReadCompleted;
-    private bool profileMissing;
+    private CafeProfileLocalRecord localProfile;
+    private CafeProfileLocalStatus localProfileStatus;
+    private string localProfileError;
     private bool profileOperationInProgress;
-    private bool registrationUncertain;
-    private bool namingPromptShown;
     private bool tutorialSubscribed;
-    private int profileReadGeneration;
     private float nextManagerRetryTime;
 
     private void Awake()
@@ -58,10 +48,7 @@ public sealed class CafeProfileUI : MonoBehaviour
         CreateCard();
         CreatePanel();
         CreateNamingPopup();
-        authenticationCoordinator =
-            GooglePlayGamesAuthenticationCoordinator.Instance;
-        cloudReadService = new CafeProfileCloudReadService();
-        cloudWriteService = new CafeProfileCloudWriteService();
+        LoadLocalCafeProfile();
         TryBindManagers();
         Refresh();
     }
@@ -70,15 +57,8 @@ public sealed class CafeProfileUI : MonoBehaviour
     {
         TryBindManagers();
         Refresh();
-        if (authenticationCoordinator != null)
-        {
-            authenticationCoordinator.StateChanged -=
-                HandleAuthenticationStateChanged;
-            authenticationCoordinator.StateChanged +=
-                HandleAuthenticationStateChanged;
-        }
         SubscribeToTutorial();
-        TryLoadCloudProfile();
+        RefreshNamingEligibility();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         TryShowAfterDevelopmentReset();
 #endif
@@ -103,11 +83,6 @@ public sealed class CafeProfileUI : MonoBehaviour
     private void OnDisable()
     {
         UnbindManagers();
-        if (authenticationCoordinator != null)
-        {
-            authenticationCoordinator.StateChanged -=
-                HandleAuthenticationStateChanged;
-        }
         UnsubscribeFromTutorial();
         if (panelRoot != null)
             panelRoot.SetActive(false);
@@ -119,172 +94,66 @@ public sealed class CafeProfileUI : MonoBehaviour
     {
         UnbindManagers();
         UnsubscribeFromTutorial();
-        cloudWriteService?.Dispose();
-        cloudWriteService = null;
     }
 
-    private void HandleAuthenticationStateChanged()
+    private void LoadLocalCafeProfile()
     {
-        profileReadGeneration++;
-        if (authenticationCoordinator.State !=
-            GooglePlayGamesAuthenticationState.SignedIn)
+        localProfileStatus =
+            CafeProfileLocalStore.Load(
+                out localProfile,
+                out localProfileError);
+
+        if (localProfileStatus == CafeProfileLocalStatus.Loaded &&
+            localProfile != null &&
+            localProfile.NamingCompleted)
         {
-            loadedPlayerId = null;
-            profileReadInProgress = false;
-            profileReadCompleted = false;
-            profileMissing = false;
-            profileOperationInProgress = false;
-            registrationUncertain = false;
-            namingPromptShown = false;
+            cafeName = localProfile.CafeName;
             CloseNamingPopup();
-            cafeName = DefaultCafeName;
-            Refresh();
-            return;
         }
-
-        namingPromptShown = false;
-        registrationUncertain = false;
-        SubscribeToTutorial();
-        TryLoadCloudProfile();
+        else if (localProfileStatus == CafeProfileLocalStatus.Missing)
+        {
+            localProfile = null;
+            localProfileError = null;
+            cafeName = DefaultCafeName;
+            SetText(namingErrorText, string.Empty);
+            if (retryLocalProfileButton != null)
+                retryLocalProfileButton.gameObject.SetActive(false);
+            SetNamingButtonsInteractable(true);
+        }
+        else if (localProfileStatus == CafeProfileLocalStatus.InvalidData ||
+                 localProfileStatus == CafeProfileLocalStatus.ServiceError)
+        {
+            localProfile = null;
+            Debug.LogError(
+                "CAFE PROFILE | Local profile load failed: " +
+                localProfileError);
+        }
+        else if (localProfileStatus == CafeProfileLocalStatus.Loaded)
+        {
+            localProfileStatus = CafeProfileLocalStatus.InvalidData;
+            localProfileError =
+                "The local cafe profile was incomplete. Existing files were preserved.";
+            Debug.LogError("CAFE PROFILE | " + localProfileError);
+        }
     }
 
-    private void TryLoadCloudProfile()
+    private void HandleLocalProfileRetry()
     {
-        LogCloudDiagnostic("Cloud-read flow evaluated.");
-
-        if (profileReadInProgress)
-        {
+        if (profileOperationInProgress)
             return;
-        }
 
-        if (authenticationCoordinator == null)
-        {
-            LogCloudDiagnostic("Authentication gate: coordinator unavailable.");
-            return;
-        }
+        profileOperationInProgress = true;
+        SetNamingButtonsInteractable(false);
+        if (retryLocalProfileButton != null)
+            retryLocalProfileButton.interactable = false;
 
-        if (authenticationCoordinator.State !=
-            GooglePlayGamesAuthenticationState.SignedIn)
-        {
-            LogCloudDiagnostic(
-                "Authentication gate: coordinator is not SignedIn.");
-            return;
-        }
+        LoadLocalCafeProfile();
 
-        Unity.Services.Authentication.IAuthenticationService authentication =
-            Unity.Services.Authentication.AuthenticationService.Instance;
-        string playerId = authentication.PlayerId;
-        if (!authentication.IsSignedIn ||
-            !authentication.IsAuthorized ||
-            string.IsNullOrWhiteSpace(playerId))
-        {
-            LogCloudDiagnostic(
-                "Authentication gate: Unity Authentication unavailable.");
-            return;
-        }
-
-        if (playerId != loadedPlayerId)
-        {
-            profileReadCompleted = false;
-            profileMissing = false;
-            profileOperationInProgress = false;
-            registrationUncertain = false;
-            cafeName = DefaultCafeName;
-            Refresh();
-        }
-        else if (profileReadCompleted)
-        {
-            return;
-        }
-
-        loadedPlayerId = playerId;
-        int requestGeneration = ++profileReadGeneration;
-        profileReadInProgress = true;
-        LogCloudDiagnostic("Authentication gate: authenticated and ready.");
-        _ = LoadCloudProfileAsync(playerId, requestGeneration);
-    }
-
-    private async Task LoadCloudProfileAsync(
-        string requestPlayerId,
-        int requestGeneration)
-    {
-        CafeProfileCloudReadResult result =
-            await cloudReadService.LoadAsync();
-        profileReadInProgress = false;
-        if (requestPlayerId != loadedPlayerId ||
-            requestGeneration != profileReadGeneration ||
-            authenticationCoordinator == null ||
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn)
-        {
-            LogCloudDiagnostic(
-                "Stale cloud-read response discarded.");
-            return;
-        }
-
-        profileReadCompleted =
-            result.Status !=
-            CafeProfileCloudReadStatus.AuthenticationUnavailable;
-        profileMissing =
-            result.Status == CafeProfileCloudReadStatus.RecordMissing;
-
-        if (result.Status == CafeProfileCloudReadStatus.Success &&
-            result.Record != null)
-        {
-            LogCloudDiagnostic("Cloud-read outcome: registered profile loaded.");
-            cafeName = result.Record.CafeName.Trim();
-            registrationUncertain = false;
-            CloseNamingPopup();
-            Refresh();
-        }
-        else
-        {
-            LogCloudReadOutcome(result.Status);
-            if (result.Status == CafeProfileCloudReadStatus.ServiceError ||
-                result.Status ==
-                    CafeProfileCloudReadStatus.InvalidProfileData)
-            {
-                Debug.LogWarning(
-                    "CAFE PROFILE | Cloud profile was not applied: " +
-                    result.ErrorMessage);
-            }
-        }
-
+        profileOperationInProgress = false;
+        SetNamingButtonsInteractable(true);
+        if (retryLocalProfileButton != null)
+            retryLocalProfileButton.interactable = true;
         RefreshNamingEligibility();
-    }
-
-    private static void LogCloudReadOutcome(
-        CafeProfileCloudReadStatus status)
-    {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        string outcome;
-        switch (status)
-        {
-            case CafeProfileCloudReadStatus.RecordMissing:
-                outcome = "profile missing";
-                break;
-            case CafeProfileCloudReadStatus.AuthenticationUnavailable:
-                outcome = "authentication unavailable";
-                break;
-            case CafeProfileCloudReadStatus.ServiceError:
-                outcome = "cloud service failure";
-                break;
-            case CafeProfileCloudReadStatus.InvalidProfileData:
-                outcome = "invalid profile data";
-                break;
-            default:
-                return;
-        }
-
-        Debug.Log("CAFE PROFILE CLOUD | Cloud-read outcome: " + outcome + ".");
-#endif
-    }
-
-    private static void LogCloudDiagnostic(string message)
-    {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        Debug.Log("CAFE PROFILE CLOUD | " + message);
-#endif
     }
 
     private void CreateCard()
@@ -423,15 +292,15 @@ public sealed class CafeProfileUI : MonoBehaviour
             new Vector2(0.88f, 0.23f));
         namingContinueButton.onClick.AddListener(
             ShowNamingConfirmation);
-        reconcileButton = CreateButton(
+        retryLocalProfileButton = CreateButton(
             namingInputStep.transform,
-            "Reconcile",
-            "CHECK CLOUD STATUS",
+            "RetryLocalProfile",
+            "RETRY LOCAL LOAD",
             new Vector2(0.2f, 0.02f),
             new Vector2(0.8f, 0.09f));
-        reconcileButton.onClick.AddListener(
-            HandleReconcileRequested);
-        reconcileButton.gameObject.SetActive(false);
+        retryLocalProfileButton.onClick.AddListener(
+            HandleLocalProfileRetry);
+        retryLocalProfileButton.gameObject.SetActive(false);
 
         namingConfirmationStep = CreateRect(
             "NamingConfirmationStep",
@@ -509,7 +378,8 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void HandleNamingInputChanged(string unusedValue)
     {
-        if (registrationUncertain)
+        if (localProfileStatus == CafeProfileLocalStatus.InvalidData ||
+            localProfileStatus == CafeProfileLocalStatus.ServiceError)
             return;
 
         SetText(namingErrorText, string.Empty);
@@ -517,7 +387,7 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void HandleNamingConfirmation()
     {
-        if (profileOperationInProgress || registrationUncertain)
+        if (profileOperationInProgress)
             return;
 
         if (!IsNamingEligible())
@@ -530,159 +400,75 @@ public sealed class CafeProfileUI : MonoBehaviour
             return;
         }
 
-        string playerId =
-            Unity.Services.Authentication.AuthenticationService.Instance
-                .PlayerId;
-        int requestGeneration = profileReadGeneration;
         string proposedName = namingInput == null
             ? string.Empty
             : namingInput.text.Trim();
-        profileOperationInProgress = true;
-        SetNamingButtonsInteractable(false);
-        _ = RegisterCafeProfileAsync(
-            playerId,
-            requestGeneration,
-            proposedName);
-    }
-
-    private async Task RegisterCafeProfileAsync(
-        string requestPlayerId,
-        int requestGeneration,
-        string proposedName)
-    {
-        CafeProfileCloudWriteResult result =
-            await cloudWriteService.RegisterAsync(proposedName);
-        if (!IsCurrentProfileRequest(
-                requestPlayerId,
-                requestGeneration))
+        if (proposedName.Length == 0 || proposedName.Length > 20)
         {
-            profileOperationInProgress = false;
-            registrationUncertain = false;
-            CloseNamingPopup();
-            return;
-        }
-
-        profileOperationInProgress = false;
-        SetNamingButtonsInteractable(true);
-        HandleRegistrationResult(result);
-    }
-
-    private void HandleRegistrationResult(
-        CafeProfileCloudWriteResult result)
-    {
-        switch (result.Status)
-        {
-            case CafeProfileCloudWriteStatus.Confirmed:
-            case CafeProfileCloudWriteStatus.AlreadyRegistered:
-                if (result.Record == null)
-                {
-                    SetNamingError(
-                        "The cloud profile response was incomplete.");
-                    return;
-                }
-
-                cafeName = result.Record.CafeName.Trim();
-                profileMissing = false;
-                profileReadCompleted = true;
-                registrationUncertain = false;
-                SetText(namingErrorText, string.Empty);
-                CloseNamingPopup();
-                Refresh();
-                return;
-            case CafeProfileCloudWriteStatus.InvalidName:
-                SetNamingError(
-                    result.ErrorMessage ??
-                    "Cafe names must contain 1 to 20 characters.");
-                return;
-            case CafeProfileCloudWriteStatus.ExistingProfileInvalid:
-                SetNamingError(
-                    "The existing cloud profile is invalid and was not changed.");
-                return;
-            case CafeProfileCloudWriteStatus.AuthenticationUnavailable:
-            case CafeProfileCloudWriteStatus.StaleRequest:
-                CloseNamingPopup();
-                return;
-            case CafeProfileCloudWriteStatus.DuplicateRequest:
-                return;
-            case CafeProfileCloudWriteStatus.Uncertain:
-                registrationUncertain = true;
-                SetNamingError(
-                    "The save result is uncertain. Check the cloud status before retrying.");
-                if (reconcileButton != null)
-                    reconcileButton.gameObject.SetActive(true);
-                return;
-            case CafeProfileCloudWriteStatus.ServiceError:
-                SetNamingError(
-                    result.ErrorMessage ??
-                    "Cafe registration failed. Please try again later.");
-                return;
-            default:
-                SetNamingError("Cafe registration could not be completed.");
-                return;
-        }
-    }
-
-    private void HandleReconcileRequested()
-    {
-        if (!registrationUncertain ||
-            profileOperationInProgress ||
-            !IsNamingEligible())
-            return;
-
-        string playerId =
-            Unity.Services.Authentication.AuthenticationService.Instance
-                .PlayerId;
-        int requestGeneration = profileReadGeneration;
-        profileOperationInProgress = true;
-        SetNamingButtonsInteractable(false);
-        _ = ReconcileCafeProfileAsync(
-            playerId,
-            requestGeneration);
-    }
-
-    private async Task ReconcileCafeProfileAsync(
-        string requestPlayerId,
-        int requestGeneration)
-    {
-        CafeProfileCloudReadResult result =
-            await cloudReadService.LoadAsync();
-        if (!IsCurrentProfileRequest(
-                requestPlayerId,
-                requestGeneration))
-        {
-            profileOperationInProgress = false;
-            registrationUncertain = false;
-            CloseNamingPopup();
-            return;
-        }
-
-        profileOperationInProgress = false;
-        SetNamingButtonsInteractable(true);
-        if (result.Status == CafeProfileCloudReadStatus.Success &&
-            result.Record != null)
-        {
-            HandleRegistrationResult(
-                CafeProfileCloudWriteResult.Create(
-                    CafeProfileCloudWriteStatus.AlreadyRegistered,
-                    result.Record,
-                    null));
-            return;
-        }
-
-        if (result.Status == CafeProfileCloudReadStatus.RecordMissing)
-        {
-            registrationUncertain = false;
-            profileMissing = true;
             SetNamingError(
-                "No profile was found. You may explicitly retry registration.");
-            if (reconcileButton != null)
-                reconcileButton.gameObject.SetActive(false);
+                "Cafe names must contain 1 to 20 characters.");
             return;
         }
 
-        SetNamingError(
-            result.ErrorMessage ??
-            "Cloud status could not be confirmed. Your profile was not changed.");
+        profileOperationInProgress = true;
+        SetNamingButtonsInteractable(false);
+        CafeProfileLocalSaveStatus saveStatus =
+            CafeProfileLocalStore.Save(
+                proposedName,
+                out CafeProfileLocalRecord savedProfile,
+                out string errorMessage);
+        profileOperationInProgress = false;
+        SetNamingButtonsInteractable(true);
+
+        if (saveStatus == CafeProfileLocalSaveStatus.Saved ||
+            saveStatus == CafeProfileLocalSaveStatus.AlreadyNamed)
+        {
+            ApplyLocalCafeProfile(savedProfile);
+            return;
+        }
+
+        if (saveStatus == CafeProfileLocalSaveStatus.InvalidName)
+        {
+            SetNamingError(
+                errorMessage ??
+                "Cafe names must contain 1 to 20 characters.");
+            return;
+        }
+
+        if (saveStatus == CafeProfileLocalSaveStatus.InvalidData)
+            localProfileStatus = CafeProfileLocalStatus.InvalidData;
+        else
+            localProfileStatus = CafeProfileLocalStatus.ServiceError;
+        localProfileError = errorMessage ??
+            "Cafe profile could not be saved. Your existing files were preserved.";
+        Debug.LogError("CAFE PROFILE | " + localProfileError);
+        SetNamingError(localProfileError);
+        retryLocalProfileButton.gameObject.SetActive(true);
+        SetNamingButtonsInteractable(false);
+        retryLocalProfileButton.interactable = true;
+    }
+
+    private void ApplyLocalCafeProfile(CafeProfileLocalRecord profile)
+    {
+        if (profile == null || !profile.NamingCompleted)
+        {
+            localProfileStatus = CafeProfileLocalStatus.InvalidData;
+            localProfileError =
+                "The local cafe profile response was incomplete.";
+            SetNamingError(localProfileError);
+            retryLocalProfileButton.gameObject.SetActive(true);
+            SetNamingButtonsInteractable(false);
+            retryLocalProfileButton.interactable = true;
+            return;
+        }
+
+        localProfile = profile;
+        localProfileStatus = CafeProfileLocalStatus.Loaded;
+        localProfileError = null;
+        cafeName = profile.CafeName;
+        SetText(namingErrorText, string.Empty);
+        CloseNamingPopup();
+        Refresh();
     }
 
     private void CloseNamingPopup()
@@ -692,8 +478,8 @@ public sealed class CafeProfileUI : MonoBehaviour
         if (namingInput != null)
             namingInput.text = string.Empty;
         SetText(namingErrorText, string.Empty);
-        if (reconcileButton != null)
-            reconcileButton.gameObject.SetActive(false);
+        if (retryLocalProfileButton != null)
+            retryLocalProfileButton.gameObject.SetActive(false);
     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -726,7 +512,6 @@ public sealed class CafeProfileUI : MonoBehaviour
         namingInput.text = string.Empty;
         SetText(namingErrorText, string.Empty);
         namingRoot.SetActive(true);
-        namingPromptShown = true;
         SetNamingButtonsInteractable(true);
     }
 
@@ -740,6 +525,10 @@ public sealed class CafeProfileUI : MonoBehaviour
         tutorialController = current;
         tutorialController.StateChanged +=
             HandleTutorialStateChanged;
+        tutorialController.TutorialCompleted +=
+            HandleTutorialCompleted;
+        tutorialController.ReadinessChanged +=
+            HandleTutorialReadinessChanged;
         tutorialSubscribed = true;
         RefreshNamingEligibility();
     }
@@ -751,6 +540,10 @@ public sealed class CafeProfileUI : MonoBehaviour
 
         tutorialController.StateChanged -=
             HandleTutorialStateChanged;
+        tutorialController.TutorialCompleted -=
+            HandleTutorialCompleted;
+        tutorialController.ReadinessChanged -=
+            HandleTutorialReadinessChanged;
         tutorialSubscribed = false;
         tutorialController = null;
     }
@@ -761,29 +554,29 @@ public sealed class CafeProfileUI : MonoBehaviour
         RefreshNamingEligibility();
     }
 
+    private void HandleTutorialCompleted()
+    {
+        RefreshNamingEligibility();
+    }
+
+    private void HandleTutorialReadinessChanged()
+    {
+        RefreshNamingEligibility();
+    }
+
     private bool IsNamingEligible()
     {
         if (UnityEngine.SceneManagement.SceneManager
                 .GetActiveScene().name !=
                 SceneNavigationManager.MainBakeryScene ||
-            authenticationCoordinator == null ||
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn ||
             tutorialController == null ||
             !tutorialController.IsReady ||
             !tutorialController.State.IsCompleted ||
-            !profileReadCompleted ||
-            !profileMissing ||
-            profileReadInProgress ||
+            localProfileStatus != CafeProfileLocalStatus.Missing ||
             profileOperationInProgress)
             return false;
 
-        Unity.Services.Authentication.IAuthenticationService authentication =
-            Unity.Services.Authentication.AuthenticationService.Instance;
-        return authentication.IsSignedIn &&
-            authentication.IsAuthorized &&
-            !string.IsNullOrWhiteSpace(authentication.PlayerId) &&
-            authentication.PlayerId == loadedPlayerId;
+        return true;
     }
 
     private void RefreshNamingEligibility()
@@ -791,15 +584,41 @@ public sealed class CafeProfileUI : MonoBehaviour
         if (namingRoot == null)
             return;
 
+        bool tutorialCompleted =
+            UnityEngine.SceneManagement.SceneManager
+                .GetActiveScene().name ==
+                SceneNavigationManager.MainBakeryScene &&
+            tutorialController != null &&
+            tutorialController.IsReady &&
+            tutorialController.State.IsCompleted;
+        bool profileNeedsRecovery =
+            localProfileStatus == CafeProfileLocalStatus.InvalidData ||
+            localProfileStatus == CafeProfileLocalStatus.ServiceError;
+
+        if (tutorialCompleted && profileNeedsRecovery)
+        {
+            if (!namingRoot.activeSelf)
+                ShowNamingPopup();
+            namingInputStep.SetActive(true);
+            namingConfirmationStep.SetActive(false);
+            SetText(
+                namingErrorText,
+                localProfileError ??
+                "Local cafe profile needs recovery. Your files were preserved.");
+            retryLocalProfileButton.gameObject.SetActive(true);
+            SetNamingButtonsInteractable(false);
+            retryLocalProfileButton.interactable = true;
+            return;
+        }
+
         if (IsNamingEligible())
         {
-            if (!namingPromptShown && !registrationUncertain)
+            if (!namingRoot.activeSelf)
                 ShowNamingPopup();
             return;
         }
 
-        if (!registrationUncertain)
-            namingRoot.SetActive(false);
+        namingRoot.SetActive(false);
     }
 
     private void SetNamingButtonsInteractable(bool interactable)
@@ -810,8 +629,8 @@ public sealed class CafeProfileUI : MonoBehaviour
             namingContinueButton.interactable = interactable;
         if (namingConfirmButton != null)
             namingConfirmButton.interactable = interactable;
-        if (reconcileButton != null)
-            reconcileButton.interactable = interactable;
+        if (retryLocalProfileButton != null)
+            retryLocalProfileButton.interactable = interactable;
     }
 
     private void SetNamingError(string message)
@@ -819,24 +638,6 @@ public sealed class CafeProfileUI : MonoBehaviour
         namingInputStep.SetActive(true);
         namingConfirmationStep.SetActive(false);
         SetText(namingErrorText, message);
-    }
-
-    private bool IsCurrentProfileRequest(
-        string requestPlayerId,
-        int requestGeneration)
-    {
-        if (requestGeneration != profileReadGeneration ||
-            requestPlayerId != loadedPlayerId ||
-            authenticationCoordinator == null ||
-            authenticationCoordinator.State !=
-                GooglePlayGamesAuthenticationState.SignedIn)
-            return false;
-
-        Unity.Services.Authentication.IAuthenticationService authentication =
-            Unity.Services.Authentication.AuthenticationService.Instance;
-        return authentication.IsSignedIn &&
-            authentication.IsAuthorized &&
-            authentication.PlayerId == requestPlayerId;
     }
 
     private void Open()
