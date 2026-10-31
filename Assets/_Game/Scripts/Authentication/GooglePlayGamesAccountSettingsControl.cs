@@ -133,7 +133,7 @@ namespace SweetMerge.Authentication
     public sealed class GooglePlayGamesAccountSettingsControl : MonoBehaviour
     {
         private const string ControlName = "GooglePlayGamesAccountSettings";
-        private const float SectionHeight = 340f;
+        private const float SectionHeight = 690f;
         private static readonly Color ButtonColor =
             new Color(0.35f, 0.18f, 0.58f, 1f);
 

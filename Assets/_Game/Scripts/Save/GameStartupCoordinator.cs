@@ -63,6 +63,8 @@ public class GameStartupCoordinator : MonoBehaviour
 
     private void InitializeStartup()
     {
+        if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null)
+        { FailStartup(SweetMerge.Cloud.SimpleCloudFiles.StartupError); return; }
         Status = StartupStatus.Loading;
         StateChanged?.Invoke();
         var saveManager = SaveManager.Instance;

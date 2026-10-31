@@ -18,12 +18,6 @@ public sealed class EnergyHudUI : MonoBehaviour
     [SerializeField]
     private TMP_Text countdownText;
 
-    [SerializeField]
-    private Button plusButton;
-
-    [SerializeField]
-    private TMP_Text plusText;
-
     private PlayerProgressionManager progressionManager;
     private float nextRefreshTime;
     private bool missingProgressionReported;
@@ -44,8 +38,6 @@ public sealed class EnergyHudUI : MonoBehaviour
             return;
         }
 
-        plusButton.gameObject.SetActive(true);
-        plusButton.interactable = true;
         BindProgressionManager();
         Refresh();
     }
@@ -116,9 +108,7 @@ public sealed class EnergyHudUI : MonoBehaviour
         if (hudRoot != null &&
             hudBackground != null &&
             energyText != null &&
-            countdownText != null &&
-            plusButton != null &&
-            plusText != null)
+            countdownText != null)
         {
             return true;
         }

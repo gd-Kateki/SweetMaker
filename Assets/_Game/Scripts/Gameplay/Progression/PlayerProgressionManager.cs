@@ -342,26 +342,6 @@ public class PlayerProgressionManager : MonoBehaviour
         return true;
     }
 
-    public bool TryGrantEnergyFromVerifiedReward(int amount)
-    {
-        AdvanceEnergyClock();
-        if (amount <= 0 || currentEnergy >= MaximumEnergyValue)
-            return false;
-
-        int previousEnergy = currentEnergy;
-        currentEnergy = Mathf.Min(
-            MaximumEnergyValue,
-            currentEnergy + amount);
-        if (currentEnergy == MaximumEnergyValue)
-            secondsUntilNextEnergy = 0d;
-
-        if (currentEnergy == previousEnergy)
-            return false;
-
-        EnergyChanged?.Invoke();
-        return true;
-    }
-
     public void ResetEnergy()
     {
         currentEnergy = MaximumEnergyValue;

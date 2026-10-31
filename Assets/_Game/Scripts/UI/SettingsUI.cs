@@ -47,7 +47,6 @@ public sealed class SettingsUI : MonoBehaviour
         RefreshGameVersion();
         EnsureAnalyticsConsentControl();
         EnsureAccountSettingsControl();
-        EnsureAdvertisingNoticeControl();
     }
 
     private void OnEnable()
@@ -781,17 +780,6 @@ public sealed class SettingsUI : MonoBehaviour
             AnalyticsBootstrap.Instance);
     }
 
-    private void EnsureAdvertisingNoticeControl()
-    {
-        if (overlayRoot == null) return;
-        foreach (Transform child in overlayRoot.GetComponentsInChildren<Transform>(true))
-        {
-            if (child.name != "SettingsScrollContent") continue;
-            SweetMerge.Advertising.AdvertisingNotice.AttachSettings(child, overlayRoot);
-            break;
-        }
-    }
-
     private void EnsureAccountSettingsControl()
     {
         if (overlayRoot == null)
@@ -818,8 +806,14 @@ public sealed class SettingsUI : MonoBehaviour
             return;
         }
 
-        GooglePlayGamesAccountSettingsControl.Attach(
+        var accountControl = GooglePlayGamesAccountSettingsControl.Attach(
             settingsContent,
             GooglePlayGamesAuthenticationCoordinator.Instance);
+        if (accountControl != null && accountControl.GetComponent<SweetMerge.Cloud.SimpleCloudPanel>() == null)
+        {
+            var label = accountControl.GetComponentInChildren<TMP_Text>(true);
+            SweetMerge.Cloud.SimpleCloudPanel.Attach(accountControl.transform,
+                label != null ? label.font : TMP_Settings.defaultFontAsset);
+        }
     }
 }

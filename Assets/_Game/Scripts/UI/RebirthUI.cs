@@ -69,6 +69,7 @@ public sealed class RebirthUI : MonoBehaviour
     private PlayerProgressionManager progressionManager;
     private EconomyManager economyManager;
     private DessertSpawner dessertSpawner;
+    private GameplayModalInputGate.GameplayModalLease gameplayModalLease;
     private bool rebirthClickInProgress;
     private bool hasEligibilityState;
     private bool wasEligible;
@@ -128,6 +129,8 @@ public sealed class RebirthUI : MonoBehaviour
         if (notificationCoroutine != null)
             StopCoroutine(notificationCoroutine);
 
+        ReleaseGameplayModalLease();
+
         if (progressionManager != null)
         {
             progressionManager.RebirthProgressionChanged -= Refresh;
@@ -148,6 +151,12 @@ public sealed class RebirthUI : MonoBehaviour
 
         if (closeButton != null)
             closeButton.onClick.RemoveListener(HandleCloseClicked);
+    }
+
+    private void LateUpdate()
+    {
+        if (gameplayModalLease != null && !IsModalOpen())
+            ReleaseGameplayModalLease();
     }
 
     private void HandleOpenClicked()
@@ -331,12 +340,31 @@ public sealed class RebirthUI : MonoBehaviour
 
     public void Open()
     {
+        if (IsModalOpen())
+            return;
+
+        if (!GameplayModalInputGate.TryAcquireBlockingModal(
+                this,
+                out gameplayModalLease))
+        {
+            Debug.LogError(
+                "REBIRTH UI | Could not acquire the gameplay modal input gate.",
+                this);
+            return;
+        }
+
         if (entryButton != null)
             entryButton.interactable = false;
         if (modalBackdrop != null)
+        {
+            modalBackdrop.transform.SetAsLastSibling();
             modalBackdrop.SetActive(true);
+        }
         if (modalPanel != null)
+        {
+            modalPanel.transform.SetAsLastSibling();
             modalPanel.SetActive(true);
+        }
     }
 
     public void Close()
@@ -347,6 +375,22 @@ public sealed class RebirthUI : MonoBehaviour
             modalBackdrop.SetActive(false);
         if (entryButton != null)
             entryButton.interactable = true;
+
+        ReleaseGameplayModalLease();
+    }
+
+    private void OnDisable()
+    {
+        Close();
+    }
+
+    private void ReleaseGameplayModalLease()
+    {
+        if (gameplayModalLease == null)
+            return;
+
+        gameplayModalLease.Dispose();
+        gameplayModalLease = null;
     }
 
     private static string FormatTierProgress(int createdTier, int requiredTier, bool tierReady)

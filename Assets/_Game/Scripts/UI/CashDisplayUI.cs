@@ -10,9 +10,6 @@ public class CashDisplayUI : MonoBehaviour
     [SerializeField]
     private Graphic cashBackground;
 
-    [SerializeField]
-    private Button plusButton;
-
     private EconomyManager economyManager;
 
     private void Awake()
@@ -47,12 +44,6 @@ public class CashDisplayUI : MonoBehaviour
 
     private void Start()
     {
-        if (plusButton != null)
-        {
-            plusButton.gameObject.SetActive(true);
-            plusButton.interactable = true;
-        }
-
         economyManager =
             EconomyManager.Instance;
 

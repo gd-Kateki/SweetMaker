@@ -22,6 +22,13 @@ public enum DessertCollectionClaimResult
 public class SaveManager : MonoBehaviour
 
 {
+    private void SanitizeCustomerOrders(System.Collections.Generic.List<CustomerOrderSaveData> orders) { SanitizeCustomerOrdersCore(orders); }
+    private void SanitizeShelfDesserts(System.Collections.Generic.List<ShelfDessertSaveData> desserts) { SanitizeShelfDessertsCore(desserts); }
+    private void SanitizeBoardDesserts(System.Collections.Generic.List<BoardDessertSaveData> desserts) { SanitizeBoardDessertsCore(desserts); }
+    private void SanitizeSaveData(PlayerSaveData saveData) { SanitizeSaveDataCore(saveData); }
+    private bool IsSupportedVersion(int version) { return IsSupportedVersionCore(version); }
+    private bool IsValidSerializedSnapshot(string json) { return IsValidSerializedSnapshotCore(json); }
+    private bool IsValidBackupCandidate(byte[] bytes) { return IsValidBackupCandidateCore(bytes); }
 
     // Root JSON extension avoids changing the project's existing data classes.
 
@@ -639,7 +646,7 @@ public class SaveManager : MonoBehaviour
             string serialized = SerializeCurrentWithCapacity(
                 detached,
                 sessionCapacity);
-            if (!IsValidBackupCandidate(SaveEncoding.GetBytes(serialized)))
+            if (!IsValidBackupCandidateCore(SaveEncoding.GetBytes(serialized)))
             {
                 failureReason =
                     "Proposed save snapshot failed strict V2 validation.";
@@ -1066,13 +1073,23 @@ public class SaveManager : MonoBehaviour
     internal bool HasPendingCompatibilityMigration =>
         compatibilityMigrationPending;
 
+    internal static bool ValidateCloudSnapshot(string json)
+    {
+        try { return json != null && IsValidBackupCandidateCore(SaveEncoding.GetBytes(json)); }
+        catch (Exception) { return false; }
+    }
+
+    internal static void CommitCloudFile(string temporary, string path) => CommitTemporaryFile(temporary, path);
+
     private bool CanWriteCurrentState()
 
     {
 
         var startup = GameStartupCoordinator.Instance;
 
-        return Instance == this && !restorationFailed &&
+        return !SweetMerge.Cloud.SimpleCloudFiles.RestorePending &&
+               SweetMerge.Cloud.SimpleCloudFiles.StartupError == null &&
+               Instance == this && !restorationFailed &&
             !claimPersistenceUncertain && lifecycleSavingReady &&
 
             startup != null && startup.IsStartupComplete && startup.IsGameplayReady;
@@ -3013,7 +3030,7 @@ public class SaveManager : MonoBehaviour
 
         // Preserve the original normalization and caller-data mutation behavior.
 
-        SanitizeSaveData(saveData);
+        SanitizeSaveDataCore(saveData);
 
         saveData.saveVersion = CurrentSaveVersion;
 
@@ -3089,7 +3106,7 @@ public class SaveManager : MonoBehaviour
         out bool snapshotCommitted)
     {
         snapshotCommitted = false;
-        if (!IsValidSerializedSnapshot(json))
+        if (!IsValidSerializedSnapshotCore(json))
         {
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
             return false;
@@ -3107,7 +3124,7 @@ public class SaveManager : MonoBehaviour
                 return false;
             }
 
-            if (!IsValidBackupCandidate(onDiskBytes))
+            if (!IsValidBackupCandidateCore(onDiskBytes))
             {
                 Debug.LogError(
                     "SAVE | Refusing to overwrite an invalid V2 primary; " +
@@ -3179,7 +3196,7 @@ public class SaveManager : MonoBehaviour
 
                 throw new IOException("Temporary save bytes differ from the validated snapshot.");
 
-        if (!IsValidSerializedSnapshot(SaveEncoding.GetString(actualBytes)))
+        if (!IsValidSerializedSnapshotCore(SaveEncoding.GetString(actualBytes)))
 
             throw new IOException("Temporary save JSON failed validation.");
 
@@ -3225,7 +3242,7 @@ public class SaveManager : MonoBehaviour
 
         }
 
-        if (!IsValidBackupCandidate(primaryBytes))
+        if (!IsValidBackupCandidateCore(primaryBytes))
 
         {
 
@@ -3241,7 +3258,7 @@ public class SaveManager : MonoBehaviour
         if (File.Exists(backupPath))
         {
             byte[] existingBackup = File.ReadAllBytes(backupPath);
-            if (!IsValidBackupCandidate(existingBackup))
+            if (!IsValidBackupCandidateCore(existingBackup))
             {
                 throw new IOException(
                     "Existing V2 backup is invalid; refusing to replace it."
@@ -3268,7 +3285,7 @@ public class SaveManager : MonoBehaviour
 
         byte[] stagedBytes = File.ReadAllBytes(backupTemporaryPath);
 
-        if (!BytesEqual(stagedBytes, primaryBytes) || !IsValidBackupCandidate(stagedBytes))
+        if (!BytesEqual(stagedBytes, primaryBytes) || !IsValidBackupCandidateCore(stagedBytes))
 
             throw new IOException("Backup staging verification failed; primary was not committed.");
 
@@ -3298,7 +3315,7 @@ public class SaveManager : MonoBehaviour
 
     // conservative: legacy, reformatted and unknown-schema files are not rotated.
 
-    private bool IsValidBackupCandidate(byte[] bytes)
+    private static bool IsValidBackupCandidateCore(byte[] bytes)
 
     {
 
@@ -3308,7 +3325,7 @@ public class SaveManager : MonoBehaviour
 
             string json = SaveEncoding.GetString(bytes);
 
-            if (!IsValidSerializedSnapshot(json))
+            if (!IsValidSerializedSnapshotCore(json))
 
                 return false;
 
@@ -3475,7 +3492,7 @@ public class SaveManager : MonoBehaviour
 
     }
 
-    private bool IsValidSerializedSnapshot(string json)
+    private static bool IsValidSerializedSnapshotCore(string json)
 
     {
 
@@ -3485,7 +3502,7 @@ public class SaveManager : MonoBehaviour
 
         PlayerSaveData check = JsonUtility.FromJson<PlayerSaveData>(json);
 
-        if (check == null || !IsSupportedVersion(check.saveVersion) ||
+        if (check == null || !IsSupportedVersionCore(check.saveVersion) ||
             check.economy == null || check.progression == null ||
 
             check.mergeGameplay == null ||
@@ -3601,7 +3618,7 @@ public class SaveManager : MonoBehaviour
                 statisticsAreZero))
             return false;
 
-        SanitizeSaveData(check);
+        SanitizeSaveDataCore(check);
 
         canonicalJson =
             SerializeWithServingPlateVersion(
@@ -3907,7 +3924,7 @@ public class SaveManager : MonoBehaviour
     {
         try
         {
-            return bytes != null && IsValidBackupCandidate(bytes);
+            return bytes != null && IsValidBackupCandidateCore(bytes);
         }
         catch (Exception exception)
         {
@@ -4041,7 +4058,7 @@ public class SaveManager : MonoBehaviour
 
     // ==================================================
 
-    private bool IsSupportedVersion(
+    private static bool IsSupportedVersionCore(
 
         int version)
 
@@ -4059,7 +4076,7 @@ public class SaveManager : MonoBehaviour
 
     // ==================================================
 
-    private void SanitizeSaveData(
+    private static void SanitizeSaveDataCore(
 
         PlayerSaveData saveData)
 
@@ -4243,7 +4260,7 @@ public class SaveManager : MonoBehaviour
 
         }
 
-        SanitizeBoardDesserts(
+        SanitizeBoardDessertsCore(
 
             saveData.mergeGameplay
 
@@ -4251,7 +4268,7 @@ public class SaveManager : MonoBehaviour
 
         );
 
-        SanitizeShelfDesserts(
+        SanitizeShelfDessertsCore(
 
             saveData.mergeGameplay
 
@@ -4259,7 +4276,7 @@ public class SaveManager : MonoBehaviour
 
         );
 
-        SanitizeCustomerOrders(
+        SanitizeCustomerOrdersCore(
 
             saveData.mergeGameplay
 
@@ -4269,7 +4286,7 @@ public class SaveManager : MonoBehaviour
 
     }
 
-    private void SanitizeBoardDesserts(
+    private static void SanitizeBoardDessertsCore(
 
         System.Collections.Generic.List<
 
@@ -4305,7 +4322,7 @@ public class SaveManager : MonoBehaviour
 
     }
 
-    private void SanitizeShelfDesserts(
+    private static void SanitizeShelfDessertsCore(
 
         System.Collections.Generic.List<
 
@@ -4341,7 +4358,7 @@ public class SaveManager : MonoBehaviour
 
     }
 
-    private void SanitizeCustomerOrders(
+    private static void SanitizeCustomerOrdersCore(
 
         System.Collections.Generic.List<
 

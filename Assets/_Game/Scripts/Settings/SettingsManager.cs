@@ -619,8 +619,7 @@ public sealed class SettingsManager : MonoBehaviour
                left.vibrationEnabled == right.vibrationEnabled &&
                left.confirmImportantActions ==
                    right.confirmImportantActions &&
-               left.reduceAnimations == right.reduceAnimations &&
-               left.advertisingNoticeAcknowledged == right.advertisingNoticeAcknowledged;
+               left.reduceAnimations == right.reduceAnimations;
     }
 
     private static bool BytesEqual(byte[] left, byte[] right)
@@ -796,9 +795,9 @@ public sealed class SettingsManager : MonoBehaviour
                         if (!TryReadBoolean(out profile.confirmImportantActions))
                             return Fail("confirmImportantActions must be a boolean.", out failureReason);
                         break;
-                    // Optional for existing settings profiles; missing means unseen.
+                    // Legacy profiles may still contain this informational field.
                     case "advertisingNoticeAcknowledged":
-                        if (!TryReadBoolean(out profile.advertisingNoticeAcknowledged))
+                        if (!TryReadBoolean(out _))
                             return Fail("advertisingNoticeAcknowledged must be a boolean.", out failureReason);
                         break;
                     case "reduceAnimations":

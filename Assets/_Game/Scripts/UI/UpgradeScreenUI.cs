@@ -16,6 +16,7 @@ public class UpgradeScreenUI : MonoBehaviour
     [SerializeField]
     private SpawnPoolSelectorUI spawnPoolSelector;
 
+    private GameplayModalInputGate.GameplayModalLease gameplayModalLease;
     private bool selectorVisibilityOverridden;
     private bool selectorWasVisible;
 
@@ -41,6 +42,7 @@ public class UpgradeScreenUI : MonoBehaviour
     private void OnDestroy()
     {
         RestoreSpawnPoolSelector();
+        ReleaseGameplayModalLease();
 
         if (openButton != null)
         {
@@ -59,7 +61,7 @@ public class UpgradeScreenUI : MonoBehaviour
 
     private void OnDisable()
     {
-        RestoreSpawnPoolSelector();
+        Close();
     }
 
     private void LateUpdate()
@@ -68,6 +70,7 @@ public class UpgradeScreenUI : MonoBehaviour
             (upgradeScreen == null || !upgradeScreen.activeInHierarchy))
         {
             RestoreSpawnPoolSelector();
+            ReleaseGameplayModalLease();
         }
     }
 
@@ -94,10 +97,22 @@ public class UpgradeScreenUI : MonoBehaviour
         if (upgradeScreen == null)
             return;
 
+        if (upgradeScreen.activeSelf)
+            return;
+
+        if (!GameplayModalInputGate.TryAcquireBlockingModal(
+                this,
+                out gameplayModalLease))
+        {
+            Debug.LogError(
+                "UPGRADE SCREEN | Could not acquire the gameplay modal input gate.",
+                this);
+            return;
+        }
+
         HideSpawnPoolSelector();
-        upgradeScreen.SetActive(
-            true
-        );
+        upgradeScreen.transform.SetAsLastSibling();
+        upgradeScreen.SetActive(true);
 
         Debug.Log(
             "UPGRADE SCREEN | Opened"
@@ -110,10 +125,20 @@ public class UpgradeScreenUI : MonoBehaviour
             upgradeScreen.SetActive(false);
 
         RestoreSpawnPoolSelector();
+        ReleaseGameplayModalLease();
 
         Debug.Log(
             "UPGRADE SCREEN | Closed"
         );
+    }
+
+    private void ReleaseGameplayModalLease()
+    {
+        if (gameplayModalLease == null)
+            return;
+
+        gameplayModalLease.Dispose();
+        gameplayModalLease = null;
     }
 
     private void HideSpawnPoolSelector()

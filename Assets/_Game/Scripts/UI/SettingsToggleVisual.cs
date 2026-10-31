@@ -71,6 +71,27 @@ public sealed class SettingsToggleVisual : MonoBehaviour
         stateLabel.color = isOn ? onLabelColor : offLabelColor;
     }
 
+    public void ApplyAppearance(
+        Sprite trackSprite,
+        Sprite knobSprite,
+        Color labelColor)
+    {
+        onTrackColor = Color.white;
+        offTrackColor = Color.white;
+        knobColor = Color.white;
+        onLabelColor = labelColor;
+        offLabelColor = labelColor;
+
+        if (trackImage != null)
+            trackImage.sprite = trackSprite;
+        if (knobImage != null)
+            knobImage.sprite = knobSprite;
+        if (knobRectTransform != null)
+            knobRectTransform.sizeDelta = new Vector2(72f, 72f);
+
+        RefreshVisual();
+    }
+
     private void HandleToggleValueChanged(bool _)
     {
         RefreshVisual();

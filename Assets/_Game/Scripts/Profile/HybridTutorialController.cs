@@ -81,6 +81,7 @@ namespace SweetMerge.Profile
 
         private void Start()
         {
+            if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null) return;
             GameplayEvents.DessertSpawned += HandleDessertSpawned;
             GameplayEvents.DessertMergeCommitted +=
                 HandleDessertMergeCommitted;
