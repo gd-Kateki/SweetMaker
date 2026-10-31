@@ -23,6 +23,17 @@ internal sealed class DeveloperCheatCommandResult
 
 internal static class DeveloperCheatCommands
 {
+    internal static bool CafeNamingPromptPending { get; private set; }
+
+    internal static bool ConsumeCafeNamingPrompt()
+    {
+        if (!CafeNamingPromptPending)
+            return false;
+
+        CafeNamingPromptPending = false;
+        return true;
+    }
+
     internal static DeveloperCheatCommandResult AddCash(int amount)
     {
         if (!TryGetReadyManagers(
@@ -244,6 +255,7 @@ internal static class DeveloperCheatCommands
                 "Profile files were reset, but the game could not prepare a fresh startup. Restart the development app.");
         }
 
+        CafeNamingPromptPending = true;
         UnityEngine.SceneManagement.SceneManager.LoadScene("Game");
         return new DeveloperCheatCommandResult(
             true,

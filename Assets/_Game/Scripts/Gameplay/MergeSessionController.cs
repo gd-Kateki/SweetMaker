@@ -176,6 +176,14 @@ public class MergeSessionController : MonoBehaviour
                !GameStartupCoordinator.Instance.IsStartupComplete &&
                !GameStartupCoordinator.Instance.IsStartupBlocked)
             yield return null;
+        while (ApplicationReadinessCoordinator.Instance != null &&
+               !ApplicationReadinessCoordinator.Instance.IsReady)
+            yield return null;
+        if (ApplicationReadinessCoordinator.Instance == null)
+        {
+            FailRestoration("Application readiness coordinator is missing.");
+            yield break;
+        }
         // Also give consumers of restored progression a complete frame to initialize.
         yield return null;
         TryRestoreSessionAutomatically();
@@ -990,6 +998,11 @@ public class MergeSessionController : MonoBehaviour
     {
         if (!isActiveAndEnabled) return false;
         if (restorationInProgress) return false;
+        ApplicationReadinessCoordinator applicationReadiness =
+            ApplicationReadinessCoordinator.Instance;
+        if (applicationReadiness == null ||
+            !applicationReadiness.IsReady)
+            return false;
         var coordinator = GameStartupCoordinator.Instance;
         if (coordinator == null || !coordinator.IsStartupComplete)
             return FailRestoration("Persistent startup has not succeeded.");

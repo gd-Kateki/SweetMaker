@@ -59,13 +59,15 @@ public class SceneNavigationManager : MonoBehaviour
     public static bool CanEnterMergeGameplay()
     {
         var startup = GameStartupCoordinator.Instance;
-        // Gameplay readiness is established inside Game; requiring it here would
-        // prevent a new game or a restored persistent snapshot from entering.
-        if (startup != null && startup.IsStartupComplete)
+        var applicationReadiness = ApplicationReadinessCoordinator.Instance;
+        if (startup != null &&
+            startup.IsStartupComplete &&
+            applicationReadiness != null &&
+            applicationReadiness.IsReady)
             return true;
 
         Debug.LogWarning(
-            "SCENE | Cannot enter Game until persistent startup succeeds.");
+            "SCENE | Cannot enter Game until application readiness succeeds.");
         return false;
     }
 

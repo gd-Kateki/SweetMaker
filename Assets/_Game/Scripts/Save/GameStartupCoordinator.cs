@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -13,6 +14,7 @@ public class GameStartupCoordinator : MonoBehaviour
         ((verifiedController != null && verifiedController.isActiveAndEnabled &&
           verifiedController.IsRestorationVerified) || verifiedSnapshotAvailable);
     public string LastFailureReason { get; private set; }
+    public event Action StateChanged;
 
     private bool startupAttempted;
     private bool reloadLiveGameplay;
@@ -24,6 +26,7 @@ public class GameStartupCoordinator : MonoBehaviour
         verifiedSnapshotAvailable = false;
         verifiedController = null;
         SaveManager.Instance?.SuspendLifecycleSaving();
+        StateChanged?.Invoke();
     }
 
     // Called only after the departing Game has captured a complete session.
@@ -33,7 +36,10 @@ public class GameStartupCoordinator : MonoBehaviour
         if (verifiedController != controller || !IsStartupComplete) return false;
         verifiedController = null;
         verifiedSnapshotAvailable = true;
-        return SaveManager.Instance != null && SaveManager.Instance.MarkGameplayReadyForLifecycleSaves();
+        bool ready = SaveManager.Instance != null &&
+            SaveManager.Instance.MarkGameplayReadyForLifecycleSaves();
+        StateChanged?.Invoke();
+        return ready;
     }
 
     private void Awake()
@@ -42,6 +48,7 @@ public class GameStartupCoordinator : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         SaveManager.Instance?.SuspendLifecycleSaving();
+        StateChanged?.Invoke();
     }
 
     private IEnumerator Start()
@@ -57,6 +64,7 @@ public class GameStartupCoordinator : MonoBehaviour
     private void InitializeStartup()
     {
         Status = StartupStatus.Loading;
+        StateChanged?.Invoke();
         var saveManager = SaveManager.Instance;
         saveManager?.SuspendLifecycleSaving();
         if (saveManager == null || EconomyManager.Instance == null ||
@@ -69,12 +77,14 @@ public class GameStartupCoordinator : MonoBehaviour
             if (!saveManager.SaveFileExists())
             {
                 Status = StartupStatus.NewGame;
+                StateChanged?.Invoke();
                 Debug.Log("STARTUP | New game. Waiting for verified Game initialization.");
                 return;
             }
             if (!saveManager.LoadCurrentGame())
             { FailStartup("Existing save could not be restored. Saving remains disabled."); return; }
             Status = StartupStatus.Loaded;
+            StateChanged?.Invoke();
             Debug.Log("STARTUP | Persistent data verified. Waiting for Game restoration.");
         }
         catch (System.Exception exception) { FailStartup(exception.ToString()); }
@@ -89,12 +99,14 @@ public class GameStartupCoordinator : MonoBehaviour
         verifiedSnapshotAvailable = false;
         Status = StartupStatus.Loading;
         SaveManager.Instance?.SuspendLifecycleSaving();
+        StateChanged?.Invoke();
     }
 
     internal void CompletePersistentReload()
     {
         Status = StartupStatus.Loaded;
         LastFailureReason = null;
+        StateChanged?.Invoke();
         if (reloadLiveGameplay) StartCoroutine(RestoreLiveAfterReload());
         reloadLiveGameplay = false;
     }
@@ -111,6 +123,7 @@ public class GameStartupCoordinator : MonoBehaviour
         LastFailureReason = null;
         Status = StartupStatus.NewGame;
         SaveManager.Instance?.SuspendLifecycleSaving();
+        StateChanged?.Invoke();
         return true;
     }
 
@@ -134,6 +147,7 @@ public class GameStartupCoordinator : MonoBehaviour
         if (!SaveManager.Instance.MarkGameplayReadyForLifecycleSaves())
         { FailStartup("SaveManager refused readiness."); return false; }
         LastFailureReason = null;
+        StateChanged?.Invoke();
         return true;
     }
 
@@ -147,6 +161,7 @@ public class GameStartupCoordinator : MonoBehaviour
         verifiedController = null;
         verifiedSnapshotAvailable = false;
         SaveManager.Instance?.SuspendLifecycleSaving();
+        StateChanged?.Invoke();
         Debug.LogError("STARTUP FAILED | " + reason);
     }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public static class GameplayModalInputGate
 {
@@ -33,6 +34,11 @@ public static class GameplayModalInputGate
         get
         {
             ReleaseDestroyedOwners();
+            if (SceneManager.GetActiveScene().name ==
+                    SceneNavigationManager.MergeGameplayScene &&
+                (ApplicationReadinessCoordinator.Instance == null ||
+                 !ApplicationReadinessCoordinator.Instance.IsReady))
+                return true;
             return ModalLeases.Count > 0;
         }
     }
