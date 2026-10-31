@@ -409,15 +409,10 @@ namespace SweetMerge.Profile
         {
             if (uiSprite == null)
             {
-                uiSprite = Resources.GetBuiltinResource<Sprite>(
-                    "UI/Skin/UISprite.psd");
-                if (uiSprite == null)
-                {
-                    uiSprite = Sprite.Create(
-                        Texture2D.whiteTexture,
-                        new Rect(0f, 0f, 1f, 1f),
-                        new Vector2(.5f, .5f));
-                }
+                uiSprite = Sprite.Create(
+                    Texture2D.whiteTexture,
+                    new Rect(0f, 0f, 1f, 1f),
+                    new Vector2(.5f, .5f));
             }
 
             return uiSprite;
