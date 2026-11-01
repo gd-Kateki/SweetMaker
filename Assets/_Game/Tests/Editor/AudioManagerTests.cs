@@ -1443,15 +1443,64 @@ public class AudioManagerTests
         Assert.Greater(coreFailure, coreStart);
         Assert.Greater(coreSuccess, coreFailure,
             "Completion persistence is confirmed only after SaveCore succeeds.");
-        StringAssert.Contains(
-            "if (!IsValidSerializedSnapshot(json))",
-            saveManagerSource,
-            "The completion save must use the validated V2 snapshot path.");
         StringAssert.Contains("saveData.campaignComplete =", saveManagerSource);
 
         string restoreSource = System.IO.File.ReadAllText(
             "Assets/_Game/Scripts/Gameplay/MergeSessionController.cs");
         StringAssert.DoesNotContain("RaiseCampaignCompleted", restoreSource);
+    }
+
+    [Test]
+    public void SaveManagerRejectsInvalidSnapshotBeforeCreatingFiles()
+    {
+        GameObject managerObject = new GameObject(
+            "Invalid save snapshot validation test");
+        managerObject.SetActive(false);
+        object saveManager = managerObject.AddComponent(
+            FindPlayerType("SaveManager"));
+        string testDirectory = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "SweetMaker.SaveValidation." + Guid.NewGuid().ToString("N"));
+        string snapshotPath = System.IO.Path.Combine(
+            testDirectory,
+            "snapshot.json");
+
+        try
+        {
+            MethodInfo writeSnapshot = saveManager.GetType().GetMethod(
+                "TryWritePreparedSnapshot",
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                null,
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(bool).MakeByRefType()
+                },
+                null);
+            Assert.IsNotNull(writeSnapshot);
+
+            object[] arguments = { "{}", snapshotPath, false };
+            LogAssert.Expect(
+                LogType.Error,
+                "SAVE | Serialized snapshot failed validation.");
+            bool saved = (bool)writeSnapshot.Invoke(
+                saveManager,
+                arguments);
+
+            Assert.IsFalse(saved,
+                "A non-V2 snapshot must not be written.");
+            Assert.IsFalse((bool)arguments[2],
+                "An invalid snapshot must not be reported as committed.");
+            Assert.IsFalse(System.IO.Directory.Exists(testDirectory),
+                "Validation must reject the snapshot before creating its directory.");
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(testDirectory))
+                System.IO.Directory.Delete(testDirectory, true);
+            UnityEngine.Object.DestroyImmediate(managerObject);
+        }
     }
 
     [Test]

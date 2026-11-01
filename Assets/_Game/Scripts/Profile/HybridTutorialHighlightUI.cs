@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -13,9 +13,18 @@ namespace SweetMerge.Profile
         private CanvasGroup canvasGroup;
         private RectTransform highlightRect;
         private Transform targetTransform;
+        private TutorialStage cachedTargetStage;
+        private SceneHandle cachedTargetSceneHandle;
+        private bool hasCachedTarget;
         private Image[] edges;
         private HybridTutorialController controller;
         private bool subscribed;
+        private readonly List<GameObject> rootObjects =
+            new List<GameObject>();
+        private readonly List<Transform> childTransforms =
+            new List<Transform>();
+        private readonly List<Renderer> childRenderers =
+            new List<Renderer>();
 
         [RuntimeInitializeOnLoadMethod(
             RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -33,7 +42,8 @@ namespace SweetMerge.Profile
                 return;
 
             GameObject host = new GameObject(
-                nameof(HybridTutorialHighlightUI));
+                nameof(HybridTutorialHighlightUI),
+                typeof(RectTransform));
             host.transform.SetParent(canvas.transform, false);
             host.AddComponent<HybridTutorialHighlightUI>();
         }
@@ -63,24 +73,22 @@ namespace SweetMerge.Profile
         private void OnEnable()
         {
             Subscribe();
+            SceneManager.activeSceneChanged += HandleActiveSceneChanged;
+            SceneManager.sceneUnloaded += HandleSceneUnloaded;
             Refresh();
         }
 
         private void OnDisable()
         {
             Unsubscribe();
+            SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
+            SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+            InvalidateTargetCache();
             HideHighlight();
         }
 
         private void Update()
         {
-            if (SceneManager.GetActiveScene().name !=
-                SceneNavigationManager.MergeGameplayScene)
-            {
-                HideHighlight();
-                return;
-            }
-
             Refresh();
         }
 
@@ -119,6 +127,27 @@ namespace SweetMerge.Profile
             Refresh();
         }
 
+        private void HandleActiveSceneChanged(
+            Scene previousScene,
+            Scene nextScene)
+        {
+            InvalidateTargetCache();
+            if (nextScene.name == SceneNavigationManager.MergeGameplayScene)
+                Refresh();
+            else
+                HideHighlight();
+        }
+
+        private void HandleSceneUnloaded(Scene scene)
+        {
+            if (hasCachedTarget &&
+                scene.handle == cachedTargetSceneHandle)
+            {
+                InvalidateTargetCache();
+                HideHighlight();
+            }
+        }
+
         private void Refresh()
         {
             controller = HybridTutorialController.Instance;
@@ -150,52 +179,68 @@ namespace SweetMerge.Profile
             Scene scene = SceneManager.GetActiveScene();
             if (!scene.IsValid() ||
                 scene.name != SceneNavigationManager.MergeGameplayScene)
+            {
+                InvalidateTargetCache();
                 return false;
+            }
 
+            if (hasCachedTarget &&
+                cachedTargetStage == stage &&
+                cachedTargetSceneHandle == scene.handle &&
+                targetTransform != null &&
+                targetTransform.gameObject.scene == scene)
+            {
+                target = targetTransform;
+                return true;
+            }
+
+            targetTransform = null;
+            cachedTargetStage = stage;
+            cachedTargetSceneHandle = scene.handle;
+            hasCachedTarget = true;
+
+            bool found;
             switch (stage)
             {
                 case TutorialStage.Spawn:
-                    return TryFindComponentTransform(
-                        scene,
-                        "Oven",
-                        out target,
-                        gameObject =>
-                            gameObject.GetComponent<OvenController>() != null);
+                    found = TryFindComponentTransform<OvenController>(
+                        scene, "Oven", out target);
+                    break;
                 case TutorialStage.Merge:
-                    return TryFindComponentTransform(
-                        scene,
-                        "Grid",
-                        out target,
-                        gameObject =>
-                            gameObject.GetComponent<GridManager>() != null);
+                    found = TryFindComponentTransform<GridManager>(
+                        scene, "Grid", out target);
+                    break;
                 case TutorialStage.Order:
-                    return TryFindComponentTransform(
-                        scene,
-                        "OrderPanel",
-                        out target,
-                        gameObject =>
-                            gameObject.GetComponent<OrderUI>() != null);
+                    found = TryFindComponentTransform<OrderUI>(
+                        scene, "OrderPanel", out target);
+                    break;
                 default:
                     return false;
             }
+
+            if (found)
+                targetTransform = target;
+            return found;
         }
 
-        private bool TryFindComponentTransform(
+        private bool TryFindComponentTransform<T>(
             Scene scene,
             string objectName,
-            out Transform target,
-            Func<GameObject, bool> predicate)
+            out Transform target)
+            where T : Component
         {
             target = null;
-            foreach (GameObject root in scene.GetRootGameObjects())
+            rootObjects.Clear();
+            scene.GetRootGameObjects(rootObjects);
+            foreach (GameObject root in rootObjects)
             {
-                Transform[] transforms =
-                    root.GetComponentsInChildren<Transform>(true);
-                foreach (Transform candidate in transforms)
+                childTransforms.Clear();
+                root.GetComponentsInChildren(true, childTransforms);
+                foreach (Transform candidate in childTransforms)
                 {
                     if (candidate.name != objectName ||
                         candidate.gameObject.scene != scene ||
-                        !predicate(candidate.gameObject))
+                        candidate.GetComponent<T>() == null)
                         continue;
 
                     target = candidate;
@@ -204,6 +249,12 @@ namespace SweetMerge.Profile
             }
 
             return false;
+        }
+
+        private void InvalidateTargetCache()
+        {
+            targetTransform = null;
+            hasCachedTarget = false;
         }
 
         private bool TryUpdateHighlightBounds()
@@ -282,11 +333,11 @@ namespace SweetMerge.Profile
                     screenBounds.height > 0f;
             }
 
-            Renderer[] renderers =
-                target.GetComponentsInChildren<Renderer>(true);
+            childRenderers.Clear();
+            target.GetComponentsInChildren(true, childRenderers);
             Bounds bounds = default;
             bool hasBounds = false;
-            foreach (Renderer renderer in renderers)
+            foreach (Renderer renderer in childRenderers)
             {
                 if (!renderer.enabled ||
                     !renderer.gameObject.activeInHierarchy)
@@ -303,28 +354,26 @@ namespace SweetMerge.Profile
                 }
             }
 
-            if (!hasBounds || Camera.main == null)
+            Camera camera = Camera.main;
+            if (!hasBounds || camera == null)
                 return false;
 
             Vector3 center = bounds.center;
             Vector3 extents = bounds.extents;
-            Vector3[] worldBounds =
-            {
-                center + new Vector3(-extents.x, -extents.y, 0f),
-                center + new Vector3(-extents.x, extents.y, 0f),
-                center + new Vector3(extents.x, -extents.y, 0f),
-                center + new Vector3(extents.x, extents.y, 0f)
-            };
             Vector2 minWorld = new Vector2(
                 float.PositiveInfinity,
                 float.PositiveInfinity);
             Vector2 maxWorld = new Vector2(
                 float.NegativeInfinity,
                 float.NegativeInfinity);
-            foreach (Vector3 worldPoint in worldBounds)
+            for (int i = 0; i < 4; i++)
             {
+                Vector3 worldPoint = center + new Vector3(
+                    (i & 1) == 0 ? -extents.x : extents.x,
+                    (i & 2) == 0 ? -extents.y : extents.y,
+                    0f);
                 Vector2 point = RectTransformUtility.WorldToScreenPoint(
-                    Camera.main,
+                    camera,
                     worldPoint);
                 minWorld = Vector2.Min(minWorld, point);
                 maxWorld = Vector2.Max(maxWorld, point);

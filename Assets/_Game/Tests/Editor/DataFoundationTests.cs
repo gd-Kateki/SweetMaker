@@ -790,8 +790,8 @@ public class DataFoundationTests
                 "rectTransform");
 
         Assert.AreEqual(new Vector2(50f, 50f), firstIconRect.sizeDelta);
-        Assert.AreEqual(new Vector2(158f, 24f), firstTextRect.sizeDelta);
-        Assert.AreEqual(19f, GetPropertyValue(headerLabel, "fontSize"));
+        Assert.AreEqual(new Vector2(132f, 24f), firstTextRect.sizeDelta);
+        Assert.AreEqual(25f, GetPropertyValue(headerLabel, "fontSize"));
         Assert.AreEqual(22f,
             GetPropertyValue(firstRequirementLabel, "fontSize"));
         Assert.AreEqual(16f,
@@ -845,7 +845,7 @@ public class DataFoundationTests
         Assert.LessOrEqual(
             headerRect.anchoredPosition.x +
             headerRect.sizeDelta.x / 2f,
-            120f);
+            114.5f);
         Assert.GreaterOrEqual(
             firstIconRect.anchoredPosition.x -
             firstIconRect.sizeDelta.x / 2f,
@@ -853,7 +853,7 @@ public class DataFoundationTests
         Assert.LessOrEqual(
             firstTextRect.anchoredPosition.x +
             firstTextRect.sizeDelta.x / 2f,
-            120f);
+            114.5f);
         // All visible elements must remain inside the card, including the
         // larger icons and status text. Do not accept a new size alone.
         Rect cardBounds = ((RectTransform)buttonTransform).rect;
@@ -3277,7 +3277,7 @@ public class DataFoundationTests
         Assert.AreEqual("2117529018", headerChildren[1].Groups[1].Value);
         StringAssert.Contains("m_AnchorMin: {x: 0, y: 0}", scrollView.Value);
         StringAssert.Contains("m_AnchorMax: {x: 1, y: 1}", scrollView.Value);
-        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -70}",
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 0}",
             scrollView.Value);
         StringAssert.Contains("m_SizeDelta: {x: -80, y: -220}",
             scrollView.Value);
@@ -4143,14 +4143,14 @@ public class DataFoundationTests
         // cover the fixed header once Unity performs its layout pass.
         StringAssert.Contains("m_VerticalScrollbarVisibility: 1", scrollRect.Value);
         string scaler = ReadSceneBlock(sceneText, 114, 191567263);
-        Assert.AreEqual(0.5f, ReadSceneFloat(scaler, "m_MatchWidthOrHeight"));
+        Assert.AreEqual(0f, ReadSceneFloat(scaler, "m_MatchWidthOrHeight"));
         Assert.AreEqual(new Vector2(1080f, 1920f),
             ReadSceneVector2(scaler, "m_ReferenceResolution"));
         string scrollTransform = ReadSceneBlock(sceneText, 224, 1616590802);
         string headerTransform = ReadSceneBlock(sceneText, 224, 2065082387);
-        foreach (float height in new[] { 1920f, 2340f, 2400f })
+        foreach (float height in new[] { 1920f, 2340f, 2400f, 2520f })
         {
-            float scale = Mathf.Sqrt(height / 1920f); // MainBakery matches width/height equally.
+            float scale = 1f;
             Rect canvas = new Rect(0f, 0f, 1080f, height);
             Rect panel = CalculateSerializedRect(scrollTransform, canvas, scale,
                 ReadSceneVector2(scrollTransform, "m_AnchorMin"),
@@ -4258,25 +4258,9 @@ public class DataFoundationTests
         Vector2 panelSize = ReadSceneVector2(
             panelTransform.Value,
             "m_SizeDelta");
-        Vector2 requirementsOffset = ReadSceneVector2(
-            requirementsTransform.Value,
-            "m_AnchoredPosition");
         Vector2 requirementsSize = ReadSceneVector2(
             requirementsTransform.Value,
             "m_SizeDelta");
-        Vector2 actionButtonOffset = ReadSceneVector2(
-            actionButtonTransform.Value,
-            "m_AnchoredPosition");
-        Vector2 actionButtonSize = ReadSceneVector2(
-            actionButtonTransform.Value,
-            "m_SizeDelta");
-        Vector2 closeButtonOffset = ReadSceneVector2(
-            closeButtonTransform.Value,
-            "m_AnchoredPosition");
-        Vector2 closeButtonSize = ReadSceneVector2(
-            closeButtonTransform.Value,
-            "m_SizeDelta");
-
         Vector2 requirementsAnchorMin = ReadSceneVector2(
             requirementsTransform.Value,
             "m_AnchorMin");
@@ -4287,28 +4271,51 @@ public class DataFoundationTests
             panelSize.x *
             (requirementsAnchorMax.x - requirementsAnchorMin.x) +
             requirementsSize.x;
-        float requirementsTop =
-            panelSize.y * 0.5f + requirementsOffset.y;
-        float requirementsBottom =
-            requirementsTop - requirementsSize.y;
-        float actionButtonTop =
-            -panelSize.y * 0.5f + actionButtonOffset.y +
-            actionButtonSize.y;
-        float closeButtonBottom =
-            panelSize.y * 0.5f + closeButtonOffset.y -
-            closeButtonSize.y;
+        Rect panelBounds = new Rect(
+            -panelSize.x * 0.5f,
+            -panelSize.y * 0.5f,
+            panelSize.x,
+            panelSize.y);
+        Rect requirementsBounds = CalculateSerializedRect(
+            requirementsTransform.Value,
+            panelBounds,
+            1f,
+            requirementsAnchorMin,
+            requirementsAnchorMax);
+        Rect actionButtonBounds = CalculateSerializedRect(
+            actionButtonTransform.Value,
+            panelBounds,
+            1f,
+            ReadSceneVector2(actionButtonTransform.Value, "m_AnchorMin"),
+            ReadSceneVector2(actionButtonTransform.Value, "m_AnchorMax"));
+        Rect closeButtonBounds = CalculateSerializedRect(
+            closeButtonTransform.Value,
+            panelBounds,
+            1f,
+            ReadSceneVector2(closeButtonTransform.Value, "m_AnchorMin"),
+            ReadSceneVector2(closeButtonTransform.Value, "m_AnchorMax"));
 
-        Assert.Less(requirementsTop, panelSize.y * 0.5f);
-        Assert.Greater(requirementsBottom, actionButtonTop);
-        Assert.Less(requirementsTop, closeButtonBottom);
+        AssertRectInside(panelBounds, requirementsBounds,
+            "Rebirth requirements heading");
+        Assert.IsFalse(requirementsBounds.Overlaps(actionButtonBounds),
+            "Rebirth requirements must not overlap the action button.");
+        Assert.IsFalse(requirementsBounds.Overlaps(closeButtonBounds),
+            "Rebirth requirements must not overlap the close button.");
         Assert.Greater(effectiveRequirementsWidth, 0f);
         Assert.Greater(requirementsSize.y, 0f);
         StringAssert.Contains("m_enableAutoSizing: 1", requirementsText.Value);
-        StringAssert.Contains("m_fontSize: 32", requirementsText.Value);
-        StringAssert.Contains("m_fontSizeMin: 20", requirementsText.Value);
-        StringAssert.Contains("m_fontSizeMax: 32", requirementsText.Value);
+        float requirementsFontSize =
+            ReadSceneFloat(requirementsText.Value, "m_fontSize");
+        float requirementsFontSizeMin =
+            ReadSceneFloat(requirementsText.Value, "m_fontSizeMin");
+        float requirementsFontSizeMax =
+            ReadSceneFloat(requirementsText.Value, "m_fontSizeMax");
+        Assert.AreEqual(20f, requirementsFontSizeMin);
+        Assert.AreEqual(40f, requirementsFontSizeMax);
+        Assert.GreaterOrEqual(requirementsFontSize, requirementsFontSizeMin);
+        Assert.LessOrEqual(requirementsFontSize, requirementsFontSizeMax);
         StringAssert.Contains("m_TextWrappingMode: 1", requirementsText.Value);
-        StringAssert.Contains("m_overflowMode: 1", requirementsText.Value);
+        StringAssert.Contains("m_overflowMode: 3", requirementsText.Value);
         StringAssert.Contains("m_RaycastTarget: 1", backdrop.Value);
         StringAssert.Contains(
             "m_AnchorMin: {x: 0, y: 0}",
@@ -4454,7 +4461,8 @@ public class DataFoundationTests
             {
                 9f / 16f,
                 9f / 19.5f,
-                9f / 20f
+                9f / 20f,
+                9f / 21f
             };
 
             foreach (float aspect in portraitAspects)
@@ -4798,6 +4806,26 @@ public class DataFoundationTests
         requirementTextObject.SetActive(false);
         object requirementText = requirementTextObject.AddComponent(
             FindPlayerType("TMPro.TextMeshProUGUI"));
+        var requiredDessertTextObject = new GameObject("Required Dessert");
+        requiredDessertTextObject.SetActive(false);
+        object requiredDessertText = requiredDessertTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var tierProgressTextObject = new GameObject("Tier Progress");
+        tierProgressTextObject.SetActive(false);
+        object tierProgressText = tierProgressTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var cashRequirementTextObject = new GameObject("Cash Requirement");
+        cashRequirementTextObject.SetActive(false);
+        object cashRequirementText = cashRequirementTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var eligibilityTextObject = new GameObject("Eligibility");
+        eligibilityTextObject.SetActive(false);
+        object eligibilityText = eligibilityTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
+        var campaignStatusTextObject = new GameObject("Campaign Status");
+        campaignStatusTextObject.SetActive(false);
+        object campaignStatusText = campaignStatusTextObject.AddComponent(
+            FindPlayerType("TMPro.TextMeshProUGUI"));
         var buttonObject = new GameObject("RebirthButton");
         buttonObject.SetActive(false);
         buttonObject.AddComponent<UnityEngine.UI.Image>();
@@ -4830,6 +4858,11 @@ public class DataFoundationTests
         SetPrivateField(ui, "economyManager", setup.Economy);
         SetPrivateField(ui, "dessertSpawner", spawner);
         SetPrivateField(ui, "requirementsText", requirementText);
+        SetPrivateField(ui, "requiredDessertText", requiredDessertText);
+        SetPrivateField(ui, "tierProgressText", tierProgressText);
+        SetPrivateField(ui, "cashRequirementText", cashRequirementText);
+        SetPrivateField(ui, "eligibilityText", eligibilityText);
+        SetPrivateField(ui, "campaignStatusText", campaignStatusText);
         SetPrivateField(ui, "rebirthButton", button);
         SetPrivateField(ui, "rebirthButtonText", buttonText);
         SetPrivateField(ui, "entryButton", entryButton);
@@ -4861,15 +4894,24 @@ public class DataFoundationTests
             string text = (string)requirementText.GetType()
                 .GetProperty("text").GetValue(requirementText);
             StringAssert.Contains("REBIRTH 1", text);
-            StringAssert.Contains("Create T7", text);
+            string dessertRequirement = (string)requiredDessertText.GetType()
+                .GetProperty("text").GetValue(requiredDessertText);
+            StringAssert.Contains("Create T7", dessertRequirement);
             object requiredDessert = spawner.GetType()
                 .GetMethod("GetDefinitionByTier")
                 .Invoke(spawner, new object[] { 7 });
             StringAssert.Contains(
                 (string)requiredDessert.GetType()
                     .GetProperty("DisplayName").GetValue(requiredDessert),
-                text);
-            StringAssert.Contains("$0 / $128", text);
+                dessertRequirement);
+            StringAssert.Contains(
+                "$0 / $128",
+                (string)cashRequirementText.GetType()
+                    .GetProperty("text").GetValue(cashRequirementText));
+            StringAssert.Contains(
+                "T0 / T7",
+                (string)tierProgressText.GetType()
+                    .GetProperty("text").GetValue(tierProgressText));
             Assert.IsFalse(button.interactable);
             Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
             Assert.IsFalse(((UnityEngine.Component)notification)
@@ -4887,9 +4929,10 @@ public class DataFoundationTests
             Assert.IsTrue(button.interactable,
                 "The UI should refresh when cash completes the requirements.");
             Assert.IsTrue(((UnityEngine.UI.Image)readyIndicator).enabled);
-            text = (string)requirementText.GetType()
-                .GetProperty("text").GetValue(requirementText);
-            StringAssert.Contains("Eligibility: READY", text);
+            StringAssert.AreEqualIgnoringCase(
+                "Eligibility: READY",
+                (string)eligibilityText.GetType()
+                    .GetProperty("text").GetValue(eligibilityText));
             Assert.AreEqual(
                 "Prestige Available! Tap Prestige to continue!",
                 notification.GetType().GetProperty("text")
@@ -4923,6 +4966,7 @@ public class DataFoundationTests
                 .GetComponent<UnityEngine.UI.Graphic>().enabled,
                 "Repeated refreshes while eligible must not display it again.");
 
+            uiObject.SetActive(true);
             entryButton.onClick.Invoke();
             Assert.IsTrue(modalPanel.activeSelf);
             Assert.IsTrue(modalBackdrop.activeSelf);
@@ -4945,8 +4989,12 @@ public class DataFoundationTests
                 .Invoke(setup.Progression, new object[] { 10, 0, false });
             Assert.IsFalse(button.interactable);
             Assert.AreEqual(
-                "All Rebirths Complete\nFinal Objective: Create Tier 30 — Eternal Dragon's Dessert",
+                "All Rebirths Complete",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText));
+            Assert.AreEqual(
+                "Final Objective: Create Tier 30 — Eternal Dragon's Dessert",
+                campaignStatusText.GetType().GetProperty("text")
+                    .GetValue(campaignStatusText));
             Assert.AreEqual(
                 "COMPLETE",
                 buttonText.GetType().GetProperty("text").GetValue(buttonText));
@@ -4972,18 +5020,25 @@ public class DataFoundationTests
                     false
                 });
             Assert.AreEqual(
-                "Completion not saved\n" +
-                "Tier 30 was created, but campaign progress could not be saved.",
+                "Completion not saved",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText),
                 "Pending completion must be clearly presented as unsaved.");
+            Assert.AreEqual(
+                "Tier 30 was created, but campaign progress could not be saved.",
+                campaignStatusText.GetType().GetProperty("text")
+                    .GetValue(campaignStatusText));
 
             setup.Progression.GetType()
                 .GetMethod("RestoreRebirthProgression")
                 .Invoke(setup.Progression, new object[] { 10, 30, true });
             Assert.AreEqual(
-                "Campaign Complete!\nEternal Dragon's Dessert created.",
+                "Campaign Complete!",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText),
                 "Restoring completed campaign state should refresh status without requiring a completion event.");
+            Assert.AreEqual(
+                "Eternal Dragon's Dessert created.",
+                campaignStatusText.GetType().GetProperty("text")
+                    .GetValue(campaignStatusText));
 
             setup.Progression.GetType()
                 .GetMethod("RestoreRebirthProgression")
@@ -5007,9 +5062,13 @@ public class DataFoundationTests
                     BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(setup.Progression, null);
             Assert.AreEqual(
-                "Campaign Complete!\nEternal Dragon's Dessert created.",
+                "Campaign Complete!",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText),
                 "Successful persistence should refresh the final status.");
+            Assert.AreEqual(
+                "Eternal Dragon's Dessert created.",
+                campaignStatusText.GetType().GetProperty("text")
+                    .GetValue(campaignStatusText));
         }
         finally
         {
@@ -5019,6 +5078,11 @@ public class DataFoundationTests
                 null);
             UnityEngine.Object.DestroyImmediate(uiObject);
             UnityEngine.Object.DestroyImmediate(requirementTextObject);
+            UnityEngine.Object.DestroyImmediate(requiredDessertTextObject);
+            UnityEngine.Object.DestroyImmediate(tierProgressTextObject);
+            UnityEngine.Object.DestroyImmediate(cashRequirementTextObject);
+            UnityEngine.Object.DestroyImmediate(eligibilityTextObject);
+            UnityEngine.Object.DestroyImmediate(campaignStatusTextObject);
             UnityEngine.Object.DestroyImmediate(buttonObject);
             UnityEngine.Object.DestroyImmediate(buttonTextObject);
             UnityEngine.Object.DestroyImmediate(entryButtonObject);
@@ -5193,26 +5257,58 @@ public class DataFoundationTests
         StringAssert.Contains("m_Name: RebirthBackdrop", scene);
         StringAssert.Contains("m_Name: CloseButton", scene);
 
-        Match component = Regex.Match(
+        MatchCollection components = Regex.Matches(
             scene,
-            @"m_EditorClassIdentifier: Assembly-CSharp::RebirthUI\s+" +
-            @"requirementsText: \{fileID: (?<text>\d+)\}\s+" +
-            @"rebirthButton: \{fileID: (?<button>\d+)\}\s+" +
-            @"rebirthButtonText: \{fileID: (?<label>\d+)\}\s+" +
-            @"entryButton: \{fileID: (?<entry>\d+)\}\s+" +
-            @"entryButtonText: \{fileID: (?<entryLabel>\d+)\}\s+" +
-            @"readyIndicator: \{fileID: (?<indicator>\d+)\}\s+" +
-            @"modalPanel: \{fileID: (?<panel>\d+)\}\s+" +
-            @"modalBackdrop: \{fileID: (?<backdrop>\d+)\}\s+" +
-            @"closeButton: \{fileID: (?<close>\d+)\}\s+" +
-            @"availabilityNotification: \{fileID: (?<notification>\d+)\}");
-        Assert.IsTrue(component.Success, "Rebirth UI references are not serialized.");
-        foreach (string reference in new[]
-                 {
-                     "text", "button", "label", "entry", "entryLabel",
-                     "indicator", "panel", "backdrop", "close", "notification"
-                 })
-            Assert.AreNotEqual("0", component.Groups[reference].Value, reference);
+            @"(?ms)^--- !u!114 &\d+\r?\n(.*?)(?=^--- !u!|\z)");
+        string rebirthComponent = null;
+        foreach (Match component in components)
+        {
+            if (!component.Value.Contains(
+                    "m_EditorClassIdentifier: Assembly-CSharp::RebirthUI"))
+            {
+                continue;
+            }
+
+            Assert.IsNull(rebirthComponent,
+                "The scene must contain only one RebirthUI component.");
+            rebirthComponent = component.Value;
+        }
+
+        Assert.IsNotNull(rebirthComponent,
+            "The RebirthUI component is not serialized.");
+        string[] fields =
+        {
+            "requirementsText",
+            "requiredDessertText",
+            "tierProgressText",
+            "cashRequirementText",
+            "eligibilityText",
+            "campaignStatusText",
+            "rebirthButton",
+            "rebirthButtonText",
+            "entryButton",
+            "entryButtonText",
+            "readyIndicator",
+            "modalPanel",
+            "modalBackdrop",
+            "closeButton",
+            "availabilityNotification"
+        };
+        foreach (string field in fields)
+        {
+            Match reference = Regex.Match(
+                rebirthComponent,
+                @"(?m)^  " + Regex.Escape(field) +
+                @": \{fileID: (?<id>\d+)\}\r?$");
+            Assert.IsTrue(reference.Success,
+                $"{field} is not serialized on RebirthUI.");
+            Assert.AreNotEqual("0", reference.Groups["id"].Value, field);
+            Assert.IsTrue(Regex.IsMatch(
+                    scene,
+                    @"(?m)^--- !u!\d+ &" +
+                    Regex.Escape(reference.Groups["id"].Value) + @"\r?$"),
+                $"{field} references a missing scene object.");
+        }
     }
 
     [Test]
@@ -6176,6 +6272,383 @@ public class DataFoundationTests
     }
 
     [Test]
+    public void TryLoadRestoresMissingPrimaryFromValidBackup()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] backupBytes = CreateRecoverySaveBytes(731, 2);
+            File.WriteAllBytes(primaryPath + ".bak", backupBytes);
+
+            object[] arguments = { null };
+            bool loaded = (bool)manager.GetType()
+                .GetMethod("TryLoad")
+                .Invoke(manager, arguments);
+
+            Assert.IsTrue(loaded);
+            Assert.AreEqual(731, GetField(GetField(arguments[0], "economy"), "cash"));
+            Assert.AreEqual(2, GetField(arguments[0], "completedRebirthCount"));
+            CollectionAssert.AreEqual(backupBytes, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(backupBytes, File.ReadAllBytes(primaryPath + ".bak"));
+            Assert.AreEqual(
+                0,
+                Directory.GetFiles(
+                    Path.GetDirectoryName(primaryPath),
+                    Path.GetFileName(primaryPath) + ".corrupt.*").Length);
+        });
+    }
+
+    [Test]
+    public void TryLoadRecoversInvalidPrimaryFromValidBackupAndPreservesDiagnosticBytes()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] invalidPrimaryBytes =
+                System.Text.Encoding.UTF8.GetBytes("{\"saveVersion\":2}");
+            byte[] backupBytes = CreateRecoverySaveBytes(913, 3);
+            File.WriteAllBytes(primaryPath, invalidPrimaryBytes);
+            File.WriteAllBytes(primaryPath + ".bak", backupBytes);
+
+            object[] arguments = { null };
+            bool loaded = (bool)manager.GetType()
+                .GetMethod("TryLoad")
+                .Invoke(manager, arguments);
+
+            Assert.IsTrue(loaded);
+            Assert.AreEqual(913, GetField(GetField(arguments[0], "economy"), "cash"));
+            Assert.AreEqual(3, GetField(arguments[0], "completedRebirthCount"));
+            CollectionAssert.AreEqual(backupBytes, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(backupBytes, File.ReadAllBytes(primaryPath + ".bak"));
+
+            string[] diagnosticPaths = Directory.GetFiles(
+                Path.GetDirectoryName(primaryPath),
+                Path.GetFileName(primaryPath) + ".corrupt.*");
+            Assert.AreEqual(1, diagnosticPaths.Length);
+            CollectionAssert.AreEqual(
+                invalidPrimaryBytes,
+                File.ReadAllBytes(diagnosticPaths[0]));
+        });
+    }
+
+    [Test]
+    public void TryLoadRejectsInvalidPrimaryAndBackupWithoutChangingEitherFile()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] invalidPrimaryBytes =
+                System.Text.Encoding.UTF8.GetBytes("{\"saveVersion\":2}");
+            byte[] invalidBackupBytes =
+                System.Text.Encoding.UTF8.GetBytes("{\"saveVersion\":2,\"economy\":null}");
+            File.WriteAllBytes(primaryPath, invalidPrimaryBytes);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackupBytes);
+            LogAssert.Expect(
+                LogType.Error,
+                "LOAD RECOVERY | Backup failed strict validation. No save files were changed.");
+
+            object[] arguments = { null };
+            bool loaded = (bool)manager.GetType()
+                .GetMethod("TryLoad")
+                .Invoke(manager, arguments);
+
+            Assert.IsFalse(loaded);
+            Assert.IsNull(arguments[0]);
+            CollectionAssert.AreEqual(invalidPrimaryBytes, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(
+                invalidBackupBytes,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            Assert.AreEqual(
+                0,
+                Directory.GetFiles(
+                    Path.GetDirectoryName(primaryPath),
+                    Path.GetFileName(primaryPath) + ".corrupt.*").Length);
+        });
+    }
+
+    [Test]
+    public void SaveRebuildsCorruptBackupAfterPreservingExactDiagnosticBytes()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] previousSave = CreateRecoverySaveBytes(321, 1);
+            byte[] invalidBackup = System.Text.Encoding.UTF8.GetBytes(
+                "{\"saveVersion\":2,\"damaged\":true}");
+            byte[] newSave = CreateRecoverySaveBytes(654, 2);
+            File.WriteAllBytes(primaryPath, previousSave);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackup);
+
+            Assert.IsTrue(TryWritePreparedRecoverySnapshot(
+                manager,
+                primaryPath,
+                newSave));
+
+            AssertSaveBytesHaveValues(
+                File.ReadAllBytes(primaryPath),
+                654,
+                2);
+            CollectionAssert.AreEqual(
+                previousSave,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            string[] diagnostics = Directory.GetFiles(
+                Path.GetDirectoryName(primaryPath),
+                Path.GetFileName(primaryPath) + ".bak.corrupt.*");
+            Assert.AreEqual(1, diagnostics.Length);
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(diagnostics[0]));
+        });
+    }
+
+    [Test]
+    public void SaveFailsIfCorruptBackupDiagnosticCannotBePreserved()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] previousSave = CreateRecoverySaveBytes(222, 1);
+            byte[] invalidBackup = System.Text.Encoding.UTF8.GetBytes("{broken backup}");
+            byte[] newSave = CreateRecoverySaveBytes(333, 2);
+            string diagnosticPath = primaryPath + ".bak.corrupt.blocked";
+            Directory.CreateDirectory(diagnosticPath);
+            File.WriteAllBytes(primaryPath, previousSave);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackup);
+
+            Assert.Throws<TargetInvocationException>(() =>
+                WriteSnapshotAtomically(
+                    manager,
+                    primaryPath,
+                    newSave,
+                    diagnosticPath));
+
+            CollectionAssert.AreEqual(previousSave, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            Assert.IsFalse(File.Exists(primaryPath + ".bak.tmp"));
+            Assert.IsTrue(Directory.Exists(diagnosticPath));
+        });
+    }
+
+    [Test]
+    public void SaveDoesNotOverwriteCollidingCorruptBackupDiagnostic()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] previousSave = CreateRecoverySaveBytes(444, 1);
+            byte[] invalidBackup = System.Text.Encoding.UTF8.GetBytes("{corrupt}");
+            byte[] newSave = CreateRecoverySaveBytes(555, 2);
+            byte[] existingDiagnostic = System.Text.Encoding.UTF8.GetBytes(
+                "previous diagnostic data");
+            string diagnosticPath = primaryPath + ".bak.corrupt.collision";
+            File.WriteAllBytes(primaryPath, previousSave);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackup);
+            File.WriteAllBytes(diagnosticPath, existingDiagnostic);
+
+            Assert.Throws<TargetInvocationException>(() =>
+                WriteSnapshotAtomically(
+                    manager,
+                    primaryPath,
+                    newSave,
+                    diagnosticPath));
+
+            CollectionAssert.AreEqual(previousSave, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            CollectionAssert.AreEqual(
+                existingDiagnostic,
+                File.ReadAllBytes(diagnosticPath));
+            Assert.IsFalse(File.Exists(primaryPath + ".bak.tmp"));
+        });
+    }
+
+    [Test]
+    public void BackupRebuildFailureAfterDiagnosticPreservationKeepsPrimaryAndCorruptBackup()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] previousSave = CreateRecoverySaveBytes(666, 1);
+            byte[] invalidBackup = System.Text.Encoding.UTF8.GetBytes("{broken}");
+            byte[] newSave = CreateRecoverySaveBytes(777, 2);
+            File.WriteAllBytes(primaryPath, previousSave);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackup);
+            Directory.CreateDirectory(primaryPath + ".bak.tmp");
+
+            Assert.Throws<TargetInvocationException>(() =>
+                WriteSnapshotAtomically(
+                    manager,
+                    primaryPath,
+                    newSave,
+                    null));
+
+            CollectionAssert.AreEqual(previousSave, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            string[] diagnostics = Directory.GetFiles(
+                Path.GetDirectoryName(primaryPath),
+                Path.GetFileName(primaryPath) + ".bak.corrupt.*");
+            Assert.AreEqual(1, diagnostics.Length);
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(diagnostics[0]));
+        });
+    }
+
+    [Test]
+    public void SaveRejectsInvalidPrimaryEvenWhenBackupIsCorrupt()
+    {
+        WithTemporarySaveDirectory((manager, primaryPath) =>
+        {
+            byte[] invalidPrimary = System.Text.Encoding.UTF8.GetBytes(
+                "{\"saveVersion\":2}");
+            byte[] invalidBackup = System.Text.Encoding.UTF8.GetBytes(
+                "{\"saveVersion\":2,\"damaged\":true}");
+            byte[] newSave = CreateRecoverySaveBytes(888, 2);
+            File.WriteAllBytes(primaryPath, invalidPrimary);
+            File.WriteAllBytes(primaryPath + ".bak", invalidBackup);
+            LogAssert.Expect(
+                LogType.Error,
+                "SAVE | Refusing to overwrite an invalid V2 primary; " +
+                "load/recovery or manual diagnosis is required.");
+
+            Assert.IsFalse(TryWritePreparedRecoverySnapshot(
+                manager,
+                primaryPath,
+                newSave));
+
+            CollectionAssert.AreEqual(invalidPrimary, File.ReadAllBytes(primaryPath));
+            CollectionAssert.AreEqual(
+                invalidBackup,
+                File.ReadAllBytes(primaryPath + ".bak"));
+            Assert.AreEqual(
+                0,
+                Directory.GetFiles(
+                    Path.GetDirectoryName(primaryPath),
+                    Path.GetFileName(primaryPath) + ".bak.corrupt.*").Length);
+        });
+    }
+
+    private static bool TryWritePreparedRecoverySnapshot(
+        Component manager,
+        string primaryPath,
+        byte[] snapshotBytes)
+    {
+        MethodInfo method = manager.GetType().GetMethod(
+            "TryWritePreparedSnapshot",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(string), typeof(string), typeof(bool).MakeByRefType() },
+            null);
+        Assert.IsNotNull(method);
+        string json = System.Text.Encoding.UTF8.GetString(snapshotBytes);
+        object[] arguments = { json, primaryPath, false };
+        bool result = (bool)method.Invoke(manager, arguments);
+        Assert.AreEqual(result, arguments[2]);
+        return result;
+    }
+
+    private static void WriteSnapshotAtomically(
+        Component manager,
+        string primaryPath,
+        byte[] snapshotBytes,
+        string diagnosticPath)
+    {
+        MethodInfo method = manager.GetType().GetMethod(
+            "WriteSnapshotAtomically",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(string), typeof(byte[]), typeof(string) },
+            null);
+        Assert.IsNotNull(method);
+        method.Invoke(
+            manager,
+            new object[] { primaryPath, snapshotBytes, diagnosticPath });
+    }
+
+    private static void AssertSaveBytesHaveValues(
+        byte[] bytes,
+        int expectedCash,
+        int expectedRebirthCount)
+    {
+        object save = JsonUtility.FromJson(
+            System.Text.Encoding.UTF8.GetString(bytes),
+            FindPlayerType("PlayerSaveData"));
+        Assert.IsNotNull(save);
+        Assert.AreEqual(
+            expectedCash,
+            GetField(GetField(save, "economy"), "cash"));
+        Assert.AreEqual(
+            expectedRebirthCount,
+            GetField(save, "completedRebirthCount"));
+    }
+
+    private static byte[] CreateRecoverySaveBytes(int cash, int completedRebirthCount)
+    {
+        object save = Activator.CreateInstance(FindPlayerType("PlayerSaveData"));
+        SetField(GetField(save, "economy"), "cash", cash);
+        SetField(save, "completedRebirthCount", completedRebirthCount);
+
+        MethodInfo serialize = FindPlayerType("SaveManager").GetMethod(
+            "SerializeWithCapacity",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        string json = (string)serialize.Invoke(null, new[] { save, (object)0 });
+        return System.Text.Encoding.UTF8.GetBytes(json);
+    }
+
+    private static void WithTemporarySaveDirectory(
+        Action<Component, string> test)
+    {
+        Type policyType = FindPlayerType("SavePathPolicy");
+        FieldInfo attemptedField = policyType.GetField(
+            "editorSandboxResolutionAttempted",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        FieldInfo rootField = policyType.GetField(
+            "editorSandboxRoot",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        FieldInfo errorField = policyType.GetField(
+            "editorSandboxResolutionError",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(attemptedField);
+        Assert.IsNotNull(rootField);
+        Assert.IsNotNull(errorField);
+
+        object previousAttempted = attemptedField.GetValue(null);
+        object previousRoot = rootField.GetValue(null);
+        object previousError = errorField.GetValue(null);
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "SweetMakerTryLoad_" + Guid.NewGuid().ToString("N"));
+        GameObject managerObject = null;
+        try
+        {
+            Directory.CreateDirectory(directory);
+            attemptedField.SetValue(null, true);
+            rootField.SetValue(null, directory);
+            errorField.SetValue(null, null);
+
+            managerObject = new GameObject("Temporary Save V2 recovery test");
+            Component manager = managerObject.AddComponent(
+                FindPlayerType("SaveManager"));
+            string primaryPath = (string)manager.GetType()
+                .GetProperty("SaveFilePath")
+                .GetValue(manager);
+            Assert.AreEqual(
+                Path.Combine(directory, "player_save_v2.json"),
+                primaryPath);
+
+            test(manager, primaryPath);
+        }
+        finally
+        {
+            if (managerObject != null)
+                UnityEngine.Object.DestroyImmediate(managerObject);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+            attemptedField.SetValue(null, previousAttempted);
+            rootField.SetValue(null, previousRoot);
+            errorField.SetValue(null, previousError);
+        }
+    }
+
+    [Test]
     public void RebirthV2SnapshotPromotionAndBackupRollbackPreserveBothSnapshots()
     {
         Type saveType = FindPlayerType("PlayerSaveData");
@@ -6196,7 +6669,10 @@ public class DataFoundationTests
             BindingFlags.Static | BindingFlags.NonPublic);
         MethodInfo promote = managerType.GetMethod(
             "WriteSnapshotAtomically",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(string), typeof(byte[]) },
+            null);
         MethodInfo restore = managerType.GetMethod(
             "RestorePrimaryFromBackup",
             BindingFlags.Instance | BindingFlags.NonPublic);
@@ -6390,7 +6866,7 @@ public class DataFoundationTests
     }
 
     [Test]
-    public void InvalidV2PrimaryOrBackupIsNeverReplacedAutomatically()
+    public void InvalidV2PrimaryIsNeverReplacedAndCorruptBackupIsPreservedBeforeRebuild()
     {
         object save = Activator.CreateInstance(FindPlayerType("PlayerSaveData"));
         Type managerType = FindPlayerType("SaveManager");
@@ -6399,7 +6875,10 @@ public class DataFoundationTests
             BindingFlags.Static | BindingFlags.NonPublic);
         MethodInfo createBackup = managerType.GetMethod(
             "CreateValidatedBackup",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(string) },
+            null);
         var managerObject = new GameObject("Invalid V2 save preservation test");
         string directory = Path.Combine(
             Path.GetTempPath(),
@@ -6422,12 +6901,18 @@ public class DataFoundationTests
             string invalidBackup = Path.Combine(directory, "invalid-backup.json");
             File.WriteAllBytes(invalidBackup, validBytes);
             File.WriteAllBytes(invalidBackup + ".bak", invalidBytes);
-            Assert.Throws<TargetInvocationException>(() =>
-                createBackup.Invoke(manager, new object[] { invalidBackup }));
+            createBackup.Invoke(manager, new object[] { invalidBackup });
             CollectionAssert.AreEqual(validBytes, File.ReadAllBytes(invalidBackup));
             CollectionAssert.AreEqual(
-                invalidBytes,
+                validBytes,
                 File.ReadAllBytes(invalidBackup + ".bak"));
+            string[] diagnostics = Directory.GetFiles(
+                directory,
+                "invalid-backup.json.bak.corrupt.*");
+            Assert.AreEqual(1, diagnostics.Length);
+            CollectionAssert.AreEqual(
+                invalidBytes,
+                File.ReadAllBytes(diagnostics[0]));
         }
         finally
         {

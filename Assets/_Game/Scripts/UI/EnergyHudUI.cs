@@ -21,6 +21,16 @@ public sealed class EnergyHudUI : MonoBehaviour
     private PlayerProgressionManager progressionManager;
     private float nextRefreshTime;
     private bool missingProgressionReported;
+    private TMP_Text cachedEnergyText;
+    private TMP_Text cachedCountdownText;
+    private int lastDisplayedEnergy;
+    private int lastDisplayedMaximumEnergy;
+    private string lastEnergyDisplay;
+    private bool hasEnergyDisplay;
+    private int lastCountdownMinutes;
+    private int lastCountdownSeconds;
+    private string lastCountdownDisplay;
+    private bool hasCountdownDisplay;
 
     private void OnEnable()
     {
@@ -57,6 +67,8 @@ public sealed class EnergyHudUI : MonoBehaviour
     private void OnDisable()
     {
         UnbindProgressionManager();
+        hasEnergyDisplay = false;
+        hasCountdownDisplay = false;
         if (hudRoot != null)
             hudRoot.gameObject.SetActive(false);
     }
@@ -128,10 +140,29 @@ public sealed class EnergyHudUI : MonoBehaviour
             return;
         }
 
+        if (cachedEnergyText != energyText ||
+            cachedCountdownText != countdownText)
+        {
+            cachedEnergyText = energyText;
+            cachedCountdownText = countdownText;
+            hasEnergyDisplay = false;
+            hasCountdownDisplay = false;
+        }
+
         int currentEnergy = progressionManager.CurrentEnergy;
         int maximumEnergy = progressionManager.MaximumEnergy;
-        energyText.text =
-            $"{currentEnergy}/{maximumEnergy}";
+        if (!hasEnergyDisplay ||
+            lastDisplayedEnergy != currentEnergy ||
+            lastDisplayedMaximumEnergy != maximumEnergy)
+        {
+            lastEnergyDisplay = $"{currentEnergy}/{maximumEnergy}";
+            lastDisplayedEnergy = currentEnergy;
+            lastDisplayedMaximumEnergy = maximumEnergy;
+            hasEnergyDisplay = true;
+        }
+
+        if (energyText.text != lastEnergyDisplay)
+            energyText.text = lastEnergyDisplay;
 
         bool isFull = currentEnergy >= maximumEnergy;
         countdownText.gameObject.SetActive(!isFull);
@@ -141,9 +172,20 @@ public sealed class EnergyHudUI : MonoBehaviour
                 Mathf.CeilToInt(progressionManager.SecondsUntilNextEnergy),
                 0,
                 progressionManager.MaximumEnergy * 60);
-            countdownText.text =
-                "Next +1  " +
-                TimeSpan.FromSeconds(remainingSeconds).ToString(@"m\:ss");
+            TimeSpan remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+            if (!hasCountdownDisplay ||
+                lastCountdownMinutes != remainingTime.Minutes ||
+                lastCountdownSeconds != remainingTime.Seconds)
+            {
+                lastCountdownDisplay =
+                    "Next +1  " + remainingTime.ToString(@"m\:ss");
+                lastCountdownMinutes = remainingTime.Minutes;
+                lastCountdownSeconds = remainingTime.Seconds;
+                hasCountdownDisplay = true;
+            }
+
+            if (countdownText.text != lastCountdownDisplay)
+                countdownText.text = lastCountdownDisplay;
         }
     }
 }

@@ -11,6 +11,13 @@ namespace SweetMerge.Cloud
         private string confirmation;
         private string confirmedHash;
         private TMP_FontAsset font;
+        private SimpleCloudBackup renderedService;
+        private CloudBackupEnvelope renderedRemote;
+        private string renderedServiceStatus;
+        private string renderedCafeName;
+        private string renderedConfirmation;
+        private int renderedTutorialStage;
+        private bool hasRenderedStatus;
 
         public static void Attach(Transform parent, TMP_FontAsset font)
         {
@@ -44,17 +51,48 @@ namespace SweetMerge.Cloud
         {
             var service = SimpleCloudBackup.Instance;
             if (service == null) return;
-            string detail = service.Remote == null ? "" :
-                "\nCloud café: " + service.Remote.cafeName +
-                (service.Remote.tutorialStage == 4 ? " · Tutorial complete" : " · Tutorial in progress");
-            status.text = confirmation == "local" ?
-                "Tap Back up this device again to replace this account's cloud backup with current device progress." :
-                confirmation == "cloud" ?
-                "Tap Restore again, then close and reopen the game. Current device files will be kept for recovery." :
-                service.Status + detail;
-            check.interactable = !service.Busy && !SimpleCloudFiles.RestorePending;
-            local.interactable = !service.Busy && service.ChoiceRequired;
-            cloud.interactable = !service.Busy && service.CanRestore;
+            var remote = service.Remote;
+            string serviceStatus = service.Status;
+            string cafeName = remote == null ? null : remote.cafeName;
+            int tutorialStage = remote == null ? 0 : remote.tutorialStage;
+            if (!hasRenderedStatus ||
+                renderedService != service ||
+                renderedRemote != remote ||
+                renderedServiceStatus != serviceStatus ||
+                renderedCafeName != cafeName ||
+                renderedTutorialStage != tutorialStage ||
+                renderedConfirmation != confirmation)
+            {
+                string text = confirmation == "local" ?
+                    "Tap Back up this device again to replace this account's cloud backup with current device progress." :
+                    confirmation == "cloud" ?
+                    "Tap Restore again, then close and reopen the game. Current device files will be kept for recovery." :
+                    serviceStatus + (remote == null ? "" :
+                        "\nCloud café: " + cafeName +
+                        (tutorialStage == 4 ? " · Tutorial complete" : " · Tutorial in progress"));
+                if (status.text != text)
+                    status.text = text;
+
+                renderedService = service;
+                renderedRemote = remote;
+                renderedServiceStatus = serviceStatus;
+                renderedCafeName = cafeName;
+                renderedTutorialStage = tutorialStage;
+                renderedConfirmation = confirmation;
+                hasRenderedStatus = true;
+            }
+
+            SetInteractable(
+                check,
+                !service.Busy && !SimpleCloudFiles.RestorePending);
+            SetInteractable(local, !service.Busy && service.ChoiceRequired);
+            SetInteractable(cloud, !service.Busy && service.CanRestore);
+        }
+
+        private static void SetInteractable(Button button, bool value)
+        {
+            if (button.interactable != value)
+                button.interactable = value;
         }
 
         private Button MakeButton(string label, float top, UnityEngine.Events.UnityAction action)

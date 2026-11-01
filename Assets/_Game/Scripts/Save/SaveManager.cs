@@ -1380,6 +1380,10 @@ public class SaveManager : MonoBehaviour
                     activeDirectory,
                     Path.GetFileName(SaveFilePath) + ".corrupt.*",
                     SearchOption.TopDirectoryOnly));
+                profileFiles.AddRange(Directory.GetFiles(
+                    activeDirectory,
+                    Path.GetFileName(SaveFilePath) + ".bak.corrupt.*",
+                    SearchOption.TopDirectoryOnly));
             }
 
             foreach (string source in profileFiles)
@@ -3157,6 +3161,14 @@ public class SaveManager : MonoBehaviour
     // Temporary and primary files must stay in the same directory/filesystem.
 
     private void WriteSnapshotAtomically(string path, byte[] expectedBytes)
+    {
+        WriteSnapshotAtomically(path, expectedBytes, null);
+    }
+
+    private void WriteSnapshotAtomically(
+        string path,
+        byte[] expectedBytes,
+        string corruptBackupDiagnosticPath)
 
     {
 
@@ -3204,7 +3216,7 @@ public class SaveManager : MonoBehaviour
 
         // A backup IO failure propagates before the primary can be replaced.
 
-        CreateValidatedBackup(path);
+        CreateValidatedBackup(path, corruptBackupDiagnosticPath);
 
         CommitTemporaryFile(temporaryPath, path);
 
@@ -3215,6 +3227,13 @@ public class SaveManager : MonoBehaviour
     }
 
     private void CreateValidatedBackup(string path)
+    {
+        CreateValidatedBackup(path, null);
+    }
+
+    private void CreateValidatedBackup(
+        string path,
+        string corruptBackupDiagnosticPath)
 
     {
 
@@ -3260,9 +3279,22 @@ public class SaveManager : MonoBehaviour
             byte[] existingBackup = File.ReadAllBytes(backupPath);
             if (!IsValidBackupCandidateCore(existingBackup))
             {
-                throw new IOException(
-                    "Existing V2 backup is invalid; refusing to replace it."
-                );
+                string diagnosticPath = corruptBackupDiagnosticPath ??
+                    backupPath + ".corrupt." + Guid.NewGuid().ToString("N");
+                using (var stream = new FileStream(
+                    diagnosticPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None))
+                {
+                    stream.Write(existingBackup, 0, existingBackup.Length);
+                    stream.Flush(true);
+                }
+
+                byte[] diagnosticBytes = File.ReadAllBytes(diagnosticPath);
+                if (!BytesEqual(diagnosticBytes, existingBackup))
+                    throw new IOException(
+                        "Corrupt backup diagnostic copy failed byte verification; save aborted.");
             }
         }
 

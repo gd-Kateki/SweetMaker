@@ -266,9 +266,9 @@ public class CafeProgressionHudUITests
             Type imageType = FindType("UnityEngine.UI.Image");
             Image[] stars = new Image[5];
             Sprite filledSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/_Game/Art/UI_Assets/Game_UI/CafeStarFilled.png");
+                "Assets/_Game/Art/UI_Assets/UI V1/Game_UI/CafeStarFilled.png");
             Sprite outlineSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/_Game/Art/UI_Assets/Game_UI/CafeStarOutline.png");
+                "Assets/_Game/Art/UI_Assets/UI V1/Game_UI/CafeStarOutline.png");
             Assert.IsNotNull(filledSprite, "Filled cafe star sprite must exist.");
             Assert.IsNotNull(outlineSprite, "Outline cafe star sprite must exist.");
 
