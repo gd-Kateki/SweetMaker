@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using SweetMerge.Authentication;
 using SweetMerge.Startup;
@@ -23,6 +25,7 @@ namespace SweetMerge.Cloud
         private readonly Func<IDictionary<string, object>> captureSnapshot;
         private readonly Func<IDictionary<string, object>, Task> uploadSnapshot;
         private readonly Func<double> getTime;
+        private readonly Func<bool> isAcceptedBackupCurrent;
 
         private string candidateOwner;
         private string authorizedOwner;
@@ -50,6 +53,29 @@ namespace SweetMerge.Cloud
             Func<IDictionary<string, object>> captureSnapshot,
             Func<IDictionary<string, object>, Task> uploadSnapshot,
             Func<double> getTime)
+            : this(
+                getVerifiedOwner,
+                isRestorePending,
+                isGoogleRun,
+                isGameplayReady,
+                hasStartupFailure,
+                captureSnapshot,
+                uploadSnapshot,
+                getTime,
+                null)
+        {
+        }
+
+        internal PlayerStatisticsSyncSession(
+            Func<string> getVerifiedOwner,
+            Func<bool> isRestorePending,
+            Func<bool> isGoogleRun,
+            Func<bool> isGameplayReady,
+            Func<bool> hasStartupFailure,
+            Func<IDictionary<string, object>> captureSnapshot,
+            Func<IDictionary<string, object>, Task> uploadSnapshot,
+            Func<double> getTime,
+            Func<bool> isAcceptedBackupCurrent)
         {
             this.getVerifiedOwner = getVerifiedOwner ??
                 throw new ArgumentNullException(nameof(getVerifiedOwner));
@@ -67,6 +93,7 @@ namespace SweetMerge.Cloud
                 throw new ArgumentNullException(nameof(uploadSnapshot));
             this.getTime = getTime ??
                 throw new ArgumentNullException(nameof(getTime));
+            this.isAcceptedBackupCurrent = isAcceptedBackupCurrent;
         }
 
         internal bool RegisterPromotedRestoreCandidate(
@@ -93,6 +120,34 @@ namespace SweetMerge.Cloud
             Invalidate("A new verified restore was completed.");
             candidateOwner = restoredOwner;
             Status = "Verified restore recorded; waiting for startup readiness.";
+            return true;
+        }
+
+        internal bool RegisterAcceptedBackupCandidate(string acceptedOwner)
+        {
+            if (string.IsNullOrWhiteSpace(acceptedOwner) ||
+                isRestorePending() ||
+                !isGoogleRun() ||
+                hasStartupFailure() ||
+                !isGameplayReady() ||
+                !string.Equals(
+                    getVerifiedOwner(),
+                    acceptedOwner,
+                    StringComparison.Ordinal))
+                return false;
+
+            if (!string.Equals(
+                    authorizedOwner,
+                    acceptedOwner,
+                    StringComparison.Ordinal))
+            {
+                Invalidate("A newly accepted cloud backup authorized statistics sync.");
+                authorizedOwner = acceptedOwner;
+                readinessConfirmed = true;
+            }
+
+            candidateOwner = null;
+            Status = "Accepted backup recorded; preparing statistics snapshot.";
             return true;
         }
 
@@ -233,6 +288,10 @@ namespace SweetMerge.Cloud
                 return false;
             }
 
+            if (isAcceptedBackupCurrent != null &&
+                !isAcceptedBackupCurrent())
+                return false;
+
             return true;
         }
 
@@ -284,6 +343,10 @@ namespace SweetMerge.Cloud
                     authorizedOwner,
                     owner,
                     StringComparison.Ordinal))
+                return false;
+
+            if (isAcceptedBackupCurrent != null &&
+                !isAcceptedBackupCurrent())
                 return false;
 
             if (isRestorePending() ||
@@ -344,6 +407,11 @@ namespace SweetMerge.Cloud
         private GameStartupCoordinator subscribedStartup;
         private ApplicationReadinessCoordinator subscribedReadiness;
         private GooglePlayGamesAuthenticationCoordinator subscribedAuthentication;
+        private string acceptedBackupOwner;
+        private string acceptedBackupEnvironment;
+        private string acceptedBackupSaveJson;
+        private string acceptedBackupChecksum;
+        private bool acceptedBackupRequired;
 
         public string DiagnosticStatus =>
             session != null ? session.Status : "Statistics sync is unavailable.";
@@ -416,7 +484,136 @@ namespace SweetMerge.Cloud
                 HasStartupFailure,
                 CaptureSnapshot,
                 UploadSnapshotAsync,
-                () => Time.realtimeSinceStartup);
+                () => Time.realtimeSinceStartup,
+                IsAcceptedBackupCurrent);
+        }
+
+        internal static void NotifyBackupAccepted(
+            CloudBackupEnvelope envelope)
+        {
+            instance?.HandleBackupAccepted(envelope);
+        }
+
+        internal static bool TryCaptureSnapshotFromSaveV2(
+            string saveJson,
+            out IDictionary<string, object> snapshot)
+        {
+            snapshot = null;
+            if (string.IsNullOrEmpty(saveJson) ||
+                !SaveManager.ValidateCloudSnapshot(saveJson))
+                return false;
+
+            PlayerSaveData save =
+                JsonUtility.FromJson<PlayerSaveData>(saveJson);
+            if (save == null || save.economy == null ||
+                save.completedRebirthCount < 0 ||
+                save.economy.cash < 0 ||
+                save.economy.totalMoneyEarned < 0 ||
+                save.economy.totalOrdersCompleted < 0)
+                return false;
+
+            snapshot = new Dictionary<string, object>
+            {
+                [CurrentMoneyKey] = save.economy.cash,
+                [TotalMoneyEarnedKey] = save.economy.totalMoneyEarned,
+                [TotalOrdersCompletedKey] =
+                    save.economy.totalOrdersCompleted,
+                [CurrentRebirthCountKey] = save.completedRebirthCount
+            };
+            return true;
+        }
+
+        private void HandleBackupAccepted(CloudBackupEnvelope envelope)
+        {
+            if (envelope == null ||
+                string.IsNullOrWhiteSpace(envelope.playerId) ||
+                !envelope.IsValid(envelope.playerId) ||
+                !IsAcceptedBackupCurrent(envelope))
+                return;
+
+            acceptedBackupOwner = envelope.playerId;
+            acceptedBackupEnvironment = envelope.environment;
+            acceptedBackupSaveJson = envelope.saveJson;
+            acceptedBackupChecksum = envelope.checksum;
+            acceptedBackupRequired = true;
+            if (!session.RegisterAcceptedBackupCandidate(
+                    envelope.playerId))
+                return;
+
+            _ = session.RequestUploadAsync();
+        }
+
+        private bool IsAcceptedBackupCurrent()
+        {
+            if (!acceptedBackupRequired)
+                return true;
+
+            return !string.IsNullOrWhiteSpace(acceptedBackupOwner) &&
+                   IsAcceptedBackupCurrent(
+                       acceptedBackupOwner,
+                       acceptedBackupEnvironment,
+                       acceptedBackupSaveJson,
+                       acceptedBackupChecksum);
+        }
+
+        private bool IsAcceptedBackupCurrent(CloudBackupEnvelope envelope)
+        {
+            return envelope != null &&
+                   IsAcceptedBackupCurrent(
+                       envelope.playerId,
+                       envelope.environment,
+                       envelope.saveJson,
+                       envelope.checksum) &&
+                   envelope.IsValid(envelope.playerId) &&
+                   string.Equals(
+                       envelope.checksum,
+                       envelope.ContentHash(),
+                       StringComparison.Ordinal);
+        }
+
+        private static bool IsAcceptedBackupCurrent(
+            string owner,
+            string environment,
+            string saveJson,
+            string checksum)
+        {
+            SaveManager save = SaveManager.Instance;
+            if (save == null ||
+                !save.IsLifecycleSavingReady ||
+                !IsGameplayReady() ||
+                HasStartupFailure() ||
+                SimpleCloudFiles.RestorePending ||
+                SimpleCloudFiles.StartupRestorePending ||
+                !string.Equals(
+                    environment,
+                    SavePathPolicy.ModeName,
+                    StringComparison.Ordinal) ||
+                !SimpleCloudBackup.IsCurrentVerifiedOwner(owner) ||
+                !LocalSaveOwnership.IsOwnedByForCloudUpload(
+                    save.SaveFilePath,
+                    owner,
+                    environment,
+                    SimpleCloudBackup.GetVerifiedCurrentOwnerId) ||
+                !SaveManager.ValidateCloudSnapshot(saveJson))
+                return false;
+
+            try
+            {
+                return string.Equals(
+                    File.ReadAllText(save.SaveFilePath, Encoding.UTF8),
+                    saveJson,
+                    StringComparison.Ordinal) &&
+                    SimpleCloudBackup.Instance != null &&
+                    SimpleCloudBackup.Instance.IsAcceptedBackup(
+                        owner,
+                        environment,
+                        saveJson,
+                        checksum);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
         }
 
         private void Subscribe()
@@ -611,8 +808,9 @@ namespace SweetMerge.Cloud
             ApplicationReadinessCoordinator readiness =
                 ApplicationReadinessCoordinator.Instance;
             return startup != null &&
-                   startup.Status == GameStartupCoordinator.StartupStatus.Loaded &&
+                   startup.IsStartupComplete &&
                    !startup.IsStartupBlocked &&
+                   startup.IsGameplayReady &&
                    readiness != null &&
                    readiness.IsGameplayReady;
         }
@@ -626,6 +824,16 @@ namespace SweetMerge.Cloud
 
         private static IDictionary<string, object> CaptureSnapshot()
         {
+            if (instance != null && instance.acceptedBackupRequired)
+            {
+                if (!TryCaptureSnapshotFromSaveV2(
+                        instance.acceptedBackupSaveJson,
+                        out IDictionary<string, object> acceptedSnapshot))
+                    throw new InvalidDataException(
+                        "Accepted Save V2 statistics could not be captured.");
+                return acceptedSnapshot;
+            }
+
             EconomyManager economy = EconomyManager.Instance;
             PlayerProgressionManager progression =
                 PlayerProgressionManager.Instance;

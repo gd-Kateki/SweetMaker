@@ -1360,6 +1360,28 @@ public class SaveManager : MonoBehaviour
 
     private static readonly UTF8Encoding SaveEncoding = new UTF8Encoding(false, true);
 
+    internal static event Action ActiveSaveV2Committed;
+
+    internal static void NotifyActiveSaveV2Committed()
+    {
+        Action handlers = ActiveSaveV2Committed;
+        if (handlers == null)
+            return;
+
+        foreach (Action handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    "SAVE | A save-commit listener failed.\n" + exception);
+            }
+        }
+    }
+
     public bool IsLifecycleSavingReady => lifecycleSavingReady;
     internal bool HasPendingCompatibilityMigration =>
         compatibilityMigrationPending;
@@ -1652,6 +1674,7 @@ public class SaveManager : MonoBehaviour
         var profileFiles = new List<string>
         {
             SaveFilePath,
+            SweetMerge.Cloud.LocalSaveOwnership.MarkerPath(SaveFilePath),
             SaveFilePath + ".bak",
             SaveFilePath + ".tmp",
             SaveFilePath + ".bak.tmp",
@@ -1663,12 +1686,25 @@ public class SaveManager : MonoBehaviour
 
         string resetToken = Guid.NewGuid().ToString("N");
         var quarantined = new List<KeyValuePair<string, string>>();
+        if (!SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
+                SaveFilePath,
+                out string ownershipError))
+        {
+            message = ownershipError;
+            return false;
+        }
+
         SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
             "Statistics sync invalidated by a development profile reset.");
         try
         {
             if (Directory.Exists(activeDirectory))
             {
+                profileFiles.AddRange(Directory.GetFiles(
+                    activeDirectory,
+                    Path.GetFileName(SaveFilePath) +
+                        ".owner-v1.json.*.tmp",
+                    SearchOption.TopDirectoryOnly));
                 profileFiles.AddRange(Directory.GetFiles(
                     activeDirectory,
                     Path.GetFileName(SaveFilePath) + ".corrupt.*",
@@ -3312,6 +3348,17 @@ public class SaveManager : MonoBehaviour
 
         SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
             "Statistics sync invalidated by an explicit Save V2 replacement.");
+        if (!SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
+                SaveFilePath,
+                out string ownershipError))
+        {
+            Debug.LogError(
+                "SAVE | Explicit replacement was blocked because ownership " +
+                "could not be invalidated: " + ownershipError,
+                this);
+            return false;
+        }
+
         saveInProgress = true;
 
         try
@@ -3436,6 +3483,19 @@ public class SaveManager : MonoBehaviour
         out bool snapshotCommitted)
     {
         snapshotCommitted = false;
+        bool isActiveSavePath = IsActiveSavePath(path);
+        string previousOwner = isActiveSavePath
+            ? GetCurrentVerifiedSaveOwner()
+            : null;
+        string environment = isActiveSavePath
+            ? SavePathPolicy.ModeName
+            : null;
+        bool preserveOwnership = isActiveSavePath &&
+            SweetMerge.Cloud.LocalSaveOwnership.IsOwnedBy(
+                path,
+                previousOwner,
+                environment);
+
         if (!IsValidSerializedSnapshotCore(json))
         {
             Debug.LogError("SAVE | Serialized snapshot failed validation.");
@@ -3466,6 +3526,8 @@ public class SaveManager : MonoBehaviour
         if (DiskMatchesSnapshot(path, expectedBytes))
         {
             snapshotCommitted = true;
+            if (isActiveSavePath)
+                NotifyActiveSaveV2Committed();
             Debug.Log("SAVE | Unchanged validated disk content; write skipped.");
             return true;
         }
@@ -3478,8 +3540,85 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
+        if (preserveOwnership)
+        {
+            string currentOwner = GetCurrentVerifiedSaveOwner();
+            if (!string.Equals(
+                    previousOwner,
+                    currentOwner,
+                    StringComparison.Ordinal))
+            {
+                SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
+                    path,
+                    out _);
+                SweetMerge.Cloud.PlayerStatisticsCloudSync
+                    .InvalidateAuthorization(
+                        "Statistics sync invalidated because the verified " +
+                        "account changed during a Save V2 update.");
+                Debug.LogWarning(
+                    "SAVE OWNERSHIP | Verified account changed during save; " +
+                    "local ownership is now unknown.",
+                    this);
+            }
+            else if (!SweetMerge.Cloud.LocalSaveOwnership.TryRefreshAfterSave(
+                         path,
+                         currentOwner,
+                         environment,
+                         true,
+                         out string ownershipError))
+            {
+                SweetMerge.Cloud.PlayerStatisticsCloudSync
+                    .InvalidateAuthorization(
+                        "Statistics sync invalidated because local save " +
+                        "ownership could not be refreshed.");
+                Debug.LogWarning(
+                    "SAVE OWNERSHIP | Save V2 committed, but ownership could " +
+                    "not be refreshed. Cloud operations remain blocked. " +
+                    ownershipError,
+                    this);
+            }
+        }
+
         Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");
+        if (isActiveSavePath)
+            NotifyActiveSaveV2Committed();
         return true;
+    }
+
+    private bool IsActiveSavePath(string path)
+    {
+        try
+        {
+            return string.Equals(
+                Path.GetFullPath(path),
+                Path.GetFullPath(SaveFilePath),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning(
+                "SAVE OWNERSHIP | Save path could not be compared; ownership " +
+                "will not be preserved.\n" + exception,
+                this);
+            return false;
+        }
+    }
+
+    private string GetCurrentVerifiedSaveOwner()
+    {
+        try
+        {
+            return SweetMerge.Cloud.SimpleCloudBackup
+                .GetVerifiedCurrentOwnerId();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning(
+                "SAVE OWNERSHIP | Verified account could not be checked; " +
+                "ownership will not be preserved.\n" + exception,
+                this);
+            return null;
+        }
     }
 
     // The caller owns saveInProgress. One process/main-thread writer is required.
@@ -4413,6 +4552,15 @@ public class SaveManager : MonoBehaviour
         if (!DiskMatchesSnapshot(backupPath, backupBytes))
             throw new IOException("Backup changed before primary recovery commit.");
 
+        if (!SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
+                primaryPath,
+                out string ownershipError))
+        {
+            throw new IOException(
+                "Save ownership could not be invalidated before backup " +
+                "recovery: " + ownershipError);
+        }
+
         SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
             "Statistics sync invalidated by local save recovery.");
         // Reuse existing Windows/Android atomic rename. Critically, do NOT call
@@ -5069,11 +5217,20 @@ public class SaveManager : MonoBehaviour
         }
 
         try
-
         {
-
             SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
                 "Statistics sync invalidated by a local save deletion.");
+            if (!SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
+                    SaveFilePath,
+                    out string ownershipError))
+            {
+                Debug.LogError(
+                    "SAVE DEBUG | Save deletion was blocked because ownership " +
+                    "could not be invalidated: " + ownershipError,
+                    this);
+                return;
+            }
+
             File.Delete(
 
                 SaveFilePath

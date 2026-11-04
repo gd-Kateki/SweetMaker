@@ -16,6 +16,7 @@ namespace SweetMerge.Cloud
         public static string StartupError { get; private set; }
         public static event Action<bool> RestorePendingChanged;
         internal static event Action<string> VerifiedRestorePromoted;
+        internal static string LastVerifiedRestoreOwner { get; private set; }
         private static string Root => SavePathPolicy.GetSaveDirectory();
         private static string Pending => Path.Combine(Root, "cloud-restore.pending.json");
         public static string Hash(string value)
@@ -33,8 +34,16 @@ namespace SweetMerge.Cloud
             "TutorialProgress/tutorial-progress-v1.json.tmp", "TutorialProgress/tutorial-progress-v1.json.recover.tmp"
         };
 
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSessionRestoreEvidence()
+        {
+            LastVerifiedRestoreOwner = null;
+        }
+
         public static void StageRestore(CloudBackupEnvelope value)
         {
+            LastVerifiedRestoreOwner = null;
             try
             {
                 StageRestoreAtRoot(Root, value);
@@ -132,11 +141,32 @@ namespace SweetMerge.Cloud
                     return false;
                 }
 
+                string savePath = Path.Combine(
+                    SavePathPolicy.GetSaveDirectory(),
+                    "player_save_v2.json");
+                if (!LocalSaveOwnership.TryInvalidate(
+                        savePath,
+                        out string ownershipError))
+                {
+                    errorMessage =
+                        "Existing local save ownership could not be invalidated " +
+                        "before restore: " + ownershipError;
+                    return false;
+                }
+
                 ApplyPendingAtRoot(Root, verifiedOwner);
+                if (!string.Equals(
+                        SimpleCloudBackup.GetVerifiedCurrentOwnerId(),
+                        verifiedOwner,
+                        StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        "The verified account changed during cloud restore promotion.");
+
                 StartupError = null;
-                NotifyVerifiedRestorePromoted(verifiedOwner);
                 StartupRestorePending = false;
+                LastVerifiedRestoreOwner = verifiedOwner;
                 SetRestorePending(false);
+                NotifyVerifiedRestorePromoted(verifiedOwner);
                 return true;
             }
             catch (Exception exception)
@@ -214,6 +244,7 @@ namespace SweetMerge.Cloud
             RestorePending = false;
             StartupRestorePending = false;
             StartupError = null;
+            LastVerifiedRestoreOwner = null;
             RestorePendingChanged = null;
             VerifiedRestorePromoted = null;
         }
