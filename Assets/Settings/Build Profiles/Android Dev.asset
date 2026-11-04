@@ -23,6 +23,12 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
+    m_path: Assets/_Game/Scenes/Welcome.unity
+    m_guid: 7626032ec7d44f1a939cf05b31acb5e3
+  - m_enabled: 1
+    m_path: Assets/_Game/Scenes/Loading.unity
+    m_guid: a38e6b29a4e3499ca1b28c00e143d067
+  - m_enabled: 1
     m_path: Assets/_Game/Scenes/MainBakery.unity
     m_guid: 0f6b2eb910bc7b549ab7f5c63d7c98c1
   - m_enabled: 1
@@ -180,7 +186,7 @@ MonoBehaviour:
     - line: '|   loadStoreDebugModeEnabled: 0'
     - line: '|   visionOSBundleVersion: 1.0'
     - line: '|   tvOSBundleVersion: 1.0'
-    - line: '|   bundleVersion: 0.08.9'
+    - line: '|   bundleVersion: 0.09.0'
     - line: '|   preloadedAssets:'
     - line: '|   - {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}'
     - line: '|   metroInputSource: 0'

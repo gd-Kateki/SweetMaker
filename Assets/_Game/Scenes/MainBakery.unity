@@ -474,7 +474,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6f92f41df8f54d8e9b55b9cc8c72a4d1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CafeProfileUI
 --- !u!1001 &349117847
 PrefabInstance:
@@ -1480,7 +1480,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b25c27d1ead4da0b42b6fd4a71b994c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RawImageAspectFill
 --- !u!1 &793876647
 GameObject:
@@ -2036,7 +2036,6 @@ RectTransform:
   - {fileID: 2101845836}
   - {fileID: 1097726260}
   - {fileID: 9800003002}
-
   m_Father: {fileID: 250264061}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -2158,7 +2157,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CashDisplayUI
   cashText: {fileID: 1079880967}
   cashBackground: {fileID: 2101845837}
-
 --- !u!1 &1097726259
 GameObject:
   m_ObjectHideFlags: 0
@@ -5808,8 +5806,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.83, y: 0.93}
   m_AnchorMax: {x: 0.97, y: 0.99}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 65, y: 43}
+  m_SizeDelta: {x: -30, y: 7.9201646}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &9000000000000000024
 MonoBehaviour:
@@ -5831,8 +5829,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: -2357659898952462716, guid: de114e40e1617b345a123664e4f16228, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -5950,7 +5948,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CLOSE
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -6499,7 +6497,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -6633310012713584167, guid: e260d9ae8dfa6ac44a1b0f8965a054ad, type: 3}
+  m_Sprite: {fileID: -3856184647757406909, guid: a46591e2917bd6a4c9ce98b0fdd6b418, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -8011,36 +8009,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9200000000000000040}
   m_CullTransparentMesh: 1
---- !u!114 &9200000000000000600
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9200000000000000040}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2d3f0e2d5a2941779ee156972f48d4a3, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::SettingsScreenPresentation
-  overlayImage: {fileID: 9200000000000000022}
-  panelImage: {fileID: 9200000000000000042}
-  panelRectTransform: {fileID: 9200000000000000041}
-  titleText: {fileID: 9200000000000000052}
-  closeButtonImage: {fileID: 9200000000000000062}
-  contentRectTransform: {fileID: 9200000000000000081}
-  sfxVolumeSlider: {fileID: 9200000000000000134}
-  panelSprite: {fileID: 5856762989701713786, guid: 0c4326220fdc2e645bf604a0840304ab, type: 3}
-  titlePlaqueSprite: {fileID: 4542774034356269388, guid: 965d1c525c8b6bd4d886b60d6799d9d2, type: 3}
-  closeButtonSprite: {fileID: 193919316100044067, guid: cd5f9896cf6da5b46bd2546ebdb0ead4, type: 3}
-  cardOneSprite: {fileID: 8820037596666261028, guid: c2e5ee44f76767f41a2392f625744b7a, type: 3}
-  cardTwoSprite: {fileID: -3785507209392203160, guid: 436e5ef0df414e348a9459874c57c046, type: 3}
-  cardThreeSprite: {fileID: -8189203694832356727, guid: 0e70a39f43aa5ec43a45d1b6b28c9284, type: 3}
-  cardFourSprite: {fileID: 8838427646707104255, guid: 2c3a2f7b250524a43bed28dfb1e98dc7, type: 3}
-  toggleTrackSprite: {fileID: 6616833125504691804, guid: e7171398ebaff6945a2a709a61233189, type: 3}
-  toggleKnobSprite: {fileID: -8429112307510067671, guid: 21dbcfc68c15fe74181cf7b62e043fa6, type: 3}
-  sliderTrackSprite: {fileID: 5607921865850061127, guid: 1ac0c1996b9caed4ca0ad4f412b10000, type: 3}
-  sliderHandleSprite: {fileID: -4364584394080107995, guid: 37b4eabced6fb5b42a0ce44537e7310c, type: 3}
 --- !u!1 &9200000000000000050
 GameObject:
   m_ObjectHideFlags: 0
@@ -12171,6 +12139,36 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9200000000000000540}
   m_CullTransparentMesh: 1
+--- !u!114 &9200000000000000600
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000000040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d3f0e2d5a2941779ee156972f48d4a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsScreenPresentation
+  overlayImage: {fileID: 9200000000000000022}
+  panelImage: {fileID: 9200000000000000042}
+  panelRectTransform: {fileID: 9200000000000000041}
+  titleText: {fileID: 9200000000000000052}
+  closeButtonImage: {fileID: 9200000000000000062}
+  contentRectTransform: {fileID: 9200000000000000081}
+  sfxVolumeSlider: {fileID: 9200000000000000134}
+  panelSprite: {fileID: 5856762989701713786, guid: 0c4326220fdc2e645bf604a0840304ab, type: 3}
+  titlePlaqueSprite: {fileID: 4542774034356269388, guid: 965d1c525c8b6bd4d886b60d6799d9d2, type: 3}
+  closeButtonSprite: {fileID: 193919316100044067, guid: cd5f9896cf6da5b46bd2546ebdb0ead4, type: 3}
+  cardOneSprite: {fileID: 8820037596666261028, guid: c2e5ee44f76767f41a2392f625744b7a, type: 3}
+  cardTwoSprite: {fileID: -3785507209392203160, guid: 436e5ef0df414e348a9459874c57c046, type: 3}
+  cardThreeSprite: {fileID: -8189203694832356727, guid: 0e70a39f43aa5ec43a45d1b6b28c9284, type: 3}
+  cardFourSprite: {fileID: 8838427646707104255, guid: 2c3a2f7b250524a43bed28dfb1e98dc7, type: 3}
+  toggleTrackSprite: {fileID: 6616833125504691804, guid: e7171398ebaff6945a2a709a61233189, type: 3}
+  toggleKnobSprite: {fileID: -8429112307510067671, guid: 21dbcfc68c15fe74181cf7b62e043fa6, type: 3}
+  sliderTrackSprite: {fileID: 5607921865850061127, guid: 1ac0c1996b9caed4ca0ad4f412b10000, type: 3}
+  sliderHandleSprite: {fileID: -4364584394080107995, guid: 37b4eabced6fb5b42a0ce44537e7310c, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

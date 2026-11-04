@@ -151,6 +151,7 @@ namespace SweetMerge.Analytics
         private IAnalyticsBootstrapRuntime runtime;
 
         public static AnalyticsBootstrap Instance => instance;
+        public static bool StartupPrivacyPromptSuppressed { get; set; }
 
         public ConsentStatus AnalyticsConsent =>
             EndUserConsent.GetConsentState().AnalyticsIntent;
@@ -161,6 +162,7 @@ namespace SweetMerge.Analytics
         private static void ResetStaticState()
         {
             instance = null;
+            StartupPrivacyPromptSuppressed = false;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]

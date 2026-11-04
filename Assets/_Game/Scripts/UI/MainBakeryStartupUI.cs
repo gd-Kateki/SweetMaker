@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
+using SweetMerge.Startup;
 
 public sealed class MainBakeryStartupUI : MonoBehaviour
 {
@@ -11,7 +12,8 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     {
         Scene scene = SceneManager.GetActiveScene();
         if (!scene.IsValid() ||
-            scene.name != SceneNavigationManager.MainBakeryScene)
+            scene.name != SceneNavigationManager.MainBakeryScene ||
+            LoadingSceneStartupPresenter.IsActiveForDevelopment)
             return;
 
         Canvas canvas = FindCanvas(scene, "MainCanvas");
@@ -33,6 +35,7 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     private Button retryButton;
     private TMP_Text retryLabel;
     private bool subscribed;
+    private bool subscribedToStartupFlow;
     private Coroutine bindingCoroutine;
 
     private void Awake()
@@ -46,6 +49,9 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += HandleSceneLoaded;
+        StartupFlowIntegrationOwner.SelectionInputChanged +=
+            HandleStartupSelectionInputChanged;
+        subscribedToStartupFlow = true;
         Subscribe();
         if (!subscribed)
             bindingCoroutine = StartCoroutine(BindCoordinatorWhenAvailable());
@@ -55,6 +61,12 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= HandleSceneLoaded;
+        if (subscribedToStartupFlow)
+        {
+            StartupFlowIntegrationOwner.SelectionInputChanged -=
+                HandleStartupSelectionInputChanged;
+            subscribedToStartupFlow = false;
+        }
         if (bindingCoroutine != null)
             StopCoroutine(bindingCoroutine);
         bindingCoroutine = null;
@@ -117,18 +129,45 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         Refresh();
     }
 
+    private void HandleStartupSelectionInputChanged(bool ownsInput)
+    {
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (overlay == null)
             return;
+
+        if (LoadingSceneStartupPresenter.IsActiveForDevelopment)
+        {
+            overlay.SetActive(false);
+            return;
+        }
+
+        string dependencyFailure =
+            StartupFlowIntegrationOwner.DependencyFailureMessage;
+        if (!string.IsNullOrEmpty(dependencyFailure))
+        {
+            overlay.SetActive(true);
+            titleText.text = "Startup needs attention";
+            messageText.text = dependencyFailure;
+            retryButton.gameObject.SetActive(true);
+            retryButton.interactable = true;
+            retryLabel.text = "Retry";
+            return;
+        }
 
         if (readinessCoordinator == null)
             readinessCoordinator = ApplicationReadinessCoordinator.Instance;
 
         bool ready = readinessCoordinator != null &&
             readinessCoordinator.CanBeginGameplay;
-        overlay.SetActive(!ready);
-        if (ready)
+        bool showOverlay = StartupIntegrationPolicy.ShouldShowLoadingOverlay(
+            ready,
+            StartupFlowIntegrationOwner.SelectionInputActive);
+        overlay.SetActive(showOverlay);
+        if (!showOverlay)
             return;
 
         ApplicationReadinessState state = readinessCoordinator == null
@@ -150,6 +189,13 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
 
     private void HandleActionClicked()
     {
+        if (!string.IsNullOrEmpty(
+                StartupFlowIntegrationOwner.DependencyFailureMessage))
+        {
+            StartupFlowIntegrationOwner.RetryDependencyBinding();
+            return;
+        }
+
         if (readinessCoordinator == null)
             readinessCoordinator = ApplicationReadinessCoordinator.Instance;
         if (readinessCoordinator == null)
@@ -159,6 +205,16 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         }
 
         readinessCoordinator.Retry();
+    }
+
+    internal void ShowStartupDependencyFailure()
+    {
+        Refresh();
+    }
+
+    internal void ClearStartupDependencyFailure()
+    {
+        Refresh();
     }
 
     private void BuildInterface()

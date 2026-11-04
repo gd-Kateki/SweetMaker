@@ -6028,6 +6028,8 @@ public class DataFoundationTests
         {
             "saveVersion", "completedRebirthCount",
             "highestTierCreatedThisRun", "campaignComplete",
+            "upgradesIntroSeen", "rebirthIntroSeen",
+            "collectionIntroSeen",
             "economy", "progression", "mergeGameplay", "dessertCollection"
         };
         CollectionAssert.AreEquivalent(
@@ -6225,6 +6227,432 @@ public class DataFoundationTests
         {
             UnityEngine.Object.DestroyImmediate(managerObject);
         }
+    }
+
+    [Test]
+    public void V2OptionalIntroductionFlagsAcceptOnlySupportedCanonicalShapes()
+    {
+        Type saveType = FindPlayerType("PlayerSaveData");
+        Type managerType = FindPlayerType("SaveManager");
+        MethodInfo serialize = managerType.GetMethod(
+            "SerializeWithCapacity",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo validate = managerType.GetMethod(
+            "IsValidSerializedSnapshot",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo validateCloudSnapshot = managerType.GetMethod(
+            "ValidateCloudSnapshot",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        var managerObject = new GameObject("V2 optional introduction flags test");
+        try
+        {
+            object manager = managerObject.AddComponent(managerType);
+            object save = Activator.CreateInstance(saveType);
+            string canonicalJson = (string)serialize.Invoke(
+                null,
+                new[] { save, (object)0 });
+
+            string[] fields =
+            {
+                "upgradesIntroSeen",
+                "rebirthIntroSeen",
+                "collectionIntroSeen"
+            };
+            foreach (string field in fields)
+            {
+                StringAssert.Contains(
+                    "\"" + field + "\":false",
+                    canonicalJson,
+                    "New V2 snapshots must serialize every introduction flag.");
+            }
+
+            for (int omittedMask = 0;
+                 omittedMask < 1 << fields.Length;
+                 omittedMask++)
+            {
+                string legacyShape = canonicalJson;
+                for (int index = 0; index < fields.Length; index++)
+                {
+                    if ((omittedMask & (1 << index)) == 0)
+                        continue;
+
+                    string property = ",\"" + fields[index] + "\":false";
+                    Assert.IsTrue(
+                        legacyShape.Contains(property),
+                        "Expected canonical optional flag property: " + fields[index]);
+                    legacyShape = legacyShape.Replace(property, string.Empty);
+                }
+
+                Assert.IsTrue(
+                    (bool)validate.Invoke(manager, new object[] { legacyShape }),
+                    "V2 must accept supported optional-field shape mask " + omittedMask + ".");
+
+                object restored = JsonUtility.FromJson(legacyShape, saveType);
+                foreach (string field in fields)
+                {
+                    Assert.IsFalse(
+                        (bool)GetField(restored, field),
+                        "Missing introduction flags must deserialize as unseen.");
+                }
+            }
+
+            string olderV2Shape = canonicalJson;
+            foreach (string field in fields)
+                olderV2Shape = olderV2Shape.Replace(
+                    ",\"" + field + "\":false",
+                    string.Empty);
+            olderV2Shape = olderV2Shape.Replace(
+                ",\"dessertCollection\":{\"discoveredTierIds\":[]," +
+                "\"claimedMilestoneIds\":[]}",
+                string.Empty);
+            olderV2Shape = olderV2Shape.Replace(
+                ",\"totalOrdersCompleted\":0",
+                string.Empty);
+            olderV2Shape = olderV2Shape.Replace(
+                ",\"totalMoneyEarned\":0",
+                string.Empty);
+            Assert.IsTrue(
+                (bool)validate.Invoke(manager, new object[] { olderV2Shape }),
+                "The introduction extension must preserve previously supported legacy V2 shapes.");
+            Assert.IsFalse(
+                (bool)validate.Invoke(
+                    manager,
+                    new object[]
+                    {
+                        canonicalJson.Replace(
+                            ",\"campaignComplete\":false",
+                            string.Empty)
+                    }),
+                "Only introduction flags may be omitted from an otherwise valid V2 snapshot.");
+
+            SetField(save, "upgradesIntroSeen", true);
+            SetField(save, "rebirthIntroSeen", false);
+            SetField(save, "collectionIntroSeen", true);
+            string acknowledgedJson = (string)serialize.Invoke(
+                null,
+                new[] { save, (object)0 });
+            Assert.IsTrue((bool)validate.Invoke(
+                manager,
+                new object[] { acknowledgedJson }));
+            object acknowledgedCopy = JsonUtility.FromJson(
+                acknowledgedJson,
+                saveType);
+            Assert.IsTrue((bool)GetField(acknowledgedCopy, "upgradesIntroSeen"));
+            Assert.IsFalse((bool)GetField(acknowledgedCopy, "rebirthIntroSeen"));
+            Assert.IsTrue((bool)GetField(acknowledgedCopy, "collectionIntroSeen"));
+
+            string[] invalidSnapshots =
+            {
+                canonicalJson.Replace(
+                    "\"upgradesIntroSeen\":false",
+                    "\"upgradesIntroSeen\":1"),
+                canonicalJson.Replace(
+                    "\"upgradesIntroSeen\":false",
+                    "\"upgradesIntroSeen\":\"false\""),
+                canonicalJson.Replace(
+                    "\"upgradesIntroSeen\":false",
+                    "\"upgradesIntroSeen\":null"),
+                canonicalJson.Substring(0, canonicalJson.Length - 1) +
+                    ",\"upgradesIntroSeen\":false}",
+                canonicalJson.Substring(0, canonicalJson.Length - 1) +
+                    ",\"unknownIntroductionFlag\":false}"
+            };
+            foreach (string invalidJson in invalidSnapshots)
+            {
+                Assert.IsFalse(
+                    (bool)validateCloudSnapshot.Invoke(
+                        null,
+                        new object[] { invalidJson }),
+                    "Malformed, duplicate, or unknown flag data must be rejected.");
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(managerObject);
+        }
+    }
+
+    [Test]
+    public void FeatureIntroductionAcknowledgementsPersistIndependentlyAndPreserveGameplay()
+    {
+        WithTemporarySaveRoot(root =>
+        {
+            RebirthTransactionTestSetup setup =
+                CreateRebirthTransactionTestSetup();
+            try
+            {
+                ((Component)setup.Controller).gameObject.SetActive(false);
+                SetPrivateField(
+                    setup.Coordinator,
+                    "verifiedSnapshotAvailable",
+                    true);
+                SetPrivateField(
+                    setup.SaveManager,
+                    "lifecycleSavingReady",
+                    true);
+                string originalJson =
+                    CreateFeatureIntroductionTestSnapshot(128);
+                string primaryPath = Path.Combine(
+                    root,
+                    "player_save_v2.json");
+                File.WriteAllText(primaryPath, originalJson);
+                SetPrivateField(setup.Economy, "currentCash", 777);
+
+                Type managerType = setup.SaveManager.GetType();
+                MethodInfo hasSeen = managerType.GetMethod(
+                    "HasSeenFeatureIntroduction");
+                MethodInfo acknowledge = managerType.GetMethod(
+                    "TryAcknowledgeFeatureIntroduction");
+                Type featureType = FindPlayerType("FeatureIntroduction");
+                object upgrades = Enum.Parse(featureType, "Upgrades");
+                object rebirth = Enum.Parse(featureType, "Rebirth");
+                object collection = Enum.Parse(featureType, "Collection");
+
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { rebirth }));
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { collection }));
+                SetPrivateField(setup.SaveManager, "upgradesIntroSeen", true);
+                SetPrivateField(setup.SaveManager, "rebirthIntroSeen", true);
+                SetPrivateField(setup.SaveManager, "collectionIntroSeen", true);
+                Assert.IsTrue((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { rebirth }));
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { collection }));
+
+                string afterUpgradesCommit = File.ReadAllText(primaryPath);
+                Assert.AreEqual(
+                    originalJson.Replace(
+                        "\"upgradesIntroSeen\":false",
+                        "\"upgradesIntroSeen\":true"),
+                    afterUpgradesCommit,
+                    "Acknowledgement must change only the selected flag in the saved snapshot.");
+                byte[] firstCommit = File.ReadAllBytes(primaryPath);
+                Assert.IsTrue((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                CollectionAssert.AreEqual(
+                    firstCommit,
+                    File.ReadAllBytes(primaryPath),
+                    "Acknowledging an already-seen feature must not rewrite the save.");
+
+                object[] loadArguments = { null };
+                Assert.IsTrue((bool)managerType.GetMethod("TryLoad")
+                    .Invoke(setup.SaveManager, loadArguments));
+                object loaded = loadArguments[0];
+                Assert.IsTrue((bool)GetField(loaded, "upgradesIntroSeen"));
+                Assert.IsFalse((bool)GetField(loaded, "rebirthIntroSeen"));
+                Assert.IsFalse((bool)GetField(loaded, "collectionIntroSeen"));
+                Assert.AreEqual(
+                    128,
+                    GetField(GetField(loaded, "economy"), "cash"));
+                Assert.AreEqual(
+                    3,
+                    GetField(GetField(loaded, "progression"), "boardSpaceLevel"));
+                Assert.AreEqual(
+                    11L,
+                    GetField(GetField(loaded, "economy"), "totalOrdersCompleted"));
+
+                SetPrivateField(setup.SaveManager, "upgradesIntroSeen", false);
+                MethodInfo restoreFlags = managerType.GetMethod(
+                    "RestoreFeatureIntroductionAcknowledgements",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                restoreFlags.Invoke(setup.SaveManager, new[] { loaded });
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { upgrades }),
+                    "A validated V2 snapshot must restore acknowledgement state.");
+
+                Assert.IsTrue((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { rebirth }));
+                Assert.IsTrue((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { collection }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { rebirth }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { collection }));
+                Assert.AreEqual(
+                    777,
+                    setup.Economy.GetType()
+                        .GetProperty("CurrentCash")
+                        .GetValue(setup.Economy));
+
+                loadArguments[0] = null;
+                Assert.IsTrue((bool)managerType.GetMethod("TryLoad")
+                    .Invoke(setup.SaveManager, loadArguments));
+                loaded = loadArguments[0];
+                Assert.IsTrue((bool)GetField(loaded, "upgradesIntroSeen"));
+                Assert.IsTrue((bool)GetField(loaded, "rebirthIntroSeen"));
+                Assert.IsTrue((bool)GetField(loaded, "collectionIntroSeen"));
+
+                SetPrivateField(setup.SaveManager, "upgradesIntroSeen", false);
+                SetPrivateField(setup.SaveManager, "rebirthIntroSeen", false);
+                SetPrivateField(setup.SaveManager, "collectionIntroSeen", false);
+                restoreFlags.Invoke(setup.SaveManager, new[] { loaded });
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { upgrades }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { rebirth }));
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { collection }));
+
+                object normalSave = managerType.GetMethod(
+                    "CreateNewSaveData").Invoke(setup.SaveManager, null);
+                Assert.IsTrue((bool)GetField(normalSave, "upgradesIntroSeen"));
+                Assert.IsTrue((bool)GetField(normalSave, "rebirthIntroSeen"));
+                Assert.IsTrue((bool)GetField(normalSave, "collectionIntroSeen"));
+            }
+            finally
+            {
+                DestroyRebirthTransactionTestSetup(setup);
+            }
+        });
+    }
+
+    [Test]
+    public void FailedFeatureIntroductionCommitLeavesAcknowledgementUnseen()
+    {
+        WithTemporarySaveRoot(root =>
+        {
+            RebirthTransactionTestSetup setup =
+                CreateRebirthTransactionTestSetup();
+            try
+            {
+                ((Component)setup.Controller).gameObject.SetActive(false);
+                SetPrivateField(
+                    setup.Coordinator,
+                    "verifiedSnapshotAvailable",
+                    true);
+                SetPrivateField(
+                    setup.SaveManager,
+                    "lifecycleSavingReady",
+                    true);
+                string primaryPath = Path.Combine(
+                    root,
+                    "player_save_v2.json");
+                File.WriteAllText(
+                    primaryPath,
+                    CreateFeatureIntroductionTestSnapshot(128));
+                string blockedTemporaryPath = primaryPath + ".tmp";
+                Directory.CreateDirectory(blockedTemporaryPath);
+
+                object feature = Enum.Parse(
+                    FindPlayerType("FeatureIntroduction"),
+                    "Upgrades");
+                MethodInfo hasSeen = setup.SaveManager.GetType()
+                    .GetMethod("HasSeenFeatureIntroduction");
+                MethodInfo acknowledge = setup.SaveManager.GetType()
+                    .GetMethod("TryAcknowledgeFeatureIntroduction");
+                LogAssert.Expect(
+                    LogType.Error,
+                    new Regex("^FEATURE INTRO \\| Acknowledgement commit failed; it remains unseen\\."));
+
+                Assert.IsFalse((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { feature }));
+                Assert.IsFalse((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { feature }));
+
+                Directory.Delete(blockedTemporaryPath, true);
+                Assert.IsTrue((bool)acknowledge.Invoke(
+                    setup.SaveManager, new[] { feature }),
+                    "A failed acknowledgement must remain retryable.");
+                Assert.IsTrue((bool)hasSeen.Invoke(
+                    setup.SaveManager, new[] { feature }));
+            }
+            finally
+            {
+                DestroyRebirthTransactionTestSetup(setup);
+            }
+        });
+    }
+
+    [Test]
+    public void LegacyV2AcknowledgementSnapshotRestoresAllFlagsAsUnseen()
+    {
+        WithTemporarySaveRoot(root =>
+        {
+            RebirthTransactionTestSetup setup =
+                CreateRebirthTransactionTestSetup();
+            try
+            {
+                string legacyJson =
+                    CreateFeatureIntroductionTestSnapshot(128);
+                foreach (string field in new[]
+                {
+                    "upgradesIntroSeen",
+                    "rebirthIntroSeen",
+                    "collectionIntroSeen"
+                })
+                {
+                    legacyJson = legacyJson.Replace(
+                        ",\"" + field + "\":false",
+                        string.Empty);
+                }
+
+                File.WriteAllText(
+                    Path.Combine(root, "player_save_v2.json"),
+                    legacyJson);
+                object[] loadArguments = { null };
+                Assert.IsTrue((bool)setup.SaveManager.GetType()
+                    .GetMethod("TryLoad")
+                    .Invoke(setup.SaveManager, loadArguments));
+                object loaded = loadArguments[0];
+                Assert.IsFalse((bool)GetField(loaded, "upgradesIntroSeen"));
+                Assert.IsFalse((bool)GetField(loaded, "rebirthIntroSeen"));
+                Assert.IsFalse((bool)GetField(loaded, "collectionIntroSeen"));
+
+                SetPrivateField(setup.SaveManager, "upgradesIntroSeen", true);
+                SetPrivateField(setup.SaveManager, "rebirthIntroSeen", true);
+                SetPrivateField(setup.SaveManager, "collectionIntroSeen", true);
+                setup.SaveManager.GetType().GetMethod(
+                        "RestoreFeatureIntroductionAcknowledgements",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Invoke(setup.SaveManager, new[] { loaded });
+                Assert.IsFalse((bool)GetPrivateField(
+                    setup.SaveManager, "upgradesIntroSeen"));
+                Assert.IsFalse((bool)GetPrivateField(
+                    setup.SaveManager, "rebirthIntroSeen"));
+                Assert.IsFalse((bool)GetPrivateField(
+                    setup.SaveManager, "collectionIntroSeen"));
+
+                object collectionFeature = Enum.Parse(
+                    FindPlayerType("FeatureIntroduction"),
+                    "Collection");
+                Assert.IsTrue((bool)setup.SaveManager.GetType()
+                    .GetMethod("TryAcknowledgeFeatureIntroduction")
+                    .Invoke(setup.SaveManager, new[] { collectionFeature }));
+                string upgradedJson = File.ReadAllText(
+                    Path.Combine(root, "player_save_v2.json"));
+                foreach (string field in new[]
+                {
+                    "upgradesIntroSeen",
+                    "rebirthIntroSeen",
+                    "collectionIntroSeen"
+                })
+                {
+                    StringAssert.Contains(
+                        "\"" + field + "\":",
+                        upgradedJson);
+                }
+
+                object upgraded = JsonUtility.FromJson(
+                    upgradedJson,
+                    FindPlayerType("PlayerSaveData"));
+                Assert.IsFalse((bool)GetField(upgraded, "upgradesIntroSeen"));
+                Assert.IsFalse((bool)GetField(upgraded, "rebirthIntroSeen"));
+                Assert.IsTrue((bool)GetField(upgraded, "collectionIntroSeen"));
+            }
+            finally
+            {
+                DestroyRebirthTransactionTestSetup(setup);
+            }
+        });
     }
 
     [Test]
@@ -6648,6 +7076,64 @@ public class DataFoundationTests
         }
     }
 
+    private static void WithTemporarySaveRoot(Action<string> test)
+    {
+        Type policyType = FindPlayerType("SavePathPolicy");
+        FieldInfo attemptedField = policyType.GetField(
+            "editorSandboxResolutionAttempted",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        FieldInfo rootField = policyType.GetField(
+            "editorSandboxRoot",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        FieldInfo errorField = policyType.GetField(
+            "editorSandboxResolutionError",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(attemptedField);
+        Assert.IsNotNull(rootField);
+        Assert.IsNotNull(errorField);
+
+        object previousAttempted = attemptedField.GetValue(null);
+        object previousRoot = rootField.GetValue(null);
+        object previousError = errorField.GetValue(null);
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "SweetMakerFeatureIntro_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(directory);
+            attemptedField.SetValue(null, true);
+            rootField.SetValue(null, directory);
+            errorField.SetValue(null, null);
+            test(directory);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+            attemptedField.SetValue(null, previousAttempted);
+            rootField.SetValue(null, previousRoot);
+            errorField.SetValue(null, previousError);
+        }
+    }
+
+    private static string CreateFeatureIntroductionTestSnapshot(int cash)
+    {
+        Type saveType = FindPlayerType("PlayerSaveData");
+        object save = Activator.CreateInstance(saveType);
+        object economy = GetField(save, "economy");
+        SetField(economy, "cash", cash);
+        SetField(economy, "totalOrdersCompleted", 11L);
+        SetField(economy, "totalMoneyEarned", 456L);
+        SetField(GetField(save, "progression"), "boardSpaceLevel", 3);
+
+        MethodInfo serialize = FindPlayerType("SaveManager").GetMethod(
+            "SerializeWithCapacity",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        return (string)serialize.Invoke(
+            null,
+            new[] { save, (object)0 });
+    }
+
     [Test]
     public void RebirthV2SnapshotPromotionAndBackupRollbackPreserveBothSnapshots()
     {
@@ -6721,6 +7207,9 @@ public class DataFoundationTests
         string snapshotPath = Path.Combine(directory, "player_save_v2.json");
         try
         {
+            SetPrivateField(setup.SaveManager, "upgradesIntroSeen", true);
+            SetPrivateField(setup.SaveManager, "rebirthIntroSeen", true);
+            SetPrivateField(setup.SaveManager, "collectionIntroSeen", true);
             setup.SessionManager.GetType()
                 .GetMethod("SaveSession")
                 .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
@@ -6759,6 +7248,9 @@ public class DataFoundationTests
             Assert.AreEqual(
                 0,
                 GetField(committed, "highestTierCreatedThisRun"));
+            Assert.IsTrue((bool)GetField(committed, "upgradesIntroSeen"));
+            Assert.IsTrue((bool)GetField(committed, "rebirthIntroSeen"));
+            Assert.IsTrue((bool)GetField(committed, "collectionIntroSeen"));
             object mergeGameplay = GetField(committed, "mergeGameplay");
             var committedOrders = (System.Collections.IList)GetField(
                 mergeGameplay, "customerOrders");
@@ -6795,6 +7287,9 @@ public class DataFoundationTests
         {
             Directory.CreateDirectory(directory);
             File.WriteAllText(blockingFile, "preserve");
+            SetPrivateField(setup.SaveManager, "upgradesIntroSeen", true);
+            SetPrivateField(setup.SaveManager, "rebirthIntroSeen", true);
+            SetPrivateField(setup.SaveManager, "collectionIntroSeen", true);
             setup.SessionManager.GetType()
                 .GetMethod("SaveSession")
                 .Invoke(setup.SessionManager, new object[] { setup.FreshSession });
@@ -6856,6 +7351,12 @@ public class DataFoundationTests
                 .GetProperty("CurrentRebirthCount").GetValue(setup.Progression));
             Assert.AreEqual(128, setup.Economy.GetType()
                 .GetProperty("CurrentCash").GetValue(setup.Economy));
+            Assert.IsTrue((bool)GetPrivateField(
+                setup.SaveManager, "upgradesIntroSeen"));
+            Assert.IsTrue((bool)GetPrivateField(
+                setup.SaveManager, "rebirthIntroSeen"));
+            Assert.IsTrue((bool)GetPrivateField(
+                setup.SaveManager, "collectionIntroSeen"));
         }
         finally
         {

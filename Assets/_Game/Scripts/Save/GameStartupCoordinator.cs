@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using SweetMerge.Startup;
 using UnityEngine;
 
 public class GameStartupCoordinator : MonoBehaviour
@@ -10,6 +11,7 @@ public class GameStartupCoordinator : MonoBehaviour
     // Preserved meaning: persistent startup completed. Use IsGameplayReady for input.
     public bool IsStartupComplete => Status == StartupStatus.NewGame || Status == StartupStatus.Loaded;
     public bool IsStartupBlocked => Status == StartupStatus.Failed;
+    internal bool StartupDecisionConfirmed => startupDecisionConfirmed;
     public bool IsGameplayReady => IsStartupComplete &&
         ((verifiedController != null && verifiedController.isActiveAndEnabled &&
           verifiedController.IsRestorationVerified) || verifiedSnapshotAvailable);
@@ -17,6 +19,8 @@ public class GameStartupCoordinator : MonoBehaviour
     public event Action StateChanged;
 
     private bool startupAttempted;
+    private bool startupDecisionGateRequired;
+    private bool startupDecisionConfirmed;
     private bool reloadLiveGameplay;
     private MergeSessionController verifiedController;
     private bool verifiedSnapshotAvailable;
@@ -47,14 +51,26 @@ public class GameStartupCoordinator : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        if (StartupFlowIntegrationOwner.FeatureEnabled)
+        {
+            startupDecisionGateRequired = true;
+            startupDecisionConfirmed = false;
+            Status = StartupStatus.Waiting;
+        }
         SaveManager.Instance?.SuspendLifecycleSaving();
+        SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged +=
+            HandleRestorePendingChanged;
         StateChanged?.Invoke();
     }
 
     private IEnumerator Start()
     {
+        if (StartupFlowIntegrationOwner.FeatureEnabled)
+            RequireStartupDecisionGate();
+
         yield return null;
-        if (!startupAttempted)
+        if (StartupIntegrationPolicy.ShouldStartSaveInitialization(
+                startupAttempted))
         {
             startupAttempted = true;
             InitializeStartup();
@@ -63,6 +79,31 @@ public class GameStartupCoordinator : MonoBehaviour
 
     private void InitializeStartup()
     {
+        if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+        {
+            SaveManager.Instance?.SuspendLifecycleSaving();
+            if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null)
+            {
+                FailStartup(
+                    SweetMerge.Cloud.SimpleCloudFiles.StartupError);
+                return;
+            }
+
+            Status = StartupStatus.Waiting;
+            LastFailureReason = null;
+            StateChanged?.Invoke();
+            return;
+        }
+
+        if (StartupIntegrationPolicy.ShouldBlockSaveLoad(
+                startupDecisionGateRequired,
+                startupDecisionConfirmed))
+        {
+            Status = StartupStatus.Waiting;
+            StateChanged?.Invoke();
+            return;
+        }
+
         if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null)
         { FailStartup(SweetMerge.Cloud.SimpleCloudFiles.StartupError); return; }
         Status = StartupStatus.Loading;
@@ -99,6 +140,56 @@ public class GameStartupCoordinator : MonoBehaviour
 
         startupAttempted = true;
         InitializeStartup();
+    }
+
+    internal void RequireStartupDecisionGate()
+    {
+        if (startupAttempted || startupDecisionConfirmed)
+            return;
+
+        startupDecisionGateRequired = true;
+        Status = StartupStatus.Waiting;
+        StateChanged?.Invoke();
+    }
+
+    private void HandleRestorePendingChanged(bool restorePending)
+    {
+        if (restorePending)
+        {
+            SaveManager.Instance?.SuspendLifecycleSaving();
+            if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null)
+                FailStartup(SweetMerge.Cloud.SimpleCloudFiles.StartupError);
+            else
+            {
+                Status = StartupStatus.Waiting;
+                LastFailureReason = null;
+                StateChanged?.Invoke();
+            }
+            return;
+        }
+
+        if (startupAttempted)
+            InitializeStartup();
+    }
+
+    internal bool ConfirmStartupDecision(
+        StartupPlayMode playMode,
+        bool googleIdentityVerified)
+    {
+        if (!StartupIntegrationPolicy.CanConfirmStartupDecision(
+                startupDecisionGateRequired,
+                startupDecisionConfirmed,
+                SweetMerge.Cloud.SimpleCloudFiles.StartupRestorePending,
+                playMode,
+                googleIdentityVerified))
+        {
+            return false;
+        }
+
+        startupDecisionConfirmed = true;
+        startupAttempted = true;
+        InitializeStartup();
+        return true;
     }
 
     // SaveManager owns this transition; also used by the existing debug load tool.
@@ -179,6 +270,8 @@ public class GameStartupCoordinator : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance != this) return;
+        SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged -=
+            HandleRestorePendingChanged;
         SaveManager.Instance?.SuspendLifecycleSaving();
         Instance = null;
     }

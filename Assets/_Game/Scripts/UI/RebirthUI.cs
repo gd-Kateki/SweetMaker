@@ -343,6 +343,8 @@ public sealed class RebirthUI : MonoBehaviour
         if (IsModalOpen())
             return;
 
+        bool noIncompatibleModal =
+            !GameplayModalInputGate.IsGameplayInputBlocked;
         if (!GameplayModalInputGate.TryAcquireBlockingModal(
                 this,
                 out gameplayModalLease))
@@ -364,6 +366,14 @@ public sealed class RebirthUI : MonoBehaviour
         {
             modalPanel.transform.SetAsLastSibling();
             modalPanel.SetActive(true);
+        }
+
+        if (IsModalOpen())
+        {
+            FeatureIntroductionPopup.TryShowForFeatureFrom(
+                this,
+                FeatureIntroduction.Rebirth,
+                noIncompatibleModal);
         }
     }
 

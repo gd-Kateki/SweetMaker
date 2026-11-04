@@ -66,13 +66,24 @@ public static class AndroidIdentityBuildVerification
             DevelopmentAndroidIdentityValidator.DevelopmentProfilePath);
         string[] releaseScenes = GetProfileScenes(
             DevelopmentAndroidIdentityValidator.ReleaseProfilePath);
-        if (!developmentScenes.SequenceEqual(
-                releaseScenes,
-                StringComparer.Ordinal))
-        {
-            throw new BuildFailedException(
-                "Android DEV and RELEASE profiles do not use the same enabled scenes.");
-        }
+        ValidateProfileScenes(
+            DevelopmentAndroidIdentityValidator.DevelopmentProfilePath,
+            developmentScenes,
+            new[]
+            {
+                "Assets/_Game/Scenes/Welcome.unity",
+                "Assets/_Game/Scenes/Loading.unity",
+                "Assets/_Game/Scenes/MainBakery.unity",
+                "Assets/_Game/Scenes/Game.unity"
+            });
+        ValidateProfileScenes(
+            DevelopmentAndroidIdentityValidator.ReleaseProfilePath,
+            releaseScenes,
+            new[]
+            {
+                "Assets/_Game/Scenes/MainBakery.unity",
+                "Assets/_Game/Scenes/Game.unity"
+            });
 
         string aaptPath = FindAapt(
             AndroidExternalToolsSettings.sdkRootPath);
@@ -171,6 +182,24 @@ public static class AndroidIdentityBuildVerification
                 AssetDatabase.GetAssetPath(profile));
 
         return enabledScenes;
+    }
+
+    private static void ValidateProfileScenes(
+        string profilePath,
+        string[] actualScenes,
+        string[] expectedScenes)
+    {
+        if (!actualScenes.SequenceEqual(
+                expectedScenes,
+                StringComparer.Ordinal))
+        {
+            throw new BuildFailedException(
+                "Android Build Profile '" +
+                profilePath +
+                "' must contain exactly these enabled scenes, in order: " +
+                string.Join(", ", expectedScenes) +
+                ".");
+        }
     }
 
     private static void BuildAndVerifyOne(

@@ -82,6 +82,13 @@ namespace SweetMerge.Profile
         {
             stage = TutorialStage.Welcome;
             errorMessage = null;
+            if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            {
+                errorMessage =
+                    "Tutorial progress loading is blocked until the pending cloud restore is resolved.";
+                return TutorialProgressJournalLoadStatus.ServiceError;
+            }
+
             if (!TryGetPaths(
                     out string primary,
                     out string backup,
@@ -160,6 +167,13 @@ namespace SweetMerge.Profile
             out string errorMessage)
         {
             errorMessage = null;
+            if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            {
+                errorMessage =
+                    "Tutorial progress saving is blocked until the pending cloud restore is resolved.";
+                return TutorialProgressJournalSaveStatus.ServiceError;
+            }
+
             if (!Enum.IsDefined(typeof(TutorialStage), requestedStage))
             {
                 errorMessage = "The requested tutorial stage is invalid.";

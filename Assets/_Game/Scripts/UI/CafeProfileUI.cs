@@ -41,6 +41,8 @@ public sealed class CafeProfileUI : MonoBehaviour
     private string localProfileError;
     private bool profileOperationInProgress;
     private bool tutorialSubscribed;
+    private bool restoreGatePending;
+    private bool localProfileInitialized;
     private float nextManagerRetryTime;
 
     private void Awake()
@@ -48,7 +50,22 @@ public sealed class CafeProfileUI : MonoBehaviour
         CreateCard();
         CreatePanel();
         CreateNamingPopup();
-        LoadLocalCafeProfile();
+        SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged +=
+            HandleRestorePendingChanged;
+        restoreGatePending =
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending;
+        if (restoreGatePending)
+        {
+            cardRoot.SetActive(false);
+            namingRoot.SetActive(false);
+            SetNamingButtonsInteractable(false);
+        }
+        else
+        {
+            LoadLocalCafeProfile();
+            localProfileInitialized = true;
+        }
+
         TryBindManagers();
         Refresh();
     }
@@ -92,12 +109,53 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged -=
+            HandleRestorePendingChanged;
         UnbindManagers();
         UnsubscribeFromTutorial();
     }
 
+    private void HandleRestorePendingChanged(bool restorePending)
+    {
+        if (restorePending)
+        {
+            restoreGatePending = true;
+            localProfileInitialized = false;
+            localProfile = null;
+            localProfileStatus = CafeProfileLocalStatus.Missing;
+            localProfileError = null;
+            if (cardRoot != null)
+                cardRoot.SetActive(false);
+            if (panelRoot != null)
+                panelRoot.SetActive(false);
+            if (namingRoot != null)
+                namingRoot.SetActive(false);
+            SetNamingButtonsInteractable(false);
+            return;
+        }
+
+        if (!restoreGatePending)
+            return;
+
+        restoreGatePending = false;
+        if (!localProfileInitialized)
+        {
+            LoadLocalCafeProfile();
+            localProfileInitialized = true;
+        }
+
+        if (cardRoot != null)
+            cardRoot.SetActive(true);
+        Refresh();
+        RefreshNamingEligibility();
+    }
+
     private void LoadLocalCafeProfile()
     {
+        if (restoreGatePending ||
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            return;
+
         localProfileStatus =
             CafeProfileLocalStore.Load(
                 out localProfile,
@@ -139,7 +197,9 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void HandleLocalProfileRetry()
     {
-        if (profileOperationInProgress)
+        if (restoreGatePending ||
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
+            profileOperationInProgress)
             return;
 
         profileOperationInProgress = true;
@@ -387,6 +447,10 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void HandleNamingConfirmation()
     {
+        if (restoreGatePending ||
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            return;
+
         if (profileOperationInProgress)
             return;
 
@@ -500,6 +564,10 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void ShowNamingPopup()
     {
+        if (restoreGatePending ||
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            return;
+
         if (namingRoot == null)
             CreateNamingPopup();
         if (namingRoot == null)
@@ -581,7 +649,9 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void RefreshNamingEligibility()
     {
-        if (namingRoot == null)
+        if (restoreGatePending ||
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
+            namingRoot == null)
             return;
 
         bool tutorialCompleted =

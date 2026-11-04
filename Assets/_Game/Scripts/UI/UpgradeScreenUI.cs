@@ -100,6 +100,8 @@ public class UpgradeScreenUI : MonoBehaviour
         if (upgradeScreen.activeSelf)
             return;
 
+        bool noIncompatibleModal =
+            !GameplayModalInputGate.IsGameplayInputBlocked;
         if (!GameplayModalInputGate.TryAcquireBlockingModal(
                 this,
                 out gameplayModalLease))
@@ -113,6 +115,10 @@ public class UpgradeScreenUI : MonoBehaviour
         HideSpawnPoolSelector();
         upgradeScreen.transform.SetAsLastSibling();
         upgradeScreen.SetActive(true);
+        FeatureIntroductionPopup.TryShowForFeatureFrom(
+            this,
+            FeatureIntroduction.Upgrades,
+            noIncompatibleModal);
 
         Debug.Log(
             "UPGRADE SCREEN | Opened"

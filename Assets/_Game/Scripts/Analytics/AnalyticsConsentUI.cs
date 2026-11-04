@@ -18,9 +18,11 @@ namespace SweetMerge.Analytics
         internal static bool ShouldShowPrompt(
             string sceneName,
             ConsentStatus status,
-            bool dismissed)
+            bool dismissed,
+            bool startupPrivacyOwnsPrompt = false)
         {
-            return sceneName == MainBakerySceneName &&
+            return !startupPrivacyOwnsPrompt &&
+                   sceneName == MainBakerySceneName &&
                    status == ConsentStatus.Unspecified &&
                    !dismissed;
         }
@@ -593,7 +595,8 @@ namespace SweetMerge.Analytics
             if (!AnalyticsConsentPresentation.ShouldShowPrompt(
                     scene.name,
                     status,
-                    dismissed))
+                    dismissed,
+                    AnalyticsBootstrap.StartupPrivacyPromptSuppressed))
             {
                 HidePrompt();
                 return;

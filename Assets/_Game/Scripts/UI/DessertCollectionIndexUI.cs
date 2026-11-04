@@ -108,9 +108,18 @@ public sealed class DessertCollectionIndexUI : MonoBehaviour
 
     private void HandleOpenClicked()
     {
+        bool noIncompatibleModal =
+            !GameplayModalInputGate.IsGameplayInputBlocked;
         UiClickSfx.TryPlay(openButton);
         Refresh();
         overlay.SetActive(true);
+        if (overlay.activeInHierarchy)
+        {
+            FeatureIntroductionPopup.TryShowForFeatureFrom(
+                this,
+                FeatureIntroduction.Collection,
+                noIncompatibleModal);
+        }
     }
 
     private void HandleCloseClicked()

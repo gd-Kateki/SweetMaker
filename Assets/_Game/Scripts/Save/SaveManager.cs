@@ -19,6 +19,13 @@ public enum DessertCollectionClaimResult
     CommitUncertain
 }
 
+public enum FeatureIntroduction
+{
+    Upgrades,
+    Rebirth,
+    Collection
+}
+
 public class SaveManager : MonoBehaviour
 
 {
@@ -515,10 +522,9 @@ public class SaveManager : MonoBehaviour
         bool collectionSectionPresent,
         bool statisticsAreZero)
     {
-        if (string.Equals(
+        if (MatchesCanonicalWithOptionalIntroFlags(
                 json,
-                canonicalJson,
-                StringComparison.Ordinal))
+                canonicalJson))
         {
             return true;
         }
@@ -530,10 +536,9 @@ public class SaveManager : MonoBehaviour
                 canonicalJson,
                 out withoutCollection);
         if (hasWithoutCollection &&
-            string.Equals(
+            MatchesCanonicalWithOptionalIntroFlags(
                 json,
-                withoutCollection,
-                StringComparison.Ordinal))
+                withoutCollection))
         {
             return true;
         }
@@ -546,10 +551,9 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
-        if (string.Equals(
+        if (MatchesCanonicalWithOptionalIntroFlags(
                 json,
-                withoutStatistics,
-                StringComparison.Ordinal))
+                withoutStatistics))
         {
             return true;
         }
@@ -558,10 +562,85 @@ public class SaveManager : MonoBehaviour
                TryRemoveEmptyDessertCollectionProperty(
                    withoutStatistics,
                    out string withoutCollectionOrStatistics) &&
-               string.Equals(
+               MatchesCanonicalWithOptionalIntroFlags(
                    json,
-                   withoutCollectionOrStatistics,
-                   StringComparison.Ordinal);
+                   withoutCollectionOrStatistics);
+    }
+
+    private static bool MatchesCanonicalWithOptionalIntroFlags(
+        string json,
+        string canonicalJson)
+    {
+        for (int omittedMask = 0;
+             omittedMask < 1 << OptionalV2IntroFlagFields.Length;
+             omittedMask++)
+        {
+            string candidate = canonicalJson;
+            bool validShape = true;
+            for (int index = 0;
+                 index < OptionalV2IntroFlagFields.Length;
+                 index++)
+            {
+                if ((omittedMask & (1 << index)) == 0)
+                    continue;
+
+                if (!TryRemoveBooleanProperty(
+                        candidate,
+                        OptionalV2IntroFlagFields[index],
+                        out string candidateWithoutFlag))
+                {
+                    validShape = false;
+                    break;
+                }
+
+                candidate = candidateWithoutFlag;
+            }
+
+            if (validShape &&
+                string.Equals(json, candidate, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryRemoveBooleanProperty(
+        string json,
+        string propertyName,
+        out string result)
+    {
+        result = null;
+        if (CountJsonProperty(json, propertyName) != 1)
+            return false;
+
+        string prefix = ",\"" + propertyName + "\":";
+        int index = json.IndexOf(prefix, StringComparison.Ordinal);
+        if (index < 0 ||
+            json.LastIndexOf(prefix, StringComparison.Ordinal) != index)
+        {
+            return false;
+        }
+
+        int valueIndex = index + prefix.Length;
+        int valueLength;
+        if (json.IndexOf("true", valueIndex, StringComparison.Ordinal) == valueIndex)
+            valueLength = 4;
+        else if (json.IndexOf("false", valueIndex, StringComparison.Ordinal) == valueIndex)
+            valueLength = 5;
+        else
+            return false;
+
+        int valueEnd = valueIndex + valueLength;
+        if (valueEnd >= json.Length ||
+            (json[valueEnd] != ',' && json[valueEnd] != '}'))
+        {
+            return false;
+        }
+
+        result = json.Remove(index, valueEnd - index);
+        return true;
     }
 
     private string SerializeCurrentWithCapacity(PlayerSaveData data, int capacity)
@@ -692,15 +771,227 @@ public class SaveManager : MonoBehaviour
 
     private const int CurrentSaveVersion = 2;
     private const int CurrentServingPlateProgressionVersion = 1;
+    private static readonly string[] OptionalV2IntroFlagFields =
+    {
+        "upgradesIntroSeen",
+        "rebirthIntroSeen",
+        "collectionIntroSeen"
+    };
     private bool compatibilityMigrationPending;
     private bool loadedCollectionSectionPresent;
     private bool claimInProgress;
     private bool claimPersistenceUncertain;
+    private bool upgradesIntroSeen;
+    private bool rebirthIntroSeen;
+    private bool collectionIntroSeen;
     private readonly DessertCollectionState dessertCollection =
         new DessertCollectionState();
 
     public DessertCollectionState DessertCollection =>
         dessertCollection;
+
+    public bool HasSeenFeatureIntroduction(FeatureIntroduction feature)
+    {
+        switch (feature)
+        {
+            case FeatureIntroduction.Upgrades:
+                return upgradesIntroSeen;
+            case FeatureIntroduction.Rebirth:
+                return rebirthIntroSeen;
+            case FeatureIntroduction.Collection:
+                return collectionIntroSeen;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(feature));
+        }
+    }
+
+    public bool TryAcknowledgeFeatureIntroduction(
+        FeatureIntroduction feature)
+    {
+        if (saveInProgress || loadInProgress || claimInProgress ||
+            !CanWriteCurrentState())
+        {
+            Debug.LogWarning(
+                "FEATURE INTRO | Acknowledgement was not saved because gameplay is not ready for persistence.",
+                this);
+            return false;
+        }
+
+        saveInProgress = true;
+        try
+        {
+            if (!TryLoad(out PlayerSaveData selectedSave))
+            {
+                Debug.LogError(
+                    "FEATURE INTRO | No valid selected save is available; acknowledgement remains unseen.",
+                    this);
+                return false;
+            }
+
+            RestoreFeatureIntroductionAcknowledgements(selectedSave);
+            if (IsFeatureIntroductionAcknowledged(selectedSave, feature))
+                return true;
+
+            string selectedJson = SaveEncoding.GetString(
+                File.ReadAllBytes(SaveFilePath));
+            if (!IsValidSerializedSnapshotCore(selectedJson) ||
+                !TryBuildFeatureIntroductionSnapshot(
+                    selectedJson,
+                    feature,
+                    out string candidateJson))
+            {
+                Debug.LogError(
+                    "FEATURE INTRO | Selected save could not be safely updated; acknowledgement remains unseen.",
+                    this);
+                return false;
+            }
+
+            bool saved = TryWritePreparedSnapshot(
+                candidateJson,
+                SaveFilePath,
+                out bool snapshotCommitted);
+            if (!saved || !snapshotCommitted)
+            {
+                Debug.LogError(
+                    "FEATURE INTRO | Acknowledgement commit was not confirmed; it remains unseen.",
+                    this);
+                return false;
+            }
+
+            SetFeatureIntroductionAcknowledged(feature);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError(
+                "FEATURE INTRO | Acknowledgement commit failed; it remains unseen.\n" +
+                exception,
+                this);
+            return false;
+        }
+        finally
+        {
+            saveInProgress = false;
+        }
+    }
+
+    private static bool IsFeatureIntroductionAcknowledged(
+        PlayerSaveData saveData,
+        FeatureIntroduction feature)
+    {
+        switch (feature)
+        {
+            case FeatureIntroduction.Upgrades:
+                return saveData.upgradesIntroSeen;
+            case FeatureIntroduction.Rebirth:
+                return saveData.rebirthIntroSeen;
+            case FeatureIntroduction.Collection:
+                return saveData.collectionIntroSeen;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(feature));
+        }
+    }
+
+    private static bool TryBuildFeatureIntroductionSnapshot(
+        string selectedJson,
+        FeatureIntroduction feature,
+        out string candidateJson)
+    {
+        candidateJson = null;
+        string fieldName = GetFeatureIntroductionFieldName(feature);
+        string candidate = selectedJson;
+
+        for (int index = OptionalV2IntroFlagFields.Length - 1;
+             index >= 0;
+             index--)
+        {
+            string optionalField = OptionalV2IntroFlagFields[index];
+            int propertyCount = CountJsonProperty(candidate, optionalField);
+            if (propertyCount == 1)
+                continue;
+            if (propertyCount != 0)
+                return false;
+
+            string successor = "\"economy\":";
+            for (int nextIndex = index + 1;
+                 nextIndex < OptionalV2IntroFlagFields.Length;
+                 nextIndex++)
+            {
+                string nextField = OptionalV2IntroFlagFields[nextIndex];
+                if (CountJsonProperty(candidate, nextField) == 1)
+                {
+                    successor = "\"" + nextField + "\":";
+                    break;
+                }
+            }
+
+            int insertionIndex = candidate.IndexOf(
+                successor,
+                StringComparison.Ordinal);
+            if (insertionIndex < 0)
+                return false;
+
+            candidate = candidate.Insert(
+                insertionIndex,
+                "\"" + optionalField + "\":false,");
+        }
+
+        string propertyPrefix = "\"" + fieldName + "\":";
+        if (CountJsonProperty(candidate, fieldName) != 1)
+            return false;
+        int valueIndex = candidate.IndexOf(
+            propertyPrefix,
+            StringComparison.Ordinal) + propertyPrefix.Length;
+        if (candidate.IndexOf("false", valueIndex, StringComparison.Ordinal) ==
+            valueIndex)
+        {
+            candidate = candidate.Remove(valueIndex, 5)
+                .Insert(valueIndex, "true");
+        }
+        else if (candidate.IndexOf("true", valueIndex, StringComparison.Ordinal) !=
+                 valueIndex)
+        {
+            return false;
+        }
+
+        candidateJson = candidate;
+        return true;
+    }
+
+    private static string GetFeatureIntroductionFieldName(
+        FeatureIntroduction feature)
+    {
+        switch (feature)
+        {
+            case FeatureIntroduction.Upgrades:
+                return "upgradesIntroSeen";
+            case FeatureIntroduction.Rebirth:
+                return "rebirthIntroSeen";
+            case FeatureIntroduction.Collection:
+                return "collectionIntroSeen";
+            default:
+                throw new ArgumentOutOfRangeException(nameof(feature));
+        }
+    }
+
+    private void SetFeatureIntroductionAcknowledged(
+        FeatureIntroduction feature)
+    {
+        switch (feature)
+        {
+            case FeatureIntroduction.Upgrades:
+                upgradesIntroSeen = true;
+                break;
+            case FeatureIntroduction.Rebirth:
+                rebirthIntroSeen = true;
+                break;
+            case FeatureIntroduction.Collection:
+                collectionIntroSeen = true;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(feature));
+        }
+    }
 
     public DessertDiscoveryRecordResult RecordDessertDiscovery(
         int tierId)
@@ -1372,6 +1663,8 @@ public class SaveManager : MonoBehaviour
 
         string resetToken = Guid.NewGuid().ToString("N");
         var quarantined = new List<KeyValuePair<string, string>>();
+        SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
+            "Statistics sync invalidated by a development profile reset.");
         try
         {
             if (Directory.Exists(activeDirectory))
@@ -1455,6 +1748,9 @@ public class SaveManager : MonoBehaviour
         compatibilityMigrationPending = false;
         loadedCollectionSectionPresent = false;
         claimPersistenceUncertain = false;
+        upgradesIntroSeen = false;
+        rebirthIntroSeen = false;
+        collectionIntroSeen = false;
         dessertCollection.Clear();
         economyManager.RestoreLifetimeStatistics(0, 0);
 
@@ -1677,6 +1973,13 @@ public class SaveManager : MonoBehaviour
     public bool SaveFileExists()
 
     {
+        if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+        {
+            Debug.LogWarning(
+                "SAVE | Save-file checks are blocked until the pending cloud restore is resolved.",
+                this);
+            return false;
+        }
 
         string primaryPath = SaveFilePath;
         return File.Exists(primaryPath) ||
@@ -1705,6 +2008,10 @@ public class SaveManager : MonoBehaviour
         saveData.economy.totalOrdersCompleted = 0;
 
         saveData.economy.totalMoneyEarned = 0;
+
+        saveData.upgradesIntroSeen = upgradesIntroSeen;
+        saveData.rebirthIntroSeen = rebirthIntroSeen;
+        saveData.collectionIntroSeen = collectionIntroSeen;
 
         dessertCollection.CaptureTo(
             saveData.dessertCollection);
@@ -2757,6 +3064,13 @@ public class SaveManager : MonoBehaviour
     public bool LoadCurrentGame()
 
     {
+        if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+        {
+            Debug.LogWarning(
+                "LOAD | Save V2 loading is blocked until the pending cloud restore is resolved.",
+                this);
+            return false;
+        }
 
         if (saveInProgress || loadInProgress)
 
@@ -2960,6 +3274,8 @@ public class SaveManager : MonoBehaviour
         if (needsCollectionBackfill)
             compatibilityMigrationPending = true;
 
+        RestoreFeatureIntroductionAcknowledgements(saveData);
+
         Debug.Log(
 
             "LOAD | Current game restored successfully."
@@ -2968,6 +3284,14 @@ public class SaveManager : MonoBehaviour
 
         return true;
 
+    }
+
+    private void RestoreFeatureIntroductionAcknowledgements(
+        PlayerSaveData saveData)
+    {
+        upgradesIntroSeen = saveData.upgradesIntroSeen;
+        rebirthIntroSeen = saveData.rebirthIntroSeen;
+        collectionIntroSeen = saveData.collectionIntroSeen;
     }
 
     // ==================================================
@@ -2986,6 +3310,8 @@ public class SaveManager : MonoBehaviour
 
             return false;
 
+        SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
+            "Statistics sync invalidated by an explicit Save V2 replacement.");
         saveInProgress = true;
 
         try
@@ -3848,6 +4174,14 @@ public class SaveManager : MonoBehaviour
     public bool TryLoad(out PlayerSaveData saveData)
     {
         saveData = null;
+        if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+        {
+            Debug.LogWarning(
+                "LOAD | Save V2 reads are blocked until the pending cloud restore is resolved.",
+                this);
+            return false;
+        }
+
         string primaryPath = SaveFilePath;
         byte[] primaryBytes = null;
         bool primaryExists = false;
@@ -4079,6 +4413,8 @@ public class SaveManager : MonoBehaviour
         if (!DiskMatchesSnapshot(backupPath, backupBytes))
             throw new IOException("Backup changed before primary recovery commit.");
 
+        SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
+            "Statistics sync invalidated by local save recovery.");
         // Reuse existing Windows/Android atomic rename. Critically, do NOT call
         // SaveCore or CreateValidatedBackup here: a damaged primary must never
         // replace the known-good .bak.
@@ -4736,6 +5072,8 @@ public class SaveManager : MonoBehaviour
 
         {
 
+            SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
+                "Statistics sync invalidated by a local save deletion.");
             File.Delete(
 
                 SaveFilePath

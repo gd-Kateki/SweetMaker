@@ -64,11 +64,13 @@ namespace SweetMerge.Cloud
         private void Awake()
         {
             Instance = this; DontDestroyOnLoad(gameObject);
-            if (SimpleCloudFiles.StartupError != null) SimpleCloudPanel.ShowRestartOverlay();
+            if (SimpleCloudFiles.StartupError != null &&
+                !SimpleCloudFiles.StartupRestorePending)
+                SimpleCloudPanel.ShowRestartOverlay();
         }
         private void OnDestroy() { if (Instance == this) Instance = null; }
 
-        private static string CurrentOwner()
+        internal static string GetVerifiedCurrentOwnerId()
         {
             if (SavePathPolicy.ModeName == "GUEST-QA-SANDBOX" ||
                 UnityServices.State != ServicesInitializationState.Initialized) return null;
@@ -79,6 +81,9 @@ namespace SweetMerge.Cloud
             return auth.PlayerInfo != null && !string.IsNullOrWhiteSpace(auth.PlayerInfo.GetGooglePlayGamesId())
                 ? auth.PlayerId : null;
         }
+
+        private static string CurrentOwner() =>
+            GetVerifiedCurrentOwnerId();
 
         private void Update()
         {

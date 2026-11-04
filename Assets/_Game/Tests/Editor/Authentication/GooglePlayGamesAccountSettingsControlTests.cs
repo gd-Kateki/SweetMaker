@@ -54,6 +54,13 @@ namespace SweetMerge.Authentication.Tests
                 return PlayGamesTask;
             }
 
+            public Task<PlayGamesAuthenticationStatus>
+                AuthenticateWithPlayGamesInteractivelyAsync()
+            {
+                PlayGamesAuthenticationCount++;
+                return PlayGamesTask;
+            }
+
             public Task<string> RequestServerSideAccessAsync(
                 bool forceRefreshToken)
             {

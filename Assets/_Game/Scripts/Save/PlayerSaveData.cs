@@ -21,6 +21,14 @@ public class PlayerSaveData
 
     public bool campaignComplete = false;
 
+    // This backward-compatible V2 extension defaults absent acknowledgement fields
+    // to unseen; the strict validator permits only these specific omissions.
+    public bool upgradesIntroSeen = false;
+
+    public bool rebirthIntroSeen = false;
+
+    public bool collectionIntroSeen = false;
+
     public EconomySaveData economy =
         new EconomySaveData();
 

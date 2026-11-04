@@ -64,7 +64,15 @@ internal static class AndroidBuildIdentityGuard
     internal const string ReleaseProfilePath =
         "Assets/Settings/Build Profiles/Android Release.asset";
 
-    private static readonly string[] RequiredScenes =
+    private static readonly string[] DevelopmentScenes =
+    {
+        "Assets/_Game/Scenes/Welcome.unity",
+        "Assets/_Game/Scenes/Loading.unity",
+        "Assets/_Game/Scenes/MainBakery.unity",
+        "Assets/_Game/Scenes/Game.unity"
+    };
+
+    private static readonly string[] ReleaseScenes =
     {
         "Assets/_Game/Scenes/MainBakery.unity",
         "Assets/_Game/Scenes/Game.unity"
@@ -116,6 +124,9 @@ internal static class AndroidBuildIdentityGuard
         string expectedIdentifier = expectedDevelopmentBuild
             ? DevelopmentIdentifier
             : ReleaseIdentifier;
+        string[] expectedScenes = expectedDevelopmentBuild
+            ? DevelopmentScenes
+            : ReleaseScenes;
 
         if (string.IsNullOrWhiteSpace(snapshot.ActiveProfilePath))
             return "Android build has no active Build Profile.";
@@ -173,28 +184,28 @@ internal static class AndroidBuildIdentityGuard
             return "Could not determine the effective Android Build Profile scene list.";
         }
 
-        if (snapshot.ScenePaths.Length != RequiredScenes.Length ||
-            snapshot.SceneEnabled.Length != RequiredScenes.Length ||
-            snapshot.SceneExists.Length != RequiredScenes.Length)
+        if (snapshot.ScenePaths.Length != expectedScenes.Length ||
+            snapshot.SceneEnabled.Length != expectedScenes.Length ||
+            snapshot.SceneExists.Length != expectedScenes.Length)
         {
             return "Android Build Profile must contain exactly the required scenes, with no missing or unexpected entries.";
         }
 
-        for (int index = 0; index < RequiredScenes.Length; index++)
+        for (int index = 0; index < expectedScenes.Length; index++)
         {
             if (!snapshot.SceneExists[index])
                 return "Required Android scene is missing: " +
-                    RequiredScenes[index] +
+                    expectedScenes[index] +
                     ".";
 
             if (!snapshot.SceneEnabled[index])
                 return "Required Android scene is not enabled: " +
-                    RequiredScenes[index] +
+                    expectedScenes[index] +
                     ".";
 
             if (!string.Equals(
-                    snapshot.ScenePaths[index],
-                    RequiredScenes[index],
+                    NormalizeAssetPath(snapshot.ScenePaths[index]),
+                    expectedScenes[index],
                     StringComparison.Ordinal))
             {
                 return "Android Build Profile scenes are missing, unexpected, duplicated, or out of order.";

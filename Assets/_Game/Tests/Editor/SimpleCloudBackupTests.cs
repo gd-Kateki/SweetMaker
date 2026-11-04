@@ -58,7 +58,7 @@ public sealed class SimpleCloudBackupTests
     public void SyncDecisionRequiresConsentUnlessCloudIsAccepted(string local,string remote,string accepted,int expected)
     { Assert.AreEqual(expected, Find("SweetMerge.Cloud.SimpleCloudBackup").GetMethod("Decide").Invoke(null,new object[]{local,remote,accepted})); }
 
-    private static void FilesCall(string method, params object[] args) =>
+    private static object FilesCall(string method, params object[] args) =>
         Find("SweetMerge.Cloud.SimpleCloudFiles").GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static).Invoke(null,args);
 
     [Test] public void RestorePreservesOriginalsAndFinishesAnInterruptedPromotion()
@@ -77,7 +77,7 @@ public sealed class SimpleCloudBackupTests
         foreach(var file in files) Assert.AreEqual(old,File.ReadAllText(Path.Combine(recovery,file)));
         // Simulate a process exit after only the first file was promoted.
         File.WriteAllText(Path.Combine(root,files[0]),(string)Get(value,"saveJson"));
-        FilesCall("ApplyPendingAtRoot",root);
+        FilesCall("ApplyPendingAtRoot",root,"player-a");
         Assert.AreEqual(Get(value,"saveJson"),File.ReadAllText(Path.Combine(root,files[0])));
         Assert.AreEqual(Get(value,"saveJson"),File.ReadAllText(Path.Combine(root,files[1])));
         StringAssert.Contains("Sunny Café",File.ReadAllText(Path.Combine(root,files[2])));
@@ -85,6 +85,110 @@ public sealed class SimpleCloudBackupTests
         Assert.IsFalse(File.Exists(Path.Combine(root,"cloud-restore.pending.json")));
         Assert.AreEqual(1,Directory.GetFiles(root,"cloud-restore.pending.json.completed.*").Length);
         foreach(var file in files) Assert.AreEqual(old,File.ReadAllText(Path.Combine(recovery,file)));
+    }
+
+    [Test]
+    public void PendingDetectionDoesNotApplyOrOverwriteActiveSave()
+    {
+        string root=Path.GetFullPath(Path.Combine(
+            "Temp","CloudSaveTests",Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        string savePath=Path.Combine(root,"player_save_v2.json");
+        const string original="existing local progress";
+        File.WriteAllText(savePath,original);
+        try
+        {
+            FilesCall("StageRestoreAtRoot",root,Envelope());
+
+            Assert.IsTrue(
+                (bool)FilesCall("RefreshPendingStateAtRoot",root));
+            Assert.IsTrue(
+                (bool)Find("SweetMerge.Cloud.SimpleCloudFiles")
+                    .GetProperty("StartupRestorePending")
+                    .GetValue(null));
+            Assert.AreEqual(original,File.ReadAllText(savePath));
+            Assert.IsTrue(File.Exists(
+                Path.Combine(root,"cloud-restore.pending.json")));
+            Assert.AreEqual(0,Directory.GetFiles(
+                root,"cloud-restore.pending.json.completed.*").Length);
+        }
+        finally
+        {
+            FilesCall("ResetStateForTests");
+            if (Directory.Exists(root))
+                Directory.Delete(root,true);
+        }
+    }
+
+    [Test]
+    public void MismatchedOwnerCannotApplyPendingRestore()
+    {
+        string root=Path.GetFullPath(Path.Combine(
+            "Temp","CloudSaveTests",Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        string savePath=Path.Combine(root,"player_save_v2.json");
+        const string original="existing local progress";
+        File.WriteAllText(savePath,original);
+        try
+        {
+            FilesCall("StageRestoreAtRoot",root,Envelope());
+
+            Assert.Throws<TargetInvocationException>(
+                ()=>FilesCall("ApplyPendingAtRoot",root,"player-b"));
+            Assert.AreEqual(original,File.ReadAllText(savePath));
+            Assert.IsTrue(File.Exists(
+                Path.Combine(root,"cloud-restore.pending.json")));
+            Assert.AreEqual(0,Directory.GetFiles(
+                root,"cloud-restore.pending.json.completed.*").Length);
+        }
+        finally
+        {
+            FilesCall("ResetStateForTests");
+            if (Directory.Exists(root))
+                Directory.Delete(root,true);
+        }
+    }
+
+    [Test]
+    public void ProfileAndTutorialStoresRefuseReadsAndWritesWhilePending()
+    {
+        string root=Path.GetFullPath(Path.Combine(
+            "Temp","CloudSaveTests",Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(
+            Path.Combine(root,"cloud-restore.pending.json"),
+            "pending");
+        try
+        {
+            Assert.IsTrue(
+                (bool)FilesCall("RefreshPendingStateAtRoot",root));
+
+            object[] cafeArguments={null,null};
+            object cafeStatus=Find("SweetMerge.Profile.CafeProfileLocalStore")
+                .GetMethod("Load")
+                .Invoke(null,cafeArguments);
+            Assert.AreEqual("ServiceError",cafeStatus.ToString());
+
+            Type tutorialType=Find("SweetMerge.Profile.TutorialProgressJournal");
+            Type stageType=Find("SweetMerge.Profile.TutorialStage");
+            object[] loadArguments={Enum.ToObject(stageType,0),null};
+            object loadStatus=tutorialType.GetMethod("TryLoad",
+                BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null,loadArguments);
+            Assert.AreEqual("ServiceError",loadStatus.ToString());
+
+            object[] saveArguments={Enum.ToObject(stageType,1),null};
+            object saveStatus=tutorialType.GetMethod("TrySave",
+                BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null,saveArguments);
+            Assert.AreEqual("ServiceError",saveStatus.ToString());
+        }
+        finally
+        {
+            FilesCall("ResetStateForTests");
+            if (Directory.Exists(root))
+                Directory.Delete(root,true);
+        }
     }
 
     [Test] public void InvalidRestoreDoesNotTouchExistingFiles()
@@ -96,5 +200,64 @@ public sealed class SimpleCloudBackupTests
         Assert.Throws<TargetInvocationException>(()=>FilesCall("StageRestoreAtRoot",root,value));
         Assert.AreEqual("preserve me",File.ReadAllText(primary));
         Assert.AreEqual(1,Directory.GetFiles(root,"*",SearchOption.AllDirectories).Length);
+    }
+
+    [Test] public void CloudRestorePreservesNewAndLegacyIntroductionFlags()
+    {
+        Type saveType = Find("PlayerSaveData");
+        MethodInfo validateCloud = Find("SaveManager").GetMethod(
+            "ValidateCloudSnapshot",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        foreach (bool legacy in new[] { true, false })
+        {
+            string root=Path.GetFullPath(Path.Combine(
+                "Temp",
+                "CloudSaveTests",
+                Guid.NewGuid().ToString("N")));
+            Directory.CreateDirectory(root);
+            try
+            {
+                var value=Envelope();
+                string json=(string)Get(value,"saveJson");
+                if (legacy)
+                {
+                    foreach (string field in new[]
+                    {
+                        "upgradesIntroSeen",
+                        "rebirthIntroSeen",
+                        "collectionIntroSeen"
+                    })
+                        json=json.Replace(",\""+field+"\":false",string.Empty);
+                }
+                else
+                {
+                    json=json.Replace(
+                        "\"upgradesIntroSeen\":false",
+                        "\"upgradesIntroSeen\":true");
+                    json=json.Replace(
+                        "\"collectionIntroSeen\":false",
+                        "\"collectionIntroSeen\":true");
+                }
+                Set(value,"saveJson",json);
+                Seal(value);
+                Assert.IsTrue(Valid(value));
+
+                FilesCall("StageRestoreAtRoot",root,value);
+                FilesCall("ApplyPendingAtRoot",root,"player-a");
+                string restoredJson=File.ReadAllText(
+                    Path.Combine(root,"player_save_v2.json"));
+                Assert.IsTrue((bool)validateCloud.Invoke(
+                    null,new object[]{restoredJson}));
+                object restored=JsonUtility.FromJson(restoredJson,saveType);
+                Assert.AreEqual(!legacy,Get(restored,"upgradesIntroSeen"));
+                Assert.IsFalse((bool)Get(restored,"rebirthIntroSeen"));
+                Assert.AreEqual(!legacy,Get(restored,"collectionIntroSeen"));
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                    Directory.Delete(root,true);
+            }
+        }
     }
 }

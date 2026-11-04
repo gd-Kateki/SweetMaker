@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using SweetMerge.Startup;
 
 namespace SweetMerge.Profile
 {
@@ -14,14 +15,41 @@ namespace SweetMerge.Profile
         private TMP_Text bodyText;
         private Button startButton;
         private bool subscribed;
+        private bool subscribedToReadiness;
         private bool enterGameplayAfterDismiss;
+        private static bool isListeningForSceneLoads;
         private static Sprite uiSprite;
 
         [RuntimeInitializeOnLoadMethod(
-            RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateForMainBakery()
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSceneLoadedHandler()
         {
-            Scene scene = SceneManager.GetActiveScene();
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            isListeningForSceneLoads = false;
+        }
+
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoadedHandler()
+        {
+            if (isListeningForSceneLoads)
+                return;
+
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+            isListeningForSceneLoads = true;
+            CreateForMainBakery(SceneManager.GetActiveScene());
+        }
+
+        private static void HandleSceneLoaded(
+            Scene scene,
+            LoadSceneMode mode)
+        {
+            CreateForMainBakery(scene);
+        }
+
+        private static void CreateForMainBakery(Scene scene)
+        {
             if (!scene.IsValid() ||
                 scene.name != SceneNavigationManager.MainBakeryScene)
                 return;
@@ -51,12 +79,14 @@ namespace SweetMerge.Profile
         private void OnEnable()
         {
             Subscribe();
+            SubscribeToReadiness();
             Refresh();
         }
 
         private void OnDisable()
         {
             Unsubscribe();
+            UnsubscribeFromReadiness();
         }
 
         private void BuildPanel()
@@ -147,6 +177,29 @@ namespace SweetMerge.Profile
             subscribed = true;
         }
 
+        private void SubscribeToReadiness()
+        {
+            ApplicationReadinessCoordinator readiness =
+                ApplicationReadinessCoordinator.Instance;
+            if (subscribedToReadiness || readiness == null)
+                return;
+
+            readiness.StateChanged += HandleApplicationReadinessChanged;
+            subscribedToReadiness = true;
+        }
+
+        private void UnsubscribeFromReadiness()
+        {
+            if (!subscribedToReadiness)
+                return;
+
+            ApplicationReadinessCoordinator readiness =
+                ApplicationReadinessCoordinator.Instance;
+            if (readiness != null)
+                readiness.StateChanged -= HandleApplicationReadinessChanged;
+            subscribedToReadiness = false;
+        }
+
         private void Unsubscribe()
         {
             if (!subscribed || controller == null)
@@ -188,6 +241,12 @@ namespace SweetMerge.Profile
             Refresh();
         }
 
+        private void HandleApplicationReadinessChanged(
+            ApplicationReadinessState state)
+        {
+            Refresh();
+        }
+
         private void HandleCompleted()
         {
             Refresh();
@@ -201,6 +260,7 @@ namespace SweetMerge.Profile
             controller = HybridTutorialController.Instance;
             bool visible = controller != null &&
                 controller.IsReady &&
+                StartupFlowIntegrationOwner.CanPresentTutorialWelcome &&
                 controller.State.Stage == TutorialStage.Welcome &&
                 !controller.State.IsCompleted;
             panel.SetActive(visible);

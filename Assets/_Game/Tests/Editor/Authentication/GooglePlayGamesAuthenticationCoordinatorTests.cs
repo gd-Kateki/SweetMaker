@@ -34,6 +34,7 @@ namespace SweetMerge.Authentication.Tests
             public int InitializationCount { get; private set; }
             public int CachedSessionRestorationCount { get; private set; }
             public int PlayGamesAuthenticationCount { get; private set; }
+            public int InteractiveAuthenticationCount { get; private set; }
             public int AuthorizationCodeRequestCount { get; private set; }
             public int UnityAuthenticationCount { get; private set; }
             public int SessionStatusRefreshCount { get; private set; }
@@ -59,6 +60,13 @@ namespace SweetMerge.Authentication.Tests
                 AuthenticateWithPlayGamesAsync()
             {
                 PlayGamesAuthenticationCount++;
+                return PlayGamesTask;
+            }
+
+            public Task<PlayGamesAuthenticationStatus>
+                AuthenticateWithPlayGamesInteractivelyAsync()
+            {
+                InteractiveAuthenticationCount++;
                 return PlayGamesTask;
             }
 
@@ -593,6 +601,109 @@ namespace SweetMerge.Authentication.Tests
                 coordinator.SessionStatus);
             Assert.AreEqual(0, runtime.CachedSessionRestorationCount);
             Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
+        }
+
+        [Test]
+        public async Task InteractiveSignInCanUsePreviouslySavedUnitySession()
+        {
+            var runtime = new FakeRuntime
+            {
+                CachedSessionTokenExists = true,
+                SessionStatus =
+                    GooglePlayGamesSessionStatus.PreviousSessionAvailable
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.SignedIn,
+                await coordinator.SignInInteractivelyAsync());
+
+            Assert.AreEqual(
+                GooglePlayGamesSessionStatus.GooglePlayGamesConnected,
+                coordinator.SessionStatus);
+            Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
+            Assert.AreEqual(1, runtime.InteractiveAuthenticationCount);
+            Assert.AreEqual(1, runtime.AuthorizationCodeRequestCount);
+            Assert.AreEqual(1, runtime.UnityAuthenticationCount);
+        }
+
+        [Test]
+        public async Task InteractiveSignInReverifiesAnAlreadyRestoredSession()
+        {
+            var runtime = new FakeRuntime
+            {
+                CachedSessionTokenExists = true,
+                SessionStatus =
+                    GooglePlayGamesSessionStatus.GooglePlayGamesConnected
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.SignedIn,
+                await coordinator.RestoreSessionAsync());
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.SignedIn,
+                await coordinator.SignInInteractivelyAsync());
+
+            Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(1, runtime.InteractiveAuthenticationCount);
+            Assert.AreEqual(1, runtime.AuthorizationCodeRequestCount);
+            Assert.AreEqual(1, runtime.UnityAuthenticationCount);
+        }
+
+        [Test]
+        public async Task InteractiveSignInCanRecoverAfterCachedRestorationFails()
+        {
+            var runtime = new FakeRuntime
+            {
+                CachedSessionTokenExists = true,
+                SessionStatus =
+                    GooglePlayGamesSessionStatus.RestorationFailed,
+                RestorationTask = Task.FromException<
+                    GooglePlayGamesSessionStatus>(
+                    new InvalidOperationException("cached restore failed"))
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.Failed,
+                await coordinator.RestoreSessionAsync());
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.SignedIn,
+                await coordinator.SignInInteractivelyAsync());
+
+            Assert.AreEqual(1, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(1, runtime.InteractiveAuthenticationCount);
+            Assert.AreEqual(1, runtime.AuthorizationCodeRequestCount);
+            Assert.AreEqual(1, runtime.UnityAuthenticationCount);
+        }
+
+        [Test]
+        public async Task InteractiveSignInWithoutCachedSessionRequiresGoogleAuthentication()
+        {
+            var runtime = new FakeRuntime
+            {
+                PlayGamesTask = Task.FromResult(
+                    PlayGamesAuthenticationStatus.Failed)
+            };
+            var coordinator =
+                new GooglePlayGamesAuthenticationCoordinator(runtime);
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationResult.Failed,
+                await coordinator.SignInInteractivelyAsync());
+
+            Assert.AreEqual(
+                GooglePlayGamesAuthenticationFailure.PlayGamesAuthentication,
+                coordinator.Failure);
+            Assert.AreEqual(0, runtime.PlayGamesAuthenticationCount);
+            Assert.AreEqual(1, runtime.InteractiveAuthenticationCount);
+            Assert.AreEqual(0, runtime.CachedSessionRestorationCount);
+            Assert.AreEqual(0, runtime.AuthorizationCodeRequestCount);
+            Assert.AreEqual(0, runtime.UnityAuthenticationCount);
         }
 
         [Test]

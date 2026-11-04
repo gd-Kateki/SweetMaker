@@ -39,6 +39,15 @@ public sealed class ApplicationReadinessCoordinator : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void CreateRuntimeOwner()
     {
+        EnsureRuntimeOwner();
+    }
+
+    internal static void EnsureRuntimeOwner()
+    {
+        if (Instance != null)
+            return;
+
+        Instance = FindAnyObjectByType<ApplicationReadinessCoordinator>();
         if (Instance != null)
             return;
 

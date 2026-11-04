@@ -451,7 +451,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1.5, y: 75.5}
+  m_AnchoredPosition: {x: 1.5, y: 104}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &68024842
@@ -912,7 +912,7 @@ Transform:
   m_GameObject: {fileID: 157716320}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.6, y: -1.5400002, z: 0}
+  m_LocalPosition: {x: -4.17, y: -1.5400002, z: 0}
   m_LocalScale: {x: 0.68, y: 0.68, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1847,7 +1847,7 @@ Transform:
   m_GameObject: {fileID: 279505501}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.6, y: -2.89, z: 0}
+  m_LocalPosition: {x: -4.17, y: -2.89, z: 0}
   m_LocalScale: {x: 0.68, y: 0.68, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2147,7 +2147,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -65.5}
+  m_AnchoredPosition: {x: 0, y: -110.7}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &341136582
@@ -2870,7 +2870,7 @@ Transform:
   m_GameObject: {fileID: 485945250}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.56, y: -0.4304, z: 0}
+  m_LocalPosition: {x: -4.17, y: -0.4304, z: 0}
   m_LocalScale: {x: 0.8157111, y: 0.85608447, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4420,7 +4420,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.99998, y: -65.5}
+  m_AnchoredPosition: {x: -0.99998, y: -110.7}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &577848913
@@ -5015,7 +5015,7 @@ Transform:
   m_GameObject: {fileID: 910135332}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.6, y: 2.2599998, z: 0}
+  m_LocalPosition: {x: -4.17, y: 2.2599998, z: 0}
   m_LocalScale: {x: 0.68, y: 0.68, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6443,7 +6443,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 75.5}
+  m_AnchoredPosition: {x: 0, y: 104}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1183043706
@@ -8241,7 +8241,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1, y: -65.5}
+  m_AnchoredPosition: {x: 1, y: -110.7}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1530514401
@@ -8312,7 +8312,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5000001012}
-
   m_Father: {fileID: 1297646555}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
@@ -8434,7 +8433,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CashDisplayUI
   cashText: {fileID: 1561043378}
   cashBackground: {fileID: 5000001004}
-
 --- !u!114 &1561043381
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8481,7 +8479,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 75.5}
+  m_AnchoredPosition: {x: 0, y: 104}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1569072702
@@ -8658,7 +8656,7 @@ Transform:
   m_GameObject: {fileID: 1628595289}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.6, y: 1.0399998, z: 0}
+  m_LocalPosition: {x: -4.17, y: 1.0399998, z: 0}
   m_LocalScale: {x: 0.68, y: 0.68, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10106,7 +10104,7 @@ Transform:
   m_GameObject: {fileID: 1875681542}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.6, y: -0.23000002, z: 0}
+  m_LocalPosition: {x: -4.17, y: -0.23000002, z: 0}
   m_LocalScale: {x: 0.68, y: 0.68, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13777,8 +13775,6 @@ MonoBehaviour:
   hudBackground: {fileID: 5000001014}
   energyText: {fileID: 5000001024}
   countdownText: {fileID: 5000001034}
-
-
 --- !u!114 &3000004000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13839,7 +13835,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 380.8, y: 326.4}
+  m_AnchoredPosition: {x: 386.5, y: 334.8}
   m_SizeDelta: {x: 227, y: 49}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000001003
@@ -14184,7 +14180,6 @@ RectTransform:
   - {fileID: 5401589}
   - {fileID: 1991784448}
   - {fileID: 5000001032}
-
   m_Father: {fileID: 1561043377}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
@@ -14459,8 +14454,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 15
-  m_fontSizeBase: 15
+  m_fontSize: 20
+  m_fontSizeBase: 20
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -14538,7 +14533,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1.5, y: -65.5}
+  m_AnchoredPosition: {x: 1.5, y: -110.7}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001003
@@ -15111,7 +15106,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.99999, y: -65.5}
+  m_AnchoredPosition: {x: -0.99999, y: -110.7}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002003
@@ -15684,7 +15679,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1, y: -65.5}
+  m_AnchoredPosition: {x: 1, y: -110.7}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003003
@@ -19842,36 +19837,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9200000000000100020}
   m_CullTransparentMesh: 1
---- !u!114 &9200000000000100800
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9200000000000100020}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2d3f0e2d5a2941779ee156972f48d4a3, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::SettingsScreenPresentation
-  overlayImage: {fileID: 9200000000000100014}
-  panelImage: {fileID: 9200000000000100022}
-  panelRectTransform: {fileID: 9200000000000100021}
-  titleText: {fileID: 9200000000000100026}
-  closeButtonImage: {fileID: 9200000000000100030}
-  contentRectTransform: {fileID: 9200000000000100044}
-  sfxVolumeSlider: {fileID: 9200000000000100062}
-  panelSprite: {fileID: 5856762989701713786, guid: 0c4326220fdc2e645bf604a0840304ab, type: 3}
-  titlePlaqueSprite: {fileID: 4542774034356269388, guid: 965d1c525c8b6bd4d886b60d6799d9d2, type: 3}
-  closeButtonSprite: {fileID: 193919316100044067, guid: cd5f9896cf6da5b46bd2546ebdb0ead4, type: 3}
-  cardOneSprite: {fileID: 8820037596666261028, guid: c2e5ee44f76767f41a2392f625744b7a, type: 3}
-  cardTwoSprite: {fileID: -3785507209392203160, guid: 436e5ef0df414e348a9459874c57c046, type: 3}
-  cardThreeSprite: {fileID: -8189203694832356727, guid: 0e70a39f43aa5ec43a45d1b6b28c9284, type: 3}
-  cardFourSprite: {fileID: 8838427646707104255, guid: 2c3a2f7b250524a43bed28dfb1e98dc7, type: 3}
-  toggleTrackSprite: {fileID: 6616833125504691804, guid: e7171398ebaff6945a2a709a61233189, type: 3}
-  toggleKnobSprite: {fileID: -8429112307510067671, guid: 21dbcfc68c15fe74181cf7b62e043fa6, type: 3}
-  sliderTrackSprite: {fileID: 5607921865850061127, guid: 1ac0c1996b9caed4ca0ad4f412b10000, type: 3}
-  sliderHandleSprite: {fileID: -4364584394080107995, guid: 37b4eabced6fb5b42a0ce44537e7310c, type: 3}
 --- !u!1 &9200000000000100024
 GameObject:
   m_ObjectHideFlags: 0
@@ -24027,6 +23992,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SettingsOverlayCancelHandler
   settingsUI: {fileID: 9200000000000100011}
+--- !u!114 &9200000000000100800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000100020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d3f0e2d5a2941779ee156972f48d4a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsScreenPresentation
+  overlayImage: {fileID: 9200000000000100014}
+  panelImage: {fileID: 9200000000000100022}
+  panelRectTransform: {fileID: 9200000000000100021}
+  titleText: {fileID: 9200000000000100026}
+  closeButtonImage: {fileID: 9200000000000100030}
+  contentRectTransform: {fileID: 9200000000000100044}
+  sfxVolumeSlider: {fileID: 9200000000000100062}
+  panelSprite: {fileID: 5856762989701713786, guid: 0c4326220fdc2e645bf604a0840304ab, type: 3}
+  titlePlaqueSprite: {fileID: 4542774034356269388, guid: 965d1c525c8b6bd4d886b60d6799d9d2, type: 3}
+  closeButtonSprite: {fileID: 193919316100044067, guid: cd5f9896cf6da5b46bd2546ebdb0ead4, type: 3}
+  cardOneSprite: {fileID: 8820037596666261028, guid: c2e5ee44f76767f41a2392f625744b7a, type: 3}
+  cardTwoSprite: {fileID: -3785507209392203160, guid: 436e5ef0df414e348a9459874c57c046, type: 3}
+  cardThreeSprite: {fileID: -8189203694832356727, guid: 0e70a39f43aa5ec43a45d1b6b28c9284, type: 3}
+  cardFourSprite: {fileID: 8838427646707104255, guid: 2c3a2f7b250524a43bed28dfb1e98dc7, type: 3}
+  toggleTrackSprite: {fileID: 6616833125504691804, guid: e7171398ebaff6945a2a709a61233189, type: 3}
+  toggleKnobSprite: {fileID: -8429112307510067671, guid: 21dbcfc68c15fe74181cf7b62e043fa6, type: 3}
+  sliderTrackSprite: {fileID: 5607921865850061127, guid: 1ac0c1996b9caed4ca0ad4f412b10000, type: 3}
+  sliderHandleSprite: {fileID: -4364584394080107995, guid: 37b4eabced6fb5b42a0ce44537e7310c, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

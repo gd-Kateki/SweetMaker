@@ -15,6 +15,10 @@ public sealed class AndroidBuildIdentityGuardTests
         "com.offcutstudios.dessertmergecafe.dev";
     private const string ReleaseIdentifier =
         "com.offcutstudios.dessertmergecafe";
+    private const string WelcomeScene =
+        "Assets/_Game/Scenes/Welcome.unity";
+    private const string LoadingScene =
+        "Assets/_Game/Scenes/Loading.unity";
     private const string MainBakeryScene =
         "Assets/_Game/Scenes/MainBakery.unity";
     private const string GameScene =
@@ -23,13 +27,21 @@ public sealed class AndroidBuildIdentityGuardTests
     [Test]
     public void CorrectDevelopmentProfileAndPackageAreAccepted()
     {
-        AssertAccepted(CreateSnapshot(true), true);
+        AssertAccepted(CreateSnapshot(
+            true,
+            scenePaths: DevelopmentScenes,
+            sceneEnabled: AllTrue(DevelopmentScenes.Length),
+            sceneExists: AllTrue(DevelopmentScenes.Length)), true);
     }
 
     [Test]
     public void CorrectReleaseProfileAndPackageAreAccepted()
     {
-        AssertAccepted(CreateSnapshot(false), false);
+        AssertAccepted(CreateSnapshot(
+            false,
+            scenePaths: ReleaseScenes,
+            sceneEnabled: AllTrue(ReleaseScenes.Length),
+            sceneExists: AllTrue(ReleaseScenes.Length)), false);
     }
 
     [Test]
@@ -54,6 +66,14 @@ public sealed class AndroidBuildIdentityGuardTests
         AssertRejected(CreateSnapshot(
             true,
             activeProfilePath: ReleaseProfile), true);
+    }
+
+    [Test]
+    public void DevelopmentProfileIsRejectedInReleaseMode()
+    {
+        AssertRejected(CreateSnapshot(
+            false,
+            activeProfilePath: DevelopmentProfile), false);
     }
 
     [Test]
@@ -91,9 +111,14 @@ public sealed class AndroidBuildIdentityGuardTests
     {
         AssertRejected(CreateSnapshot(
             true,
-            scenePaths: new[] { MainBakeryScene },
-            sceneEnabled: new[] { true },
-            sceneExists: new[] { true }), true);
+            scenePaths: new[]
+            {
+                WelcomeScene,
+                LoadingScene,
+                MainBakeryScene
+            },
+            sceneEnabled: AllTrue(3),
+            sceneExists: AllTrue(3)), true);
     }
 
     [Test]
@@ -101,7 +126,19 @@ public sealed class AndroidBuildIdentityGuardTests
     {
         AssertRejected(CreateSnapshot(
             true,
-            sceneExists: new[] { true, false }), true);
+            scenePaths: DevelopmentScenes,
+            sceneEnabled: AllTrue(DevelopmentScenes.Length),
+            sceneExists: new[] { true, true, true, false }), true);
+    }
+
+    [Test]
+    public void DisabledSceneIsRejected()
+    {
+        AssertRejected(CreateSnapshot(
+            true,
+            scenePaths: DevelopmentScenes,
+            sceneEnabled: new[] { true, false, true, true },
+            sceneExists: AllTrue(DevelopmentScenes.Length)), true);
     }
 
     [Test]
@@ -109,7 +146,13 @@ public sealed class AndroidBuildIdentityGuardTests
     {
         AssertRejected(CreateSnapshot(
             true,
-            scenePaths: new[] { GameScene, MainBakeryScene }), true);
+            scenePaths: new[]
+            {
+                LoadingScene,
+                WelcomeScene,
+                MainBakeryScene,
+                GameScene
+            }), true);
     }
 
     [Test]
@@ -117,7 +160,13 @@ public sealed class AndroidBuildIdentityGuardTests
     {
         AssertRejected(CreateSnapshot(
             true,
-            scenePaths: new[] { MainBakeryScene, MainBakeryScene }), true);
+            scenePaths: new[]
+            {
+                WelcomeScene,
+                LoadingScene,
+                MainBakeryScene,
+                MainBakeryScene
+            }), true);
     }
 
     [Test]
@@ -125,7 +174,34 @@ public sealed class AndroidBuildIdentityGuardTests
     {
         AssertRejected(CreateSnapshot(
             true,
-            scenePaths: new[] { MainBakeryScene, "Assets/Unexpected.unity" }), true);
+            scenePaths: new[]
+            {
+                WelcomeScene,
+                LoadingScene,
+                MainBakeryScene,
+                GameScene,
+                "Assets/Unexpected.unity"
+            }), true);
+    }
+
+    [Test]
+    public void DevelopmentSceneListIsRejectedInReleaseMode()
+    {
+        AssertRejected(CreateSnapshot(
+            false,
+            scenePaths: DevelopmentScenes,
+            sceneEnabled: AllTrue(DevelopmentScenes.Length),
+            sceneExists: AllTrue(DevelopmentScenes.Length)), false);
+    }
+
+    [Test]
+    public void ReleaseSceneListIsRejectedInDevelopmentMode()
+    {
+        AssertRejected(CreateSnapshot(
+            true,
+            scenePaths: ReleaseScenes,
+            sceneEnabled: AllTrue(ReleaseScenes.Length),
+            sceneExists: AllTrue(ReleaseScenes.Length)), true);
     }
 
     [Test]
@@ -239,11 +315,11 @@ public sealed class AndroidBuildIdentityGuardTests
         if (!minimumApiLevel.HasValue && androidSettingsAvailable)
             minimumApiLevel = development ? 32 : 29;
         if (scenePaths == null && scenesAvailable)
-            scenePaths = new[] { MainBakeryScene, GameScene };
+            scenePaths = development ? DevelopmentScenes : ReleaseScenes;
         if (sceneEnabled == null && scenesAvailable)
-            sceneEnabled = new[] { true, true };
+            sceneEnabled = AllTrue(scenePaths.Length);
         if (sceneExists == null && scenesAvailable)
-            sceneExists = new[] { true, true };
+            sceneExists = AllTrue(scenePaths.Length);
         if (!androidSettingsAvailable)
         {
             usesIl2Cpp = null;
@@ -301,6 +377,27 @@ public sealed class AndroidBuildIdentityGuardTests
             targetApiIsAutomatic,
             targetApiLevel
         });
+    }
+
+    private static string[] DevelopmentScenes =>
+        new[]
+        {
+            WelcomeScene,
+            LoadingScene,
+            MainBakeryScene,
+            GameScene
+        };
+
+    private static string[] ReleaseScenes =>
+        new[]
+        {
+            MainBakeryScene,
+            GameScene
+        };
+
+    private static bool[] AllTrue(int count)
+    {
+        return Enumerable.Repeat(true, count).ToArray();
     }
 
     private static void AssertAccepted(object snapshot, bool development)

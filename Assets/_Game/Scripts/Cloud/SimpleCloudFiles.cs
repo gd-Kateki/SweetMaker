@@ -12,7 +12,10 @@ namespace SweetMerge.Cloud
     public static class SimpleCloudFiles
     {
         public static bool RestorePending { get; private set; }
+        public static bool StartupRestorePending { get; private set; }
         public static string StartupError { get; private set; }
+        public static event Action<bool> RestorePendingChanged;
+        internal static event Action<string> VerifiedRestorePromoted;
         private static string Root => SavePathPolicy.GetSaveDirectory();
         private static string Pending => Path.Combine(Root, "cloud-restore.pending.json");
         public static string Hash(string value)
@@ -32,8 +35,16 @@ namespace SweetMerge.Cloud
 
         public static void StageRestore(CloudBackupEnvelope value)
         {
-            try { StageRestoreAtRoot(Root, value); }
-            finally { RestorePending = File.Exists(Pending); }
+            try
+            {
+                StageRestoreAtRoot(Root, value);
+                SetRestorePending(true);
+            }
+            finally
+            {
+                if (File.Exists(Pending))
+                    SetRestorePending(true);
+            }
         }
 
         private static void StageRestoreAtRoot(string root, CloudBackupEnvelope value)
@@ -57,28 +68,108 @@ namespace SweetMerge.Cloud
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
-        private static void ApplyBeforeStoresLoad()
+        private static void DetectPendingBeforeSceneAwake()
         {
-            RestorePending = false; StartupError = null;
+            RefreshPendingState();
+        }
+
+        internal static bool RefreshPendingState()
+        {
+            return RefreshPendingStateAtRoot(Root);
+        }
+
+        internal static bool RefreshPendingStateAtRoot(string root)
+        {
             try
             {
-                if (!File.Exists(Pending)) return;
-                RestorePending = true;
-                ApplyPendingAtRoot(Root);
-                RestorePending = false;
+                bool pending = DetectPendingAtRoot(root);
+                StartupRestorePending = pending;
+                SetRestorePending(pending);
+                if (!pending)
+                    StartupError = null;
+                return pending;
             }
             catch (Exception)
             {
-                StartupError = "Cloud restore could not finish. Restart to retry. Previous files remain in CloudRecovery.";
+                StartupRestorePending = true;
+                SetRestorePending(true);
+                StartupError =
+                    "Pending cloud restore status could not be checked. " +
+                    "Startup is blocked to protect local data.";
                 Debug.LogError(StartupError);
+                return true;
             }
         }
 
-        private static void ApplyPendingAtRoot(string root)
+        public static bool TryApplyPendingRestore(out string errorMessage)
+        {
+            errorMessage = null;
+            try
+            {
+                if (!StartupRestorePending)
+                {
+                    errorMessage =
+                        "A pending restore can only be applied before startup data is loaded.";
+                    return false;
+                }
+
+                if (!FileExistsOrThrow(Pending))
+                {
+                    StartupRestorePending = false;
+                    SetRestorePending(false);
+                    StartupError = null;
+                    return true;
+                }
+
+                SetRestorePending(true);
+                string verifiedOwner =
+                    SimpleCloudBackup.GetVerifiedCurrentOwnerId();
+                if (string.IsNullOrEmpty(verifiedOwner))
+                {
+                    errorMessage =
+                        "Connect and verify the Google Play Games account " +
+                        "that owns this pending restore.";
+                    return false;
+                }
+
+                ApplyPendingAtRoot(Root, verifiedOwner);
+                StartupError = null;
+                NotifyVerifiedRestorePromoted(verifiedOwner);
+                StartupRestorePending = false;
+                SetRestorePending(false);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    bool pending = FileExistsOrThrow(Pending);
+                    StartupRestorePending = pending;
+                    SetRestorePending(pending);
+                }
+                catch (Exception statusException)
+                {
+                    Debug.LogError(
+                        "CLOUD RESTORE | Pending status could not be checked.\n" +
+                        statusException);
+                    SetRestorePending(true);
+                }
+                StartupError =
+                    "Cloud restore could not finish. Retry with the matching " +
+                    "Google account. Previous files remain in CloudRecovery.";
+                errorMessage = StartupError;
+                Debug.LogError(StartupError + "\n" + exception);
+                return false;
+            }
+        }
+
+        private static void ApplyPendingAtRoot(
+            string root,
+            string verifiedOwner)
         {
                 string pending = Path.Combine(root, "cloud-restore.pending.json");
                 var value = JsonUtility.FromJson<CloudBackupEnvelope>(File.ReadAllText(pending));
-                if (value == null || !value.IsValid(value.playerId))
+                if (value == null || !value.IsValid(verifiedOwner))
                     throw new InvalidDataException("The pending cloud restore failed validation.");
                 string cafe = JsonUtility.ToJson(new CafeProfileLocalRecordData {
                     version = 1, environment = value.environment, cafeName = value.cafeName, namingCompleted = true });
@@ -93,6 +184,84 @@ namespace SweetMerge.Cloud
                     WriteAtomic(Path.Combine(root, relative), content);
                 }
                 File.Move(pending, pending + ".completed." + Guid.NewGuid().ToString("N"));
+        }
+
+        internal static bool DetectPendingAtRoot(string root)
+        {
+            return FileExistsOrThrow(
+                Path.Combine(root, "cloud-restore.pending.json"));
+        }
+
+        private static bool FileExistsOrThrow(string path)
+        {
+            try
+            {
+                File.GetAttributes(path);
+                return true;
+            }
+            catch (FileNotFoundException)
+            {
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        internal static void ResetStateForTests()
+        {
+            RestorePending = false;
+            StartupRestorePending = false;
+            StartupError = null;
+            RestorePendingChanged = null;
+            VerifiedRestorePromoted = null;
+        }
+
+        private static void SetRestorePending(bool pending)
+        {
+            if (RestorePending == pending)
+                return;
+
+            RestorePending = pending;
+            Action<bool> listeners = RestorePendingChanged;
+            if (listeners == null)
+                return;
+
+            foreach (Action<bool> listener in listeners.GetInvocationList())
+            {
+                try
+                {
+                    listener(pending);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogError(
+                        "CLOUD RESTORE | A restore-state listener failed.\n" +
+                        exception);
+                }
+            }
+        }
+
+        private static void NotifyVerifiedRestorePromoted(string ownerId)
+        {
+            Action<string> listeners = VerifiedRestorePromoted;
+            if (listeners == null)
+                return;
+
+            foreach (Action<string> listener in listeners.GetInvocationList())
+            {
+                try
+                {
+                    listener(ownerId);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogError(
+                        "CLOUD RESTORE | A restore completion listener failed.\n" +
+                        exception);
+                }
+            }
         }
 
         private static void WriteNew(string path, byte[] bytes)

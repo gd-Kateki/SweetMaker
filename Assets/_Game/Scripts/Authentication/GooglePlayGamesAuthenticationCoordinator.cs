@@ -63,6 +63,8 @@ namespace SweetMerge.Authentication
         Task InitializeUnityServicesAsync();
         Task<GooglePlayGamesSessionStatus> RestoreCachedSessionAsync();
         Task<PlayGamesAuthenticationStatus> AuthenticateWithPlayGamesAsync();
+        Task<PlayGamesAuthenticationStatus>
+            AuthenticateWithPlayGamesInteractivelyAsync();
         Task<string> RequestServerSideAccessAsync(bool forceRefreshToken);
         Task SignInWithUnityAuthenticationAsync(string authCode);
         bool HasCachedSessionToken { get; }
@@ -153,6 +155,33 @@ namespace SweetMerge.Authentication
                     });
                 });
 
+                return completion.Task;
+            }
+
+            public Task<PlayGamesAuthenticationStatus>
+                AuthenticateWithPlayGamesInteractivelyAsync()
+            {
+                var completion =
+                    new TaskCompletionSource<PlayGamesAuthenticationStatus>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                PlayGamesPlatform.Instance.ManuallyAuthenticate(status =>
+                {
+                    switch (status)
+                    {
+                        case SignInStatus.Success:
+                            completion.TrySetResult(
+                                PlayGamesAuthenticationStatus.Success);
+                            break;
+                        case SignInStatus.Canceled:
+                            completion.TrySetResult(
+                                PlayGamesAuthenticationStatus.Cancelled);
+                            break;
+                        default:
+                            completion.TrySetResult(
+                                PlayGamesAuthenticationStatus.Failed);
+                            break;
+                    }
+                });
                 return completion.Task;
             }
 
@@ -305,17 +334,30 @@ namespace SweetMerge.Authentication
 
         public Task<GooglePlayGamesAuthenticationResult> SignInAsync()
         {
-            return BeginAttempt(restoreCachedSession: false);
+            return BeginAttempt(
+                restoreCachedSession: false,
+                allowCachedSessionInteraction: false);
+        }
+
+        public Task<GooglePlayGamesAuthenticationResult>
+            SignInInteractivelyAsync()
+        {
+            return BeginAttempt(
+                restoreCachedSession: false,
+                allowCachedSessionInteraction: true);
         }
 
         public Task<GooglePlayGamesAuthenticationResult>
             RestoreSessionAsync()
         {
-            return BeginAttempt(restoreCachedSession: true);
+            return BeginAttempt(
+                restoreCachedSession: true,
+                allowCachedSessionInteraction: false);
         }
 
         private Task<GooglePlayGamesAuthenticationResult> BeginAttempt(
-            bool restoreCachedSession)
+            bool restoreCachedSession,
+            bool allowCachedSessionInteraction)
         {
             TaskCompletionSource<GooglePlayGamesAuthenticationResult> completion;
 
@@ -324,7 +366,8 @@ namespace SweetMerge.Authentication
                 if (activeAttempt != null)
                     return activeAttempt;
 
-                if (state == GooglePlayGamesAuthenticationState.SignedIn)
+                if (state == GooglePlayGamesAuthenticationState.SignedIn &&
+                    !allowCachedSessionInteraction)
                 {
                     return Task.FromResult(
                         GooglePlayGamesAuthenticationResult.SignedIn);
@@ -346,7 +389,10 @@ namespace SweetMerge.Authentication
             }
 
             NotifyStateChanged();
-            _ = RunAttemptAsync(completion, restoreCachedSession);
+            _ = RunAttemptAsync(
+                completion,
+                restoreCachedSession,
+                allowCachedSessionInteraction);
             return completion.Task;
         }
 
@@ -433,7 +479,8 @@ namespace SweetMerge.Authentication
         private async Task RunAttemptAsync(
             TaskCompletionSource<GooglePlayGamesAuthenticationResult>
                 completion,
-            bool restoreCachedSession)
+            bool restoreCachedSession,
+            bool allowCachedSessionInteraction)
         {
             try
             {
@@ -480,7 +527,8 @@ namespace SweetMerge.Authentication
                 }
 
                 if (currentSessionStatus ==
-                    GooglePlayGamesSessionStatus.PreviousSessionAvailable)
+                        GooglePlayGamesSessionStatus.PreviousSessionAvailable &&
+                    !allowCachedSessionInteraction)
                 {
                     CompleteAttempt(
                         completion,
@@ -493,7 +541,8 @@ namespace SweetMerge.Authentication
                 }
 
                 if (currentSessionStatus ==
-                    GooglePlayGamesSessionStatus.GooglePlayGamesConnected)
+                        GooglePlayGamesSessionStatus.GooglePlayGamesConnected &&
+                    !allowCachedSessionInteraction)
                 {
                     CompleteAttempt(
                         completion,
@@ -505,7 +554,8 @@ namespace SweetMerge.Authentication
                 }
 
                 if (currentSessionStatus ==
-                    GooglePlayGamesSessionStatus.SignedInUnverified)
+                        GooglePlayGamesSessionStatus.SignedInUnverified &&
+                    !allowCachedSessionInteraction)
                 {
                     CompleteAttempt(
                         completion,
@@ -517,8 +567,21 @@ namespace SweetMerge.Authentication
                     return;
                 }
 
-                if (currentSessionStatus !=
-                    GooglePlayGamesSessionStatus.NotConnected)
+                bool interactiveStatusAllowed =
+                    currentSessionStatus ==
+                        GooglePlayGamesSessionStatus.NotConnected ||
+                    currentSessionStatus ==
+                        GooglePlayGamesSessionStatus.PreviousSessionAvailable ||
+                    currentSessionStatus ==
+                        GooglePlayGamesSessionStatus.RestorationFailed ||
+                    currentSessionStatus ==
+                        GooglePlayGamesSessionStatus.GooglePlayGamesConnected ||
+                    currentSessionStatus ==
+                        GooglePlayGamesSessionStatus.SignedInUnverified;
+                if (allowCachedSessionInteraction
+                        ? !interactiveStatusAllowed
+                        : currentSessionStatus !=
+                            GooglePlayGamesSessionStatus.NotConnected)
                 {
                     CompleteAttempt(
                         completion,
@@ -534,7 +597,11 @@ namespace SweetMerge.Authentication
                 try
                 {
                     signInStatus =
-                        await runtime.AuthenticateWithPlayGamesAsync();
+                        allowCachedSessionInteraction
+                            ? await runtime
+                                .AuthenticateWithPlayGamesInteractivelyAsync()
+                            : await runtime
+                                .AuthenticateWithPlayGamesAsync();
                 }
                 catch (Exception)
                 {

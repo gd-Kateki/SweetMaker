@@ -33,6 +33,8 @@ namespace SweetMerge.Profile
         private bool progressOperationInFlight;
         private bool progressLoadInFlight;
         private bool destroyed;
+        private bool initializationStarted;
+        private bool gameplayEventsSubscribed;
         private bool completionNotified;
         private bool sceneTransitionInFlight;
         private bool drainInFlight;
@@ -81,12 +83,65 @@ namespace SweetMerge.Profile
 
         private void Start()
         {
-            if (SweetMerge.Cloud.SimpleCloudFiles.StartupError != null) return;
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged +=
+                HandleRestorePendingChanged;
+            if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+                return;
+
+            BeginLocalInitialization();
+        }
+
+        private void BeginLocalInitialization()
+        {
+            if (destroyed ||
+                SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
+                SweetMerge.Cloud.SimpleCloudFiles.StartupError != null)
+                return;
+
+            initializationStarted = true;
             GameplayEvents.DessertSpawned += HandleDessertSpawned;
             GameplayEvents.DessertMergeCommitted +=
                 HandleDessertMergeCommitted;
+            gameplayEventsSubscribed = true;
             SceneManager.sceneLoaded += HandleSceneLoaded;
             SceneManager.sceneUnloaded += HandleSceneUnloaded;
+            BindOrderManager();
+            _ = LoadLocalProgressAsync();
+        }
+
+        private void HandleRestorePendingChanged(bool restorePending)
+        {
+            if (destroyed)
+                return;
+
+            if (restorePending)
+            {
+                if (gameplayEventsSubscribed)
+                {
+                    GameplayEvents.DessertSpawned -=
+                        HandleDessertSpawned;
+                    GameplayEvents.DessertMergeCommitted -=
+                        HandleDessertMergeCommitted;
+                    gameplayEventsSubscribed = false;
+                }
+
+                UnbindOrderManager();
+                eventBuffer.Clear();
+                state = TutorialProgressState.Initial();
+                SetLocalReady(false);
+                return;
+            }
+
+            if (!initializationStarted)
+            {
+                BeginLocalInitialization();
+                return;
+            }
+
+            GameplayEvents.DessertSpawned += HandleDessertSpawned;
+            GameplayEvents.DessertMergeCommitted +=
+                HandleDessertMergeCommitted;
+            gameplayEventsSubscribed = true;
             BindOrderManager();
             _ = LoadLocalProgressAsync();
         }
@@ -94,9 +149,15 @@ namespace SweetMerge.Profile
         private void OnDestroy()
         {
             destroyed = true;
-            GameplayEvents.DessertSpawned -= HandleDessertSpawned;
-            GameplayEvents.DessertMergeCommitted -=
-                HandleDessertMergeCommitted;
+            SweetMerge.Cloud.SimpleCloudFiles.RestorePendingChanged -=
+                HandleRestorePendingChanged;
+            if (gameplayEventsSubscribed)
+            {
+                GameplayEvents.DessertSpawned -= HandleDessertSpawned;
+                GameplayEvents.DessertMergeCommitted -=
+                    HandleDessertMergeCommitted;
+                gameplayEventsSubscribed = false;
+            }
             SceneManager.sceneLoaded -= HandleSceneLoaded;
             SceneManager.sceneUnloaded -= HandleSceneUnloaded;
             UnbindOrderManager();
@@ -123,7 +184,10 @@ namespace SweetMerge.Profile
 
         public void RetryProgressRecovery()
         {
-            if (destroyed || progressLoadInFlight || drainInFlight)
+            if (destroyed ||
+                SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
+                progressLoadInFlight ||
+                drainInFlight)
                 return;
 
             SetRecoveryState(false, null);
@@ -134,6 +198,7 @@ namespace SweetMerge.Profile
         {
             if (destroyed ||
                 progressService == null ||
+                SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
                 progressLoadInFlight)
                 return;
 
@@ -144,8 +209,12 @@ namespace SweetMerge.Profile
                 progressService.Initialize();
                 TutorialProgressResult loaded =
                     await progressService.LoadAsync();
-                if (destroyed)
+                if (destroyed ||
+                    SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+                {
+                    SetLocalReady(false);
                     return;
+                }
 
                 if (loaded.Operation != TutorialProgressOperation.Applied ||
                     !loaded.State.IsLocallyValidated)
@@ -162,8 +231,12 @@ namespace SweetMerge.Profile
             }
             catch (Exception exception)
             {
-                if (destroyed)
+                if (destroyed ||
+                    SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+                {
+                    SetLocalReady(false);
                     return;
+                }
 
                 SetRecoveryState(
                     true,

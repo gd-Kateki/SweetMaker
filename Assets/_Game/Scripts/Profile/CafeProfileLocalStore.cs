@@ -95,6 +95,13 @@ namespace SweetMerge.Profile
         {
             record = null;
             errorMessage = null;
+            if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            {
+                errorMessage =
+                    "Cafe profile loading is blocked until the pending cloud restore is resolved.";
+                return CafeProfileLocalStatus.ServiceError;
+            }
+
             if (!TryGetPaths(
                     out string primary,
                     out string backup,
@@ -189,6 +196,14 @@ namespace SweetMerge.Profile
             out CafeProfileLocalRecord record,
             out string errorMessage)
         {
+            if (SweetMerge.Cloud.SimpleCloudFiles.RestorePending)
+            {
+                record = null;
+                errorMessage =
+                    "Cafe profile saving is blocked until the pending cloud restore is resolved.";
+                return CafeProfileLocalSaveStatus.ServiceError;
+            }
+
             lock (WriteLock)
             {
                 return SaveCore(
