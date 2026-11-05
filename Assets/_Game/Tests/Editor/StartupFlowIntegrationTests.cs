@@ -8,6 +8,16 @@ using UnityEngine.UnityConsent;
 
 public sealed class StartupFlowIntegrationTests
 {
+    [TestCase(false, true, true)]
+    [TestCase(true, true, true)]
+    [TestCase(true, false, true)]
+    [TestCase(false, false, false)]
+    public void AndroidReleaseAlsoGatesNewGamesBehindAccountStartup(
+        bool development, bool android, bool expected)
+    {
+        Assert.That(InvokePolicy("RequiresAccountStartup", development, android), Is.EqualTo(expected));
+    }
+
     private const BindingFlags StaticNonPublic =
         BindingFlags.Static | BindingFlags.NonPublic;
 

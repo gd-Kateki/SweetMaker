@@ -9,6 +9,24 @@ using UnityEngine;
 
 public sealed class SimpleCloudBackupTests
 {
+    [TestCase(true, "save-a", "lock-a", "save-a", "lock-a", true)]
+    [TestCase(false, "save-a", "lock-a", "save-a", "lock-a", false)]
+    [TestCase(true, "save-a", "lock-a", "save-b", "lock-b", false)]
+    [TestCase(true, "save-a", "lock-a", "save-a", "lock-b", false)]
+    [TestCase(true, "save-a", "lock-a", null, null, false)]
+    [TestCase(true, null, null, null, null, false)]
+    public void FreshGameRequiresTheSameVerifiedAccountAndReviewedCloudVersion(
+        bool identityCurrent, string reviewedHash, string reviewedLock,
+        string currentHash, string currentLock, bool expected)
+    {
+        var method = Find("SweetMerge.Cloud.SimpleCloudBackup").GetMethod(
+            "CanStartFreshGame", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.AreEqual(expected, method.Invoke(null, new object[]
+        {
+            identityCurrent, reviewedHash, reviewedLock, currentHash, currentLock
+        }));
+    }
+
     private sealed class FakeConflictOperations
     {
         public string PlayerId = "google-player-a";
@@ -437,8 +455,9 @@ public sealed class SimpleCloudBackupTests
         public void Commit(float time, string snapshot)
         {
             LocalSnapshot = snapshot;
+            if (!SaveBackupPending)
+                SaveBackupDue = SaveBackupDueTime(time);
             SaveBackupPending = true;
-            SaveBackupDue = SaveBackupDueTime(time);
         }
 
         public async Task<bool> RunScheduledCheckAsync(float time)
@@ -549,7 +568,33 @@ public sealed class SimpleCloudBackupTests
     }
 
     [Test]
-    public async Task SaveCommitDebounceWaitsAndCombinesQuickSaves()
+    public void RepeatedSaveEventsDoNotPostponePendingBackup()
+    {
+        Type type = Find("SweetMerge.Cloud.SimpleCloudBackup");
+        var gameObject = new GameObject("Cloud backup scheduling test");
+        try
+        {
+            var service = gameObject.AddComponent(type);
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            type.GetField("owner", flags).SetValue(service, "player-a");
+            MethodInfo committed = type.GetMethod("HandleActiveSaveCommitted", flags);
+            committed.Invoke(service, null);
+            float firstDue = (float)type.GetField("saveBackupDue", flags).GetValue(service);
+            Assert.AreEqual(5f, SaveBackupDueTime(0f));
+            // An already scheduled deadline must survive subsequent commits.
+            type.GetField("saveBackupDue", flags).SetValue(service, firstDue - 1f);
+            committed.Invoke(service, null);
+            Assert.AreEqual(firstDue - 1f,
+                type.GetField("saveBackupDue", flags).GetValue(service));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(gameObject);
+        }
+    }
+
+    [Test]
+    public async Task SaveCommitWaitsFiveSecondsAndCombinesQuickSaves()
     {
         var operations = new FakeOngoingBackupOperations
         {
@@ -562,9 +607,9 @@ public sealed class SimpleCloudBackupTests
 
         operations.Commit(10f, "local-v2");
         operations.Commit(11f, "local-v3");
-        Assert.IsFalse(await operations.RunScheduledCheckAsync(13.9f));
+        Assert.IsFalse(await operations.RunScheduledCheckAsync(14.9f));
         Assert.AreEqual(0, operations.Uploads);
-        Assert.IsTrue(await operations.RunScheduledCheckAsync(14f));
+        Assert.IsTrue(await operations.RunScheduledCheckAsync(15f));
         Assert.AreEqual(1, operations.Uploads);
         Assert.AreEqual("local-v3", operations.UploadedSnapshot);
     }
@@ -1352,5 +1397,74 @@ public sealed class SimpleCloudBackupTests
                     Directory.Delete(root,true);
             }
         }
+    }
+}
+
+
+public sealed class CloudSyncJournalTests
+{
+    private string root;
+    private static Type Runtime(string name) => AppDomain.CurrentDomain.GetAssemblies()
+        .Select(a => a.GetType("SweetMerge.Cloud." + name)).First(t => t != null);
+    private static object Call(string method, params object[] args) => Runtime("CloudSyncJournal")
+        .GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, args);
+    private object Read(string player = "player-a", string mode = "test") => Call("Read", root, player, mode);
+    private void Write(bool newGame = false) => Call("Write", root, "player-a", "test", "cloud-v1", "lock-v1", newGame);
+
+    [SetUp]
+    public void SetUp() { root = Path.Combine(Path.GetTempPath(), "CloudJournalTests", Guid.NewGuid().ToString("N")); }
+    [TearDown]
+    public void TearDown() { if (Directory.Exists(root)) Directory.Delete(root, true); }
+
+    [Test]
+    public void RestartWithNewEnergyTimestampUsesPersistedCommonAncestor()
+    {
+        Write();
+        object record = Read();
+        string ancestor = (string)record.GetType().GetField("acceptedHash").GetValue(record);
+        object decision = Runtime("SimpleCloudBackup").GetMethod("Decide").Invoke(null,
+            new object[] { "local-with-new-energy-time", "cloud-v1", ancestor });
+        Assert.AreEqual(1, decision);
+        Assert.AreEqual(2, Runtime("SimpleCloudBackup").GetMethod("Decide").Invoke(null,
+            new object[] { "local-with-new-energy-time", "other-device-save", ancestor }));
+    }
+
+    [Test]
+    public void NewGameApprovalSurvivesRestartAndIsAccountScoped()
+    {
+        Write(true);
+        object record = Read();
+        Assert.AreEqual(true, record.GetType().GetField("newGameApproved").GetValue(record));
+        Assert.AreEqual("lock-v1", record.GetType().GetField("writeLock").GetValue(record));
+        Assert.IsNull(Read("player-b"));
+        Assert.IsNull(Read("player-a", "other-environment"));
+    }
+
+    [Test]
+    public void AcceptedBackupClearsNewGameApproval()
+    {
+        Write(true);
+        Call("Write", root, "player-a", "test", "cloud-v2", "lock-v2", false);
+        object record = Read();
+        Assert.AreEqual(false, record.GetType().GetField("newGameApproved").GetValue(record));
+        Assert.AreEqual("cloud-v2", record.GetType().GetField("acceptedHash").GetValue(record));
+    }
+
+    [Test]
+    public void InterruptedStagingDoesNotReplaceCommittedHistory()
+    {
+        Write();
+        File.WriteAllText(Path.Combine(root, "cloud-sync-v1.json.tmp"), "interrupted");
+        object record = Read();
+        Assert.AreEqual("cloud-v1", record.GetType().GetField("acceptedHash").GetValue(record));
+    }
+
+    [Test]
+    public void CorruptHistoryFailsClosed()
+    {
+        Write();
+        File.WriteAllText(Path.Combine(root, "cloud-sync-v1.json"), "{}");
+        var failure = Assert.Throws<TargetInvocationException>(() => Read());
+        Assert.IsInstanceOf<InvalidDataException>(failure.InnerException);
     }
 }

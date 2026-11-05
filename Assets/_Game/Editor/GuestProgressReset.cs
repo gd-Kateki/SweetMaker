@@ -292,6 +292,7 @@ public static class GuestProgressReset
                 StringComparer.OrdinalIgnoreCase);
             AddManagedFileNames(rootFileNames, SaveV2FileName);
             AddManagedFileNames(rootFileNames, LegacySaveFileName);
+            AddManagedFileNames(rootFileNames, "cloud-sync-v1.json");
 
             foreach (KeyValuePair<string, string> entry in rootEntries)
             {

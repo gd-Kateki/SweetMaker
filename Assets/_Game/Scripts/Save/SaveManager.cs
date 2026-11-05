@@ -1673,6 +1673,8 @@ public class SaveManager : MonoBehaviour
 
         var profileFiles = new List<string>
         {
+            Path.Combine(SaveDirectory, SweetMerge.Cloud.CloudSyncJournal.FileName),
+            Path.Combine(SaveDirectory, SweetMerge.Cloud.CloudSyncJournal.FileName + ".tmp"),
             SaveFilePath,
             SweetMerge.Cloud.LocalSaveOwnership.MarkerPath(SaveFilePath),
             SaveFilePath + ".bak",
@@ -3484,17 +3486,9 @@ public class SaveManager : MonoBehaviour
     {
         snapshotCommitted = false;
         bool isActiveSavePath = IsActiveSavePath(path);
-        string previousOwner = isActiveSavePath
-            ? GetCurrentVerifiedSaveOwner()
+        var preservedOwnership = isActiveSavePath
+            ? SweetMerge.Cloud.LocalSaveOwnership.CaptureLocalOwnership(path, SavePathPolicy.ModeName)
             : null;
-        string environment = isActiveSavePath
-            ? SavePathPolicy.ModeName
-            : null;
-        bool preserveOwnership = isActiveSavePath &&
-            SweetMerge.Cloud.LocalSaveOwnership.IsOwnedBy(
-                path,
-                previousOwner,
-                environment);
 
         if (!IsValidSerializedSnapshotCore(json))
         {
@@ -3540,43 +3534,13 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
-        if (preserveOwnership)
+        if (!SweetMerge.Cloud.LocalSaveOwnership.RefreshPreservedOwnership(
+                path, preservedOwnership, out string ownershipError))
         {
-            string currentOwner = GetCurrentVerifiedSaveOwner();
-            if (!string.Equals(
-                    previousOwner,
-                    currentOwner,
-                    StringComparison.Ordinal))
-            {
-                SweetMerge.Cloud.LocalSaveOwnership.TryInvalidate(
-                    path,
-                    out _);
-                SweetMerge.Cloud.PlayerStatisticsCloudSync
-                    .InvalidateAuthorization(
-                        "Statistics sync invalidated because the verified " +
-                        "account changed during a Save V2 update.");
-                Debug.LogWarning(
-                    "SAVE OWNERSHIP | Verified account changed during save; " +
-                    "local ownership is now unknown.",
-                    this);
-            }
-            else if (!SweetMerge.Cloud.LocalSaveOwnership.TryRefreshAfterSave(
-                         path,
-                         currentOwner,
-                         environment,
-                         true,
-                         out string ownershipError))
-            {
-                SweetMerge.Cloud.PlayerStatisticsCloudSync
-                    .InvalidateAuthorization(
-                        "Statistics sync invalidated because local save " +
-                        "ownership could not be refreshed.");
-                Debug.LogWarning(
-                    "SAVE OWNERSHIP | Save V2 committed, but ownership could " +
-                    "not be refreshed. Cloud operations remain blocked. " +
-                    ownershipError,
-                    this);
-            }
+            SweetMerge.Cloud.PlayerStatisticsCloudSync.InvalidateAuthorization(
+                "Local save ownership could not be refreshed.");
+            Debug.LogWarning("SAVE OWNERSHIP | Save committed, but cloud upload remains blocked: " +
+                ownershipError, this);
         }
 
         Debug.Log($"SAVE | Successfully wrote save file.\nPath: {path}");

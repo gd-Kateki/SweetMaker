@@ -62,7 +62,7 @@ namespace SweetMerge.Cloud
     // Local Save V2 is carried verbatim. This envelope is not a new gameplay schema.
     public sealed class SimpleCloudBackup : MonoBehaviour
     {
-        private const float SaveBackupDebounceSeconds = 3f;
+        private const float CloudSaveIntervalSeconds = 5f;
 
         private sealed class UploadAuthorizationException : IOException
         {
@@ -87,6 +87,130 @@ namespace SweetMerge.Cloud
         private bool saveBackupPending;
         private float saveBackupDue;
         private bool backgroundSaveAttempted;
+        private string freshInstallOwner;
+        private string resolvedFreshInstallOwner;
+        private string approvedNewGameChecksum, approvedNewGameWriteLock;
+        internal bool FreshInstallChoicePending => freshInstallOwner != null;
+
+        internal bool RequireFreshInstallChoice(string playerId)
+        {
+            if (resolvedFreshInstallOwner == playerId)
+                return false;
+            freshInstallOwner = playerId;
+            ChoiceRequired = false;
+            paused = false;
+            Status = "Checking for your saved cafe...";
+            FreshInstallCloudChoiceUI.Show(this);
+            nextCheck = 0;
+            return true;
+        }
+
+        private void CompleteFreshInstallChoice(string playerId)
+        {
+            resolvedFreshInstallOwner = playerId;
+            freshInstallOwner = null;
+            ChoiceRequired = false;
+            FreshInstallCloudChoiceUI.Close();
+            GameStartupCoordinator.Instance?.ContinueAfterCloudChoice();
+        }
+
+        internal async Task StartFreshGameAsync(string reviewedChecksum, string reviewedWriteLock)
+        {
+            if (Busy || !FreshInstallChoicePending || !CanRestore ||
+                owner != freshInstallOwner || !IsCurrentVerifiedOwner(owner))
+                return;
+            Busy = true;
+            string id = owner;
+            int epoch = identityEpoch;
+            try
+            {
+                await ReadAsync(id, epoch);
+                if (!CanStartFreshGame(
+                        StillCurrent(id, epoch), reviewedChecksum, reviewedWriteLock,
+                        remote?.checksum, writeLock))
+                {
+                    Status = "Your cloud save changed. Please review the choice again.";
+                    return;
+                }
+                // Keep the reviewed cloud copy until a valid new local game is
+                // ready. The normal upload path retains its write-lock checks.
+                acceptedHash = remote.checksum;
+                CloudSyncJournal.Write(SavePathPolicy.GetSaveDirectory(), id, SavePathPolicy.ModeName,
+                    remote.checksum, writeLock, true);
+                approvedNewGameChecksum = remote.checksum;
+                approvedNewGameWriteLock = writeLock;
+                CompleteFreshInstallChoice(id);
+                nextCheck = 0;
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception)
+            {
+                Status = "Could not verify your cloud save. Please retry. Nothing was replaced.";
+            }
+            finally { Busy = false; }
+        }
+
+        internal string ReviewedCloudWriteLock => writeLock;
+
+        internal static bool CanStartFreshGame(
+            bool identityCurrent, string reviewedChecksum, string reviewedWriteLock,
+            string currentChecksum, string currentWriteLock)
+        {
+            return identityCurrent && !string.IsNullOrEmpty(reviewedChecksum) &&
+                !string.IsNullOrEmpty(reviewedWriteLock) &&
+                reviewedChecksum == currentChecksum && reviewedWriteLock == currentWriteLock;
+        }
+
+        private bool HasApprovedNewGame(string playerId) =>
+            resolvedFreshInstallOwner == playerId &&
+            CanStartFreshGame(IsCurrentVerifiedOwner(playerId),
+                approvedNewGameChecksum, approvedNewGameWriteLock, remote?.checksum, writeLock);
+
+        internal bool NeedsFreshInstallSignIn => FreshInstallChoicePending &&
+            !IsCurrentVerifiedOwner(freshInstallOwner);
+
+        internal async Task ReconnectFreshInstallAsync()
+        {
+            if (Busy || !FreshInstallChoicePending) return;
+            Busy = true;
+            try
+            {
+                await GooglePlayGamesAuthenticationCoordinator.Instance.SignInInteractivelyAsync();
+                Status = NeedsFreshInstallSignIn
+                    ? "Use the original account in Google Play Games, then reconnect here. You can also reopen the game to choose a different account."
+                    : "Account verified. Checking your cloud save...";
+                nextCheck = 0;
+            }
+            catch (Exception) { Status = "Sign-in could not finish. Please retry."; }
+            finally { Busy = false; }
+        }
+
+        private void LoadSyncHistory(string id)
+        {
+            var history = CloudSyncJournal.Read(SavePathPolicy.GetSaveDirectory(), id, SavePathPolicy.ModeName);
+            if (history == null)
+            {
+                acceptedHash = null;
+                approvedNewGameChecksum = approvedNewGameWriteLock = null;
+                return;
+            }
+            bool approvalCurrent = history.newGameApproved && CanStartFreshGame(IsCurrentVerifiedOwner(id),
+                history.acceptedHash, history.writeLock, remote?.checksum, writeLock);
+            acceptedHash = !history.newGameApproved || approvalCurrent ? history.acceptedHash : null;
+            if (approvalCurrent)
+            {
+                resolvedFreshInstallOwner = id;
+                approvedNewGameChecksum = history.acceptedHash;
+                approvedNewGameWriteLock = history.writeLock;
+                if (freshInstallOwner == id) CompleteFreshInstallChoice(id);
+            }
+        }
+
+        private void RememberAcceptedBackup(string id, string hash)
+        {
+            CloudSyncJournal.Write(SavePathPolicy.GetSaveDirectory(), id, SavePathPolicy.ModeName,
+                hash, writeLock, false);
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Create()
@@ -238,7 +362,7 @@ namespace SweetMerge.Cloud
         }
 
         internal static float GetSaveBackupDueTime(float now) =>
-            now + SaveBackupDebounceSeconds;
+            now + CloudSaveIntervalSeconds;
 
         internal static float GetImmediateSaveBackupDueTime(float now) => now;
 
@@ -271,8 +395,10 @@ namespace SweetMerge.Cloud
                 SimpleCloudFiles.StartupError != null)
                 return;
 
+            // Frequent gameplay saves must not keep postponing the upload.
+            if (!saveBackupPending)
+                saveBackupDue = GetSaveBackupDueTime(Time.unscaledTime);
             saveBackupPending = true;
-            saveBackupDue = GetSaveBackupDueTime(Time.unscaledTime);
         }
 
         private void OnApplicationPause(bool isPaused)
@@ -343,6 +469,7 @@ namespace SweetMerge.Cloud
             if (owner != current)
             {
                 owner = current; identityEpoch++; acceptedHash = null; remote = null;
+                approvedNewGameChecksum = approvedNewGameWriteLock = null;
                 writeLock = null; ChoiceRequired = false; paused = false; failures = 0;
                 saveBackupPending = false;
                 Status = current == null ? "Offline/local play. Cloud backup is disconnected." : "Checking account backup…";
@@ -353,7 +480,7 @@ namespace SweetMerge.Cloud
                 Time.unscaledTime,
                 saveBackupDue);
             bool periodicCheckDue =
-                !saveBackupPending && Time.unscaledTime >= nextCheck;
+                Time.unscaledTime >= nextCheck;
             if (!Busy && !paused && owner != null && !ChoiceRequired &&
                 !SimpleCloudFiles.RestorePending &&
                 (localSaveDue || periodicCheckDue))
@@ -642,6 +769,26 @@ namespace SweetMerge.Cloud
             return value;
         }
 
+        private void LinkUnownedProgressAfterSignIn(string id, int epoch)
+        {
+            // A different cloud copy still requires a keep/restore decision.
+            // Never reassign a save already owned by another account.
+            if ((remote != null && !HasApprovedNewGame(id)) || !StillCurrent(id, epoch) ||
+                !IsGameplayReadyForInitialBackup())
+                return;
+
+            SaveManager save = SaveManager.Instance;
+            if (!LocalSaveOwnership.CanExplicitlyLink(
+                    save.SaveFilePath, id, SavePathPolicy.ModeName))
+                return;
+
+            if (!LocalSaveOwnership.TryEstablishForCurrentPlayer(
+                    save.SaveFilePath,
+                    LocalSaveOwnershipEvidence.AutomaticGoogleSignIn,
+                    out string error))
+                throw new IOException(error);
+        }
+
         private void RequireUploadAuthorization(
             CloudBackupEnvelope local,
             string id,
@@ -724,25 +871,71 @@ namespace SweetMerge.Cloud
             try
             {
                 await ReadAsync(id, epoch);
+                LoadSyncHistory(id);
+                if (FreshInstallChoicePending)
+                {
+                    if (freshInstallOwner != id)
+                    {
+                        Status = "Sign in with the account selected at startup to continue.";
+                        return;
+                    }
+                    if (remote == null)
+                    {
+                        CompleteFreshInstallChoice(id);
+                        return;
+                    }
+                    ChoiceRequired = true;
+                    Status = "We found your saved cafe. Restore it or start a new game.";
+                    return;
+                }
+                if (HasApprovedNewGame(id))
+                    acceptedHash = approvedNewGameChecksum;
+                LinkUnownedProgressAfterSignIn(id, epoch);
+                // Bootstrap older installations before flushing a new energy
+                // timestamp. Only an owned, byte-identical copy is accepted.
+                if (remote != null && acceptedHash != remote.checksum)
+                {
+                    try
+                    {
+                        var diskCopy = Capture(id, false);
+                        if (diskCopy.checksum == remote.checksum)
+                        {
+                            RememberAcceptedBackup(id, diskCopy.checksum);
+                            acceptedHash = diskCopy.checksum;
+                        }
+                    }
+                    catch (IOException) { /* Readiness is handled below. */ }
+                }
                 CloudBackupEnvelope local = null;
                 string localMessage = null;
-                try { local = Capture(id, manual); }
+                // Capture live progress (including energy), even without an
+                // intervening gameplay save event.
+                try { local = Capture(id, true); }
                 catch (UploadAuthorizationException ex)
                 {
                     localMessage = ex.Message;
-                    paused = true;
+                    paused = false;
                 }
                 catch (IOException ex) { localMessage = ex.Message; }
                 if (!StillCurrent(id, epoch)) return;
                 if (local == null)
                 {
                     saveBackupPending = false;
+                    // Naming/tutorial initialization may finish after the
+                    // choice. Keep its approval while the reviewed copy is
+                    // unchanged; never turn this into a second manual link.
+                    if (HasApprovedNewGame(id))
+                    {
+                        ChoiceRequired = false;
+                        Status = localMessage;
+                        return;
+                    }
                     acceptedHash = null; ChoiceRequired = remote != null;
                     Status = remote != null
                         ? "Cloud progress is available. You can restore it " +
                           "on this device. " + localMessage
                         : localMessage;
-                    nextCheck = Time.unscaledTime + 30;
+                    nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
                     return;
                 }
 
@@ -769,7 +962,7 @@ namespace SweetMerge.Cloud
                     if (uploaded)
                     {
                         failures = 0;
-                        nextCheck = Time.unscaledTime + 30;
+                        nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
                         return;
                     }
 
@@ -779,7 +972,7 @@ namespace SweetMerge.Cloud
                     {
                         ChoiceRequired = false;
                         Status = "Cloud backup will start when gameplay is ready.";
-                        nextCheck = Time.unscaledTime + 30;
+                        nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
                         return;
                     }
                 }
@@ -787,6 +980,7 @@ namespace SweetMerge.Cloud
                 int decision = Decide(local.checksum, remote?.checksum, acceptedHash);
                 if (decision == 0)
                 {
+                    RememberAcceptedBackup(id, local.checksum);
                     acceptedHash = local.checksum; ChoiceRequired = false;
                     Status = "Cloud backup is up to date.";
                     PlayerStatisticsCloudSync.NotifyBackupAccepted(local);
@@ -813,7 +1007,7 @@ namespace SweetMerge.Cloud
                     Status = remote == null ? "No backup for this account. Choose Back up this device." :
                         "Device and cloud progress differ. Choose which copy to keep.";
                 }
-                failures = 0; nextCheck = Time.unscaledTime + 30;
+                failures = 0; nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             }
             catch (OperationCanceledException) { }
             catch (UploadAuthorizationException ex)
@@ -822,7 +1016,14 @@ namespace SweetMerge.Cloud
             }
             catch (InvalidDataException ex) { paused = true; ChoiceRequired = false; Status = ex.Message; }
             catch (Exception) { Failed(); }
-            finally { Busy = false; }
+            finally
+            {
+                // One request at a time. Resume on the five-second cadence
+                // after completion, including transient network failures.
+                saveBackupPending = false;
+                nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
+                Busy = false;
+            }
         }
 
         private void Failed()
@@ -830,7 +1031,7 @@ namespace SweetMerge.Cloud
             // Every retry starts with a new cloud read; write locks reject stale writes.
             failures = Math.Min(failures + 1, 3);
             paused = false;
-            nextCheck = Time.unscaledTime + 10 * failures;
+            nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             Status =
                 "Cloud unavailable or progress changed. Local play continues; retrying automatically.";
         }
@@ -869,6 +1070,8 @@ namespace SweetMerge.Cloud
             if (!locks.TryGetValue(Key, out writeLock) || string.IsNullOrEmpty(writeLock))
                 throw new IOException("Cloud write was not acknowledged.");
             remote = local; acceptedHash = local.checksum; ChoiceRequired = false;
+            RememberAcceptedBackup(id, local.checksum);
+            approvedNewGameChecksum = approvedNewGameWriteLock = null;
             if (reportSuccess)
                 Status = "Cloud backup saved.";
             PlayerStatisticsCloudSync.NotifyBackupAccepted(local);
@@ -876,6 +1079,7 @@ namespace SweetMerge.Cloud
 
         public async Task KeepLocalAsync()
         {
+            if (FreshInstallChoicePending) return;
             if (Busy || !ChoiceRequired || owner == null) return;
             Busy = true; string id = owner; int epoch = identityEpoch;
             string chosen = remote?.checksum;
@@ -884,7 +1088,7 @@ namespace SweetMerge.Cloud
                 await ReadAsync(id, epoch);
                 if (chosen != remote?.checksum) { Status = "Cloud changed. Review the choices again."; return; }
                 await UploadAsync(Capture(id, true), id, epoch);
-                failures = 0; nextCheck = Time.unscaledTime + 30;
+                failures = 0; nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             }
             catch (OperationCanceledException) { }
             catch (UploadAuthorizationException ex)
@@ -971,7 +1175,7 @@ namespace SweetMerge.Cloud
                 {
                     case KeepDeviceConflictResult.Completed:
                         failures = 0;
-                        nextCheck = Time.unscaledTime + 30;
+                        nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
                         Status = "Cloud backup saved.";
                         break;
                     case KeepDeviceConflictResult.Cancelled:
@@ -1064,9 +1268,11 @@ namespace SweetMerge.Cloud
         private void BlockUpload(string message)
         {
             acceptedHash = null;
-            paused = true;
+            // Recheck transient readiness/ownership failures automatically.
+            // Existing remote conflicts still stop at ChoiceRequired.
+            paused = false;
             ChoiceRequired = remote != null;
-            nextCheck = Time.unscaledTime + 30;
+            nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             Status = message;
         }
 

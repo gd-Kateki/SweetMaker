@@ -7,13 +7,12 @@ namespace SweetMerge.Cloud
     public sealed class SimpleCloudPanel : MonoBehaviour
     {
         private TMP_Text status;
-        private Button check, local, cloud, linkOwnership, cancelOwnershipLink;
+        private Button check, local, cloud, cancelOwnershipLink;
         private string confirmation;
         private string confirmedHash;
         private string confirmedLocalPlayerId;
         private string confirmedLocalWriteLock;
         private int confirmedLocalIdentityEpoch;
-        private string confirmedLinkPlayerId;
         private string ownershipLinkFeedback;
         private TMP_FontAsset font;
         private SimpleCloudBackup renderedService;
@@ -21,12 +20,9 @@ namespace SweetMerge.Cloud
         private string renderedServiceStatus;
         private string renderedCafeName;
         private string renderedConfirmation;
-        private string renderedLinkPlayerId;
         private string renderedOwnershipLinkFeedback;
         private int renderedTutorialStage;
         private bool hasRenderedStatus;
-        private bool canLinkOwnership;
-        private float nextOwnershipLinkRefresh;
 
         public static void Attach(Transform parent, TMP_FontAsset font)
         {
@@ -58,13 +54,9 @@ namespace SweetMerge.Cloud
                 panel.confirmation = null; await service.RestoreAsync();
                 if (SimpleCloudFiles.RestorePending) ShowRestartOverlay();
             });
-            panel.linkOwnership = panel.MakeButton(
-                "Link device progress to Google",
-                675,
-                () => panel.HandleOwnershipLinkClicked());
             panel.cancelOwnershipLink = panel.MakeButton(
                 "Cancel",
-                735,
+                675,
                 () => panel.HandleCancelClicked());
             panel.cancelOwnershipLink.gameObject.SetActive(false);
         }
@@ -73,7 +65,6 @@ namespace SweetMerge.Cloud
         {
             confirmation = null;
             ClearKeepDeviceApproval();
-            confirmedLinkPlayerId = null;
             ownershipLinkFeedback = null;
         }
 
@@ -81,14 +72,6 @@ namespace SweetMerge.Cloud
         {
             var service = SimpleCloudBackup.Instance;
             if (service == null) return;
-            if (confirmedLinkPlayerId != null &&
-                !SimpleCloudBackup.IsCurrentVerifiedOwner(
-                    confirmedLinkPlayerId))
-            {
-                confirmedLinkPlayerId = null;
-                ownershipLinkFeedback =
-                    "The verified account changed. The pending link was canceled.";
-            }
             if ((confirmation == "local" ||
                  confirmation == "local-first") &&
                 service != null &&
@@ -118,15 +101,9 @@ namespace SweetMerge.Cloud
                 renderedCafeName != cafeName ||
                 renderedTutorialStage != tutorialStage ||
                 renderedConfirmation != confirmation ||
-                renderedLinkPlayerId != confirmedLinkPlayerId ||
                 renderedOwnershipLinkFeedback != ownershipLinkFeedback)
             {
-                string text = confirmedLinkPlayerId != null
-                    ? "Link this device's Save V2 progress to verified Unity " +
-                      "Player ID:\n" + confirmedLinkPlayerId +
-                      "\n\nThis changes local ownership only. It will not " +
-                      "upload or replace cloud progress."
-                    : ownershipLinkFeedback != null
+                string text = ownershipLinkFeedback != null
                     ? ownershipLinkFeedback
                     : confirmation == "local" ?
                     "Keep this device's progress for verified Unity Player ID " +
@@ -158,35 +135,18 @@ namespace SweetMerge.Cloud
                 renderedCafeName = cafeName;
                 renderedTutorialStage = tutorialStage;
                 renderedConfirmation = confirmation;
-                renderedLinkPlayerId = confirmedLinkPlayerId;
                 renderedOwnershipLinkFeedback = ownershipLinkFeedback;
                 hasRenderedStatus = true;
             }
 
-            if (Time.unscaledTime >= nextOwnershipLinkRefresh)
-            {
-                canLinkOwnership =
-                    service.CanLinkCurrentDeviceProgress(out _);
-                nextOwnershipLinkRefresh =
-                    Time.unscaledTime + 1f;
-            }
-
-            linkOwnership.gameObject.SetActive(
-                canLinkOwnership || confirmedLinkPlayerId != null);
-            SetButtonLabel(
-                linkOwnership,
-                confirmedLinkPlayerId == null
-                    ? "Link device progress to Google"
-                    : "Confirm link to this account");
             cancelOwnershipLink.gameObject.SetActive(
-                confirmedLinkPlayerId != null ||
                 confirmation == "local" ||
                 confirmation == "local-first");
             SetButtonLabel(
                 cancelOwnershipLink,
                 confirmation == "local" || confirmation == "local-first"
                     ? "Cancel Keep Device"
-                    : "Cancel progress linking");
+                    : "Cancel");
             SetButtonLabel(
                 local,
                 confirmation == "local-first"
@@ -199,62 +159,6 @@ namespace SweetMerge.Cloud
                 !service.Busy && !SimpleCloudFiles.RestorePending);
             SetInteractable(local, !service.Busy && service.ChoiceRequired);
             SetInteractable(cloud, !service.Busy && service.CanRestore);
-            SetInteractable(
-                linkOwnership,
-                confirmedLinkPlayerId != null || canLinkOwnership);
-        }
-
-        private void HandleOwnershipLinkClicked()
-        {
-            SimpleCloudBackup service = SimpleCloudBackup.Instance;
-            if (service == null)
-                return;
-
-            if (confirmedLinkPlayerId != null &&
-                !SimpleCloudBackup.IsCurrentVerifiedOwner(
-                    confirmedLinkPlayerId))
-            {
-                confirmedLinkPlayerId = null;
-                ownershipLinkFeedback =
-                    "The verified account changed. The pending link was canceled.";
-                return;
-            }
-
-            if (confirmedLinkPlayerId == null)
-            {
-                if (!service.CanLinkCurrentDeviceProgress(
-                        out string playerId))
-                {
-                    ownershipLinkFeedback =
-                        "A verified Google account and ready local Save V2 " +
-                        "progress are required to link this device.";
-                    return;
-                }
-
-                confirmedLinkPlayerId = playerId;
-                ownershipLinkFeedback = null;
-                return;
-            }
-
-            string confirmedPlayerId = confirmedLinkPlayerId;
-            confirmedLinkPlayerId = null;
-            if (service.TryLinkCurrentDeviceProgress(
-                    confirmedPlayerId,
-                    explicitConsent: true,
-                    out string errorMessage))
-            {
-                ownershipLinkFeedback =
-                    "This device's progress is now linked to verified Unity " +
-                    "Player ID " + confirmedPlayerId +
-                    ". An initial backup will be created automatically when " +
-                    "gameplay is ready if no cloud backup exists. Existing " +
-                    "cloud progress will not be replaced.";
-                return;
-            }
-
-            ownershipLinkFeedback =
-                errorMessage ??
-                "The device progress could not be linked. Local and cloud data were not changed.";
         }
 
         private async System.Threading.Tasks.Task HandleKeepDeviceClicked()
@@ -379,7 +283,6 @@ namespace SweetMerge.Cloud
 
         private void CancelOwnershipLink()
         {
-            confirmedLinkPlayerId = null;
             ownershipLinkFeedback =
                 "Progress linking canceled. Local ownership and cloud data were unchanged.";
         }

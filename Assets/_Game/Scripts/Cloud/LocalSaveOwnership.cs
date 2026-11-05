@@ -11,7 +11,8 @@ namespace SweetMerge.Cloud
     {
         FreshVerifiedGoogleNewGame,
         ActivatedVerifiedRestore,
-        ExplicitGuestLink
+        ExplicitGuestLink,
+        AutomaticGoogleSignIn
     }
 
     [Serializable]
@@ -25,6 +26,41 @@ namespace SweetMerge.Cloud
 
     internal static class LocalSaveOwnership
     {
+        internal static LocalSaveOwnershipRecord CaptureLocalOwnership(string saveFilePath, string environment)
+        {
+            try
+            {
+                string marker = MarkerPath(saveFilePath);
+                if (!File.Exists(marker) || new FileInfo(marker).Length > MaximumRecordBytes) return null;
+                var record = JsonUtility.FromJson<LocalSaveOwnershipRecord>(File.ReadAllText(marker, Utf8));
+                return record != null && IsOwnedBy(saveFilePath, record.playerId, environment)
+                    ? record : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        internal static bool RefreshPreservedOwnership(string saveFilePath,
+            LocalSaveOwnershipRecord beforeSave, out string error)
+        {
+            error = null;
+            if (beforeSave == null) return true;
+            try
+            {
+                if (SimpleCloudFiles.RestorePending || SimpleCloudFiles.StartupRestorePending)
+                    throw new InvalidOperationException("A restore is pending.");
+                var current = JsonUtility.FromJson<LocalSaveOwnershipRecord>(
+                    File.ReadAllText(MarkerPath(saveFilePath), Utf8));
+                if (current == null || current.version != beforeSave.version ||
+                    current.playerId != beforeSave.playerId || current.environment != beforeSave.environment ||
+                    current.saveSha256 != beforeSave.saveSha256)
+                    throw new InvalidOperationException("Local ownership changed during the save.");
+                // Preserve the existing owner while offline or signed out.
+                // Current authentication is checked separately before upload.
+                return TryWriteAndValidate(saveFilePath, beforeSave.playerId, beforeSave.environment, out error);
+            }
+            catch (Exception exception) { error = exception.Message; return false; }
+        }
+
         private const int CurrentVersion = 1;
         private const int MaximumRecordBytes = 4096;
         private const uint ReplaceExisting = 0x1;

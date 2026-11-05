@@ -17,6 +17,13 @@ namespace SweetMerge.Startup
             return isDevelopmentBuild;
         }
 
+        internal static bool RequiresAccountStartup(bool isDevelopmentBuild, bool isAndroidPlayer)
+        {
+            // Android release builds must also verify the account before
+            // creating a new local game on a fresh installation.
+            return IsFeatureEnabledByDefault(isDevelopmentBuild) || isAndroidPlayer;
+        }
+
         internal static bool ShouldBindOwner(
             bool featureEnabled,
             bool restorePending)
@@ -142,8 +149,8 @@ namespace SweetMerge.Startup
         private static GameObject welcomeDependencyFallback;
 
         internal static bool FeatureEnabled { get; } =
-            StartupIntegrationPolicy.IsFeatureEnabledByDefault(
-                IsDevelopmentBuild);
+            StartupIntegrationPolicy.RequiresAccountStartup(
+                IsDevelopmentBuild, Application.platform == RuntimePlatform.Android);
         internal static string DependencyFailureMessage { get; private set; }
         internal static bool SelectionInputActive =>
             selectionInputActive;

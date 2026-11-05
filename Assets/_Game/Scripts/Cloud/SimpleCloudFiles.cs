@@ -213,6 +213,7 @@ namespace SweetMerge.Cloud
                         relative.StartsWith("TutorialProgress/") ? tutorial : value.saveJson;
                     WriteAtomic(Path.Combine(root, relative), content);
                 }
+                CloudSyncJournal.Write(root, value.playerId, value.environment, value.checksum, null, false);
                 File.Move(pending, pending + ".completed." + Guid.NewGuid().ToString("N"));
         }
 

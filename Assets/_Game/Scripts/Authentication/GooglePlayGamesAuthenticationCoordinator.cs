@@ -116,6 +116,9 @@ namespace SweetMerge.Authentication
             public Task<PlayGamesAuthenticationStatus>
                 AuthenticateWithPlayGamesAsync()
             {
+#if !UNITY_ANDROID
+                return Task.FromResult(PlayGamesAuthenticationStatus.Failed);
+#else
                 if (PlayGamesPlatform.Instance.IsAuthenticated())
                 {
                     return Task.FromResult(
@@ -156,11 +159,15 @@ namespace SweetMerge.Authentication
                 });
 
                 return completion.Task;
+#endif
             }
 
             public Task<PlayGamesAuthenticationStatus>
                 AuthenticateWithPlayGamesInteractivelyAsync()
             {
+#if !UNITY_ANDROID
+                return Task.FromResult(PlayGamesAuthenticationStatus.Failed);
+#else
                 var completion =
                     new TaskCompletionSource<PlayGamesAuthenticationStatus>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -183,11 +190,15 @@ namespace SweetMerge.Authentication
                     }
                 });
                 return completion.Task;
+#endif
             }
 
             public Task<string> RequestServerSideAccessAsync(
                 bool forceRefreshToken)
             {
+#if !UNITY_ANDROID
+                throw new PlatformNotSupportedException("Google Play Games requires Android.");
+#else
                 var completion = new TaskCompletionSource<string>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -201,6 +212,7 @@ namespace SweetMerge.Authentication
                         authCode => completion.TrySetResult(authCode)));
 
                 return completion.Task;
+#endif
             }
 
             public Task SignInWithUnityAuthenticationAsync(string authCode) =>

@@ -65,6 +65,32 @@ public sealed class LocalSaveOwnershipTests
     }
 
     [Test]
+    public void GoogleSignInCanAutomaticallyOwnUnclaimedProgress()
+    {
+        Assert.IsTrue(Establish("player-a", "development", "AutomaticGoogleSignIn"));
+        Assert.IsTrue(IsOwnedBy("player-a", "development"));
+    }
+
+    [Test]
+    public void AutomaticSignInCannotReassignAnotherAccountsProgress()
+    {
+        Assert.IsTrue(Establish("player-a", "development"));
+        string originalMarker = File.ReadAllText(markerPath);
+        identity.VerifiedPlayerId = "player-b";
+        Assert.IsFalse(Establish("player-b", "development", "AutomaticGoogleSignIn"));
+        Assert.AreEqual(originalMarker, File.ReadAllText(markerPath));
+    }
+
+    [Test]
+    public void AutomaticSignInCannotClaimProgressDuringPendingRestore()
+    {
+        SetStaticPropertyBackingField(
+            FindRuntimeType("SweetMerge.Cloud.SimpleCloudFiles"), "RestorePending", true);
+        Assert.IsFalse(Establish("player-a", "development", "AutomaticGoogleSignIn"));
+        Assert.IsFalse(File.Exists(markerPath));
+    }
+
+    [Test]
     public void OwnershipIsBoundToExactSaveBytes()
     {
         Assert.IsTrue(Establish("player-a", "development"));
@@ -73,6 +99,39 @@ public sealed class LocalSaveOwnershipTests
         File.WriteAllBytes(savePath, CreateSaveBytes(2));
 
         Assert.IsFalse(IsOwnedBy("player-a", "development"));
+    }
+
+    [TestCase(null)]
+    [TestCase("player-b")]
+    public void LocalSavesPreserveOriginalOwnerWhileSignedOutOrOnAnotherAccount(string currentPlayer)
+    {
+        Assert.IsTrue(Establish("player-a", "development"));
+        object token = InvokeOwnership("CaptureLocalOwnership", savePath, "development");
+        Assert.IsNotNull(token);
+        identity.VerifiedPlayerId = currentPlayer;
+        File.WriteAllBytes(savePath, CreateSaveBytes(42));
+        Assert.IsTrue((bool)InvokeOwnership("RefreshPreservedOwnership", savePath, token, null));
+        Assert.IsTrue(IsOwnedBy("player-a", "development"));
+        Assert.IsFalse(IsOwnedBy("player-b", "development"));
+    }
+
+    [Test]
+    public void LocalOwnershipCannotBeCapturedFromStaleSaveBytes()
+    {
+        Assert.IsTrue(Establish("player-a", "development"));
+        File.WriteAllBytes(savePath, CreateSaveBytes(42));
+        Assert.IsNull(InvokeOwnership("CaptureLocalOwnership", savePath, "development"));
+    }
+
+    [Test]
+    public void PreservedOwnershipDoesNotOverwriteAChangedMarker()
+    {
+        Assert.IsTrue(Establish("player-a", "development"));
+        object token = InvokeOwnership("CaptureLocalOwnership", savePath, "development");
+        File.WriteAllBytes(savePath, CreateSaveBytes(42));
+        File.WriteAllText(markerPath, "{}");
+        Assert.IsFalse((bool)InvokeOwnership("RefreshPreservedOwnership", savePath, token, null));
+        Assert.AreEqual("{}", File.ReadAllText(markerPath));
     }
 
     [Test]

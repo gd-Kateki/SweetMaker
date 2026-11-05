@@ -377,6 +377,15 @@ namespace SweetMerge.Startup
 
             bool unresolvedError = GetStartupError(out string errorMessage);
 
+            if (SimpleCloudBackup.Instance != null &&
+                SimpleCloudBackup.Instance.FreshInstallChoicePending)
+            {
+                mainBakeryWaitStartedAt = Time.realtimeSinceStartup;
+                SetStatus("Cloud progress", "Choose how you would like to continue.");
+                HideRetry();
+                return;
+            }
+
             bool saveStartupSucceeded =
                 gameStartup != null &&
                 gameStartup.IsStartupComplete &&

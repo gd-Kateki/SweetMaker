@@ -147,6 +147,14 @@ public class GameStartupCoordinator : MonoBehaviour
 
             if (!saveManager.SaveFileExists())
             {
+                if (freshGoogleNewGameCandidate &&
+                    SimpleCloudBackup.Instance != null &&
+                    SimpleCloudBackup.Instance.RequireFreshInstallChoice(startupDecisionPlayerId))
+                {
+                    Status = StartupStatus.Waiting;
+                    StateChanged?.Invoke();
+                    return;
+                }
                 Status = StartupStatus.NewGame;
                 StateChanged?.Invoke();
                 Debug.Log("STARTUP | New game. Waiting for verified Game initialization.");
@@ -177,6 +185,12 @@ public class GameStartupCoordinator : MonoBehaviour
 
         startupAttempted = true;
         InitializeStartup();
+    }
+
+    internal void ContinueAfterCloudChoice()
+    {
+        if (Status == StartupStatus.Waiting && startupDecisionConfirmed)
+            InitializeStartup();
     }
 
     internal void RequireStartupDecisionGate()
