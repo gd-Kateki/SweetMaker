@@ -35,6 +35,16 @@ public sealed class EnergyCapacityTests
             UnityEngine.Object.DestroyImmediate(progressionObject);
     }
 
+    [TestCase(0, 50, 50)]
+    [TestCase(70, 30, 100)]
+    [TestCase(100, 0, 100)]
+    public void RewardedEnergyAddsFiftyWithoutExceedingCapacity(int initial, int credited, int expected)
+    {
+        Assert.IsTrue(RestoreEnergy(initial, initial == 100 ? 0 : 60000, DateTime.UtcNow.Ticks));
+        Assert.AreEqual(credited, progression.GetType().GetMethod("AddRewardedEnergy").Invoke(progression, new object[] { 50 }));
+        Assert.AreEqual(expected, GetCurrentEnergy());
+    }
+
     [Test]
     public void NewPlayerInitializesAt100Energy()
     {

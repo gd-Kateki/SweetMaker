@@ -709,13 +709,16 @@ namespace SweetMerge.Cloud
             Func<Task<bool>> confirmRemoteAbsent,
             Func<bool> gameplayReady,
             Func<bool> authorizationIsCurrent,
-            Func<Task> upload)
+            Func<Task> upload,
+            Action captureSnapshot)
         {
             if (!await confirmRemoteAbsent())
                 return false;
             if (!gameplayReady() || !authorizationIsCurrent())
                 return false;
 
+            // Gameplay may save while the cloud read is in flight.
+            captureSnapshot();
             await upload();
             if (!authorizationIsCurrent())
                 throw new OperationCanceledException();
@@ -954,10 +957,11 @@ namespace SweetMerge.Cloud
                                 local,
                                 id,
                                 epoch,
-                                requireCurrentSnapshot: true);
+                                requireCurrentSnapshot: false);
                             return true;
                         },
-                        upload: () => UploadAsync(local, id, epoch));
+                        upload: () => UploadAsync(local, id, epoch),
+                        captureSnapshot: () => local = Capture(id, true));
 
                     if (uploaded)
                     {
@@ -1015,7 +1019,7 @@ namespace SweetMerge.Cloud
                 BlockUpload(ex.Message);
             }
             catch (InvalidDataException ex) { paused = true; ChoiceRequired = false; Status = ex.Message; }
-            catch (Exception) { Failed(); }
+            catch (Exception ex) { Failed(ex); }
             finally
             {
                 // One request at a time. Resume on the five-second cadence
@@ -1026,7 +1030,7 @@ namespace SweetMerge.Cloud
             }
         }
 
-        private void Failed()
+        private void Failed(Exception exception = null)
         {
             // Every retry starts with a new cloud read; write locks reject stale writes.
             failures = Math.Min(failures + 1, 3);
@@ -1034,6 +1038,14 @@ namespace SweetMerge.Cloud
             nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             Status =
                 "Cloud unavailable or progress changed. Local play continues; retrying automatically.";
+            if (exception != null)
+            {
+                string detail = exception is RequestFailedException request
+                    ? $"{exception.GetType().Name} ({request.ErrorCode}): {exception.Message}"
+                    : $"{exception.GetType().Name}: {exception.Message}";
+                Status += " " + detail;
+                Debug.LogWarning($"[Cloud Backup] Key={Key}; {detail}");
+            }
         }
 
         private async Task UploadAsync(
@@ -1095,7 +1107,7 @@ namespace SweetMerge.Cloud
             {
                 BlockUpload(ex.Message);
             }
-            catch (Exception) { Failed(); }
+            catch (Exception ex) { Failed(ex); }
             finally { Busy = false; }
         }
 
@@ -1217,9 +1229,9 @@ namespace SweetMerge.Cloud
             {
                 BlockUpload(exception.Message);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Failed();
+                Failed(ex);
                 refreshCloudAfterFailure = true;
             }
             finally
@@ -1300,7 +1312,7 @@ namespace SweetMerge.Cloud
                 ChoiceRequired = false; paused = true;
             }
             catch (OperationCanceledException) { }
-            catch (Exception)
+            catch (Exception ex)
             {
                 if (SimpleCloudFiles.RestorePending)
                 {
@@ -1308,7 +1320,7 @@ namespace SweetMerge.Cloud
                     Time.timeScale = 0; paused = true;
                     Status = "Restore is pending. Close and reopen the game to finish.";
                 }
-                else Failed();
+                else Failed(ex);
             }
             finally { Busy = false; }
         }

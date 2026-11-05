@@ -156,7 +156,10 @@ public class HomeButtonUI : MonoBehaviour
                 "Returning to MainBakery."
             );
 
-            navigationManager.GoToMainBakery();
+            if (SimpleAdManager.Instance != null)
+                SimpleAdManager.Instance.ReturnHome(navigationManager.GoToMainBakery);
+            else
+                navigationManager.GoToMainBakery();
         }
     }
 }

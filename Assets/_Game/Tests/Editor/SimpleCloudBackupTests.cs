@@ -201,10 +201,15 @@ public sealed class SimpleCloudBackupTests
         public int CloudReads;
         public int Uploads;
         public string LocalProgress = "owned-local-progress";
+        public string CapturedProgress;
+        public string UploadedProgress;
+        public Action DuringRead;
+        public Action DuringUpload;
 
         public Task<bool> ConfirmRemoteAbsentAsync()
         {
             CloudReads++;
+            DuringRead?.Invoke();
             if (InvalidRemote)
                 throw new InvalidDataException("Fake remote envelope is invalid.");
             return Task.FromResult(!RemoteExists);
@@ -229,6 +234,8 @@ public sealed class SimpleCloudBackupTests
         public Task UploadAsync()
         {
             Uploads++;
+            UploadedProgress = CapturedProgress;
+            DuringUpload?.Invoke();
             if (CreateRemoteBeforeFailure)
                 RemoteExists = true;
             if (SwitchAccountDuringUpload)
@@ -256,10 +263,23 @@ public sealed class SimpleCloudBackupTests
                 (Func<Task<bool>>)operations.ConfirmRemoteAbsentAsync,
                 (Func<bool>)(() => operations.GameplayReady),
                 (Func<bool>)operations.AuthorizationIsCurrent,
-                (Func<Task>)operations.UploadAsync
+                (Func<Task>)operations.UploadAsync,
+                (Action)(() => operations.CapturedProgress = operations.LocalProgress)
             });
         await task;
         return (bool)task.GetType().GetProperty("Result").GetValue(task);
+    }
+
+    [Test]
+    public async Task InitialBackupCapturesProgressAfterCloudReadAndAcceptsLaterLocalSaves()
+    {
+        var operations = new FakeInitialBackupOperations();
+        operations.DuringRead = () => operations.LocalProgress = "saved-during-read";
+        operations.DuringUpload = () => operations.LocalProgress = "saved-during-upload";
+
+        Assert.IsTrue(await RunInitialBackupAsync(operations));
+        Assert.AreEqual("saved-during-read", operations.UploadedProgress);
+        Assert.AreEqual("saved-during-upload", operations.LocalProgress);
     }
 
     [Test]

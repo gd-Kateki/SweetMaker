@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f3f8026c5f028040944f0ebda8827be, type: 3}
+  m_Name: SimpleAdsSettings
+  m_EditorClassIdentifier:
+  androidAppKey: 29245cbbd
+  rewardedAdUnitId: hg0kom1zfpm0no12
+  interstitialAdUnitId: 4gx9bo96ocyr4hiz
+  rewardedPlacement: BP_Rewarded_Android
+  interstitialPlacement: BP_Interstitial_Android
+  interstitialIntervalSeconds: 300
+  cashOfferIntervalSeconds: 300
+  cashRewardMultiplier: 1
+  minimumCashReward: 100

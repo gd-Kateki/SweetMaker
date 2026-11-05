@@ -353,6 +353,17 @@ public class PlayerProgressionManager : MonoBehaviour
         EnergyChanged?.Invoke();
     }
 
+    public int AddRewardedEnergy(int amount)
+    {
+        if (amount <= 0) return 0;
+        AdvanceEnergyClock();
+        int added = Math.Min(amount, MaximumEnergyValue - currentEnergy);
+        currentEnergy += added;
+        if (currentEnergy == MaximumEnergyValue) secondsUntilNextEnergy = 0d;
+        EnergyChanged?.Invoke();
+        return added;
+    }
+
     internal bool SetEnergyForDevelopment(int energy)
     {
         if (energy < 0 || energy > MaximumEnergyValue)

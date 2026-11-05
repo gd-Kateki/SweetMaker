@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using SweetMerge.Authentication;
 using SweetMerge.Startup;
@@ -597,23 +596,11 @@ namespace SweetMerge.Cloud
                 !SaveManager.ValidateCloudSnapshot(saveJson))
                 return false;
 
-            try
-            {
-                return string.Equals(
-                    File.ReadAllText(save.SaveFilePath, Encoding.UTF8),
-                    saveJson,
-                    StringComparison.Ordinal) &&
-                    SimpleCloudBackup.Instance != null &&
-                    SimpleCloudBackup.Instance.IsAcceptedBackup(
-                        owner,
-                        environment,
-                        saveJson,
-                        checksum);
-            }
-            catch (IOException)
-            {
-                return false;
-            }
+            // Statistics describe the acknowledged backup. Legitimate local saves
+            // during the network request must not invalidate that acknowledgement.
+            return SimpleCloudBackup.Instance != null &&
+                   SimpleCloudBackup.Instance.IsAcceptedBackup(
+                       owner, environment, saveJson, checksum);
         }
 
         private void Subscribe()
@@ -792,6 +779,12 @@ namespace SweetMerge.Cloud
 
         private static bool IsGoogleRun()
         {
+            // A guest can sign in from Settings without restarting the game.
+            // Only an acknowledged backup for the verified owner grants this path.
+            if (instance != null && instance.acceptedBackupRequired &&
+                instance.IsAcceptedBackupCurrent())
+                return true;
+
             StartupPlayModeLoadStatus status =
                 new StartupPlayModeStore().Load(
                     out StartupPlayMode storedMode,
