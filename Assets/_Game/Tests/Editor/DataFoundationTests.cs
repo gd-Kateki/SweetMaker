@@ -4457,6 +4457,16 @@ public class DataFoundationTests
             Assert.IsNotNull(sceneCamera, "Game scene camera was not found.");
             Assert.IsTrue(sceneCamera.orthographic);
 
+            // Preview scenes do not run Start. Exercise the runtime fitter rather
+            // than asserting against the camera's unadjusted authored size.
+            Component fitter = sceneCamera.GetComponent(FindPlayerType("GameplayCameraFitter"));
+            Assert.IsNotNull(fitter);
+            Assert.IsTrue(((Behaviour)fitter).enabled);
+            InvokeLifecycle(sceneGrid, "Awake");
+            InvokeLifecycle(fitter, "Awake");
+            InvokeLifecycle(fitter, "Start");
+            Assert.IsTrue(((Behaviour)fitter).enabled, "Camera fitting must initialize successfully.");
+
             float[] portraitAspects =
             {
                 9f / 16f,
@@ -4467,6 +4477,8 @@ public class DataFoundationTests
 
             foreach (float aspect in portraitAspects)
             {
+                sceneCamera.aspect = aspect;
+                InvokeLifecycle(fitter, "Update");
                 float halfWidth = sceneCamera.orthographicSize * aspect;
                 float halfHeight = sceneCamera.orthographicSize;
                 Bounds viewBounds = new Bounds(

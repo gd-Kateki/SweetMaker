@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/project-access-policy.schema.json",
+  "Statements": [
+    {
+      "Sid": "deny_direct_cafe_money_scores",
+      "Action": ["Write"],
+      "Effect": "Deny",
+      "Principal": "Player",
+      "Resource": "urn:ugs:leaderboards:/v1/projects/*/leaderboards/total_money_earned/scores/players/*",
+      "Version": "1.0.0"
+    },
+    {
+      "Sid": "deny_direct_cafe_order_scores",
+      "Action": ["Write"],
+      "Effect": "Deny",
+      "Principal": "Player",
+      "Resource": "urn:ugs:leaderboards:/v1/projects/*/leaderboards/total_orders_completed/scores/players/*",
+      "Version": "1.0.0"
+    }
+  ]
+}

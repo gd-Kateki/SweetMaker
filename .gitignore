@@ -15,6 +15,15 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+# Local test/build requests and generated Python caches
+/tmp/
+__pycache__/
+*.pyc
+
+# Generated output from the isolated Cloud Code prototype
+/CloudCode/**/bin/
+/CloudCode/**/obj/
+
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be commited to version control.
 *.blend1
 *.blend1.meta

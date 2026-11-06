@@ -1,0 +1,15 @@
+{
+  "ErrorExceptions": [
+    {
+      "ValidationTest": "NDA SDK Files Validation",
+      "ExceptionMessage": "Restricted SDK file 'NintendoSDK/Resources/Firmwares/NX/NintendoTargetManager2/Microsoft.Extensions.Primitives.dll' from manifest 'Packages/com.unity.internal-package-validation-suite/Config~/SDKManifests/Switch/SDKManifest_Switch_nx_sdk-18_3_0.json' for '-Switch' has been found as 'Editor/.CloudCodeBindingsGenerator/Microsoft.Extensions.Primitives.dll'. (hash 12239291086769575406)  Restricted SDK files must not be published",
+      "PackageVersion": "3.0.0-exp.8"
+    },
+    {
+      "ValidationTest": "NDA SDK Files Validation",
+      "ExceptionMessage": "Restricted SDK file 'NintendoSDK/Resources/Firmwares/NX/NintendoTargetManager2/Microsoft.Extensions.Primitives.dll' from manifest 'Packages/com.unity.internal-package-validation-suite/Config~/SDKManifests/Switch\\SDKManifest_Switch_nx_sdk-18_3_0.json' for '-Switch' has been found as 'Editor/.CloudCodeBindingsGenerator/Microsoft.Extensions.Primitives.dll'. (hash 12239291086769575406)  Restricted SDK files must not be published",
+      "PackageVersion": "3.0.0-exp.8"
+    }
+  ],
+  "WarningExceptions": []
+}

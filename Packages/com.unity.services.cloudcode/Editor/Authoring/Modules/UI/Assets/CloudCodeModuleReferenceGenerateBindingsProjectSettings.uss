@@ -1,0 +1,14 @@
+.module-bindings-container {
+    flex-direction: row;
+    margin-left: 10px;
+}
+
+.module-bindings-title {
+    flex-direction: row;
+    width: 50%;
+}
+
+.generate-bindings-button {
+    margin: 0px;
+    left: 7px;
+}

@@ -549,8 +549,9 @@ public sealed class PlayerStatisticsCloudSyncTests
             key.StartsWith("dmc_backup_v1_", StringComparison.Ordinal)));
     }
 
-    [Test]
-    public void AcceptedSaveV2StatisticsKeepExactIntegerTypes()
+    [TestCase("Sweet Cafe")]
+    [TestCase("Café Crème")]
+    public void AcceptedSaveV2StatisticsIncludeCafeNameAndKeepExactIntegerTypes(string cafeName)
     {
         Type saveType = Find("PlayerSaveData");
         Type economyType = Find("EconomySaveData");
@@ -574,10 +575,12 @@ public sealed class PlayerStatisticsCloudSyncTests
         MethodInfo method = service.GetMethod(
             "TryCaptureSnapshotFromSaveV2",
             BindingFlags.Static | BindingFlags.NonPublic);
-        object[] arguments = { json, null };
+        object[] arguments = { json, cafeName, null };
 
         Assert.IsTrue((bool)method.Invoke(null, arguments));
-        var snapshot = (IDictionary<string, object>)arguments[1];
+        var snapshot = (IDictionary<string, object>)arguments[2];
+        Assert.AreEqual(cafeName, snapshot["dmc_player_profile_v1_cafe_name"]);
+        Assert.AreEqual(5, snapshot.Count);
         Assert.AreEqual(23, snapshot["dmc_player_stats_v1_current_money"]);
         Assert.AreEqual(
             22345678901234567L,

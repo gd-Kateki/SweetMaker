@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement class="module-bindings-container">
+        <ui:VisualElement class="module-bindings-title">
+            <ui:Label class="module-bindings-text" name="module-bindings-text"/>
+        </ui:VisualElement>
+        <ui:Button name="generate-bindings-btn" display-tooltip-when-elided="true" class="generate-bindings-button"/>
+    </ui:VisualElement>
+</ui:UXML>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using SweetMerge.Authentication;
+using SweetMerge.Profile;
 using SweetMerge.Startup;
 using Unity.Services.CloudSave;
 using Unity.Services.CloudSave.Models;
@@ -390,6 +391,7 @@ namespace SweetMerge.Cloud
 
     public sealed class PlayerStatisticsCloudSync : MonoBehaviour
     {
+        internal const string CafeNameKey = "dmc_player_profile_v1_cafe_name";
         internal const string CurrentMoneyKey =
             "dmc_player_stats_v1_current_money";
         internal const string TotalMoneyEarnedKey =
@@ -409,6 +411,7 @@ namespace SweetMerge.Cloud
         private string acceptedBackupOwner;
         private string acceptedBackupEnvironment;
         private string acceptedBackupSaveJson;
+        private string acceptedBackupCafeName;
         private string acceptedBackupChecksum;
         private bool acceptedBackupRequired;
 
@@ -495,10 +498,12 @@ namespace SweetMerge.Cloud
 
         internal static bool TryCaptureSnapshotFromSaveV2(
             string saveJson,
+            string cafeName,
             out IDictionary<string, object> snapshot)
         {
             snapshot = null;
-            if (string.IsNullOrEmpty(saveJson) ||
+            if (string.IsNullOrWhiteSpace(cafeName) || cafeName != cafeName.Trim() ||
+                cafeName.Length > 20 || string.IsNullOrEmpty(saveJson) ||
                 !SaveManager.ValidateCloudSnapshot(saveJson))
                 return false;
 
@@ -513,6 +518,7 @@ namespace SweetMerge.Cloud
 
             snapshot = new Dictionary<string, object>
             {
+                [CafeNameKey] = cafeName,
                 [CurrentMoneyKey] = save.economy.cash,
                 [TotalMoneyEarnedKey] = save.economy.totalMoneyEarned,
                 [TotalOrdersCompletedKey] =
@@ -533,8 +539,10 @@ namespace SweetMerge.Cloud
             acceptedBackupOwner = envelope.playerId;
             acceptedBackupEnvironment = envelope.environment;
             acceptedBackupSaveJson = envelope.saveJson;
+            acceptedBackupCafeName = envelope.cafeName;
             acceptedBackupChecksum = envelope.checksum;
             acceptedBackupRequired = true;
+            CafeLeaderboards.AcceptBackup(envelope);
             if (!session.RegisterAcceptedBackupCandidate(
                     envelope.playerId))
                 return;
@@ -570,7 +578,7 @@ namespace SweetMerge.Cloud
                        StringComparison.Ordinal);
         }
 
-        private static bool IsAcceptedBackupCurrent(
+        internal static bool IsAcceptedBackupCurrent(
             string owner,
             string environment,
             string saveJson,
@@ -821,6 +829,7 @@ namespace SweetMerge.Cloud
             {
                 if (!TryCaptureSnapshotFromSaveV2(
                         instance.acceptedBackupSaveJson,
+                        instance.acceptedBackupCafeName,
                         out IDictionary<string, object> acceptedSnapshot))
                     throw new InvalidDataException(
                         "Accepted Save V2 statistics could not be captured.");
@@ -834,8 +843,12 @@ namespace SweetMerge.Cloud
                 throw new InvalidOperationException(
                     "Statistics managers are unavailable after startup readiness.");
 
+            if (CafeProfileLocalStore.Load(out var cafe, out _) != CafeProfileLocalStatus.Loaded)
+                throw new InvalidDataException("Cafe profile is not ready to sync.");
+
             return new Dictionary<string, object>
             {
+                [CafeNameKey] = cafe.CafeName,
                 [CurrentMoneyKey] = economy.CurrentCash,
                 [TotalMoneyEarnedKey] = economy.TotalMoneyEarned,
                 [TotalOrdersCompletedKey] = economy.TotalOrdersCompleted,

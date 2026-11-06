@@ -1,0 +1,118 @@
+[
+  {
+    "path": "tmp\\ads-import.log",
+    "bytes": 2473
+  },
+  {
+    "path": "tmp\\ads-tests.xml",
+    "bytes": 25748
+  },
+  {
+    "path": "tmp\\android-console-compile.log",
+    "bytes": 76217
+  },
+  {
+    "path": "tmp\\android-release-build.log",
+    "bytes": 2549
+  },
+  {
+    "path": "tmp\\cloud-backup-tests.log",
+    "bytes": 7351
+  },
+  {
+    "path": "tmp\\cloud-cafe-name-tests.log",
+    "bytes": 194421
+  },
+  {
+    "path": "tmp\\cloud-cafe-name-tests.xml",
+    "bytes": 108094
+  },
+  {
+    "path": "tmp\\cloud-conflict-tests.log",
+    "bytes": 170416
+  },
+  {
+    "path": "tmp\\cloud-conflict-tests.xml",
+    "bytes": 106694
+  },
+  {
+    "path": "tmp\\cloud-dashboard-tests.log",
+    "bytes": 189335
+  },
+  {
+    "path": "tmp\\cloud-dashboard-tests.xml",
+    "bytes": 103055
+  },
+  {
+    "path": "tmp\\cloud-fixes-tests.log",
+    "bytes": 3000720
+  },
+  {
+    "path": "tmp\\cloud-fixes-tests.xml",
+    "bytes": 168239
+  },
+  {
+    "path": "tmp\\cloud-local-save-tests.log",
+    "bytes": 2735566
+  },
+  {
+    "path": "tmp\\cloud-local-save-tests.xml",
+    "bytes": 161477
+  },
+  {
+    "path": "tmp\\internal-test-builder-compile.log",
+    "bytes": 56949
+  },
+  {
+    "path": "tmp\\internal-test-release-build.log",
+    "bytes": 87046
+  },
+  {
+    "path": "tmp\\internal-testing-tests.log",
+    "bytes": 172106
+  },
+  {
+    "path": "tmp\\internal-testing-tests.xml",
+    "bytes": 176037
+  },
+  {
+    "path": "tmp\\leaderboards-package.log",
+    "bytes": 144986
+  },
+  {
+    "path": "tmp\\leaderboards-production-tests.log",
+    "bytes": 171824
+  },
+  {
+    "path": "tmp\\leaderboards-production-tests.xml",
+    "bytes": 124468
+  },
+  {
+    "path": "tmp\\leaderboards-tests.log",
+    "bytes": 242643
+  },
+  {
+    "path": "tmp\\leaderboards-tests.xml",
+    "bytes": 117685
+  },
+  {
+    "path": "tmp\\release-build-blocked.txt",
+    "bytes": 152
+  },
+  {
+    "path": "tmp\\release-build-status.txt",
+    "bytes": 160
+  },
+  {
+    "path": "Assets\\_Game\\Editor\\AdsTestRunTemporary.cs",
+    "bytes": 1229
+  },
+  {
+    "path": "Assets\\_Game\\Editor\\AdsTestRunTemporary.cs.meta",
+    "bytes": 59
+  },
+  {
+    "path": "Tools\\__pycache__\\verify_android_release.cpython-314.pyc",
+    "bytes": 6916
+  }
+]

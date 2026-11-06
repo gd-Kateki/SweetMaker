@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: fbfa9b403363458b9c11f844f3c1936b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_ViewDataDictionary: {instanceID: 0}
+  - m_UxmlCloudCodeCreationWindowAsset: {fileID: 9197481963319205126, guid: 20405b0ae96a476ba08de19338b8fa53, type: 3}
+  - m_StyleSheetDarkAsset: {fileID: 7433441132597879392, guid: 366115f2fa3ec614381c0b8be71b5c3d, type: 3}
+  - m_StyleSheetLightAsset: {fileID: 7433441132597879392, guid: 22f99de731ec83f4c8936b9ac205e0fb, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

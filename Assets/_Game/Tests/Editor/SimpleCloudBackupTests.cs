@@ -9,6 +9,41 @@ using UnityEngine;
 
 public sealed class SimpleCloudBackupTests
 {
+    [TestCase("cloud-32", "cloud-32", false)]
+    [TestCase("cloud-32", "other-device-progress", true)]
+    [TestCase(null, "unknown-cloud", true)]
+    [TestCase(null, null, false)]
+    public void TemporarilyUnavailableLocalSaveRetainsAncestorAndOnlyStopsForChangedCloud(
+        string accepted, string cloud, bool needsChoice)
+    {
+        Type type = Find("SweetMerge.Cloud.SimpleCloudBackup");
+        var gameObject = new GameObject("Cloud retry regression");
+        gameObject.SetActive(false);
+        try
+        {
+            var service = gameObject.AddComponent(type);
+            const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+            type.GetField("acceptedHash", fields).SetValue(service, accepted);
+            if (cloud != null)
+            {
+                object envelope = Activator.CreateInstance(Find("SweetMerge.Cloud.CloudBackupEnvelope"));
+                envelope.GetType().GetField("checksum").SetValue(envelope, cloud);
+                type.GetField("remote", fields).SetValue(service, envelope);
+            }
+            type.GetMethod("BlockUpload", fields).Invoke(service,
+                new object[] { "Local gameplay is not ready to back up." });
+
+            Assert.AreEqual(accepted, type.GetField("acceptedHash", fields).GetValue(service));
+            Assert.AreEqual(needsChoice, type.GetProperty("ChoiceRequired").GetValue(service));
+            Assert.AreEqual(false, type.GetField("paused", fields).GetValue(service));
+            if (accepted == cloud && cloud != null)
+                Assert.AreEqual(1, type.GetMethod("Decide").Invoke(null,
+                    new object[] { "local-64", cloud, accepted }),
+                    "After readiness returns, newer local progress must upload automatically.");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+    }
+
     [TestCase(true, "save-a", "lock-a", "save-a", "lock-a", true)]
     [TestCase(false, "save-a", "lock-a", "save-a", "lock-a", false)]
     [TestCase(true, "save-a", "lock-a", "save-b", "lock-b", false)]

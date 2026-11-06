@@ -4323,7 +4323,7 @@ MonoBehaviour:
     pitchVariation: 0
     minimumReplayInterval: 0
   sfxVolume: 1
-  testSfxId: 0
+  testSfxId: 1
 --- !u!114 &2290013141
 MonoBehaviour:
   m_ObjectHideFlags: 0

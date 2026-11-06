@@ -933,8 +933,8 @@ namespace SweetMerge.Cloud
                         Status = localMessage;
                         return;
                     }
-                    acceptedHash = null; ChoiceRequired = remote != null;
-                    Status = remote != null
+                    BlockUpload(localMessage);
+                    Status = ChoiceRequired
                         ? "Cloud progress is available. You can restore it " +
                           "on this device. " + localMessage
                         : localMessage;
@@ -1279,11 +1279,11 @@ namespace SweetMerge.Cloud
 
         private void BlockUpload(string message)
         {
-            acceptedHash = null;
-            // Recheck transient readiness/ownership failures automatically.
-            // Existing remote conflicts still stop at ChoiceRequired.
+            // A failed local capture is not evidence of a cloud conflict. Keep
+            // the acknowledged ancestor so normal gameplay can resume uploads.
+            // Authorization is still revalidated on every retry before writing.
             paused = false;
-            ChoiceRequired = remote != null;
+            ChoiceRequired = remote != null && remote.checksum != acceptedHash;
             nextCheck = GetSaveBackupDueTime(Time.unscaledTime);
             Status = message;
         }
