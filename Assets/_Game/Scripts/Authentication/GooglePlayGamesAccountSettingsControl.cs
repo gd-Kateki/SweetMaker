@@ -197,6 +197,7 @@ namespace SweetMerge.Authentication
             control.SetCoordinator(coordinator);
             if (!control.gameObject.activeSelf)
                 control.gameObject.SetActive(true);
+            EditableUIView.Attach(control.gameObject, "AccountSettings");
             return control;
         }
 

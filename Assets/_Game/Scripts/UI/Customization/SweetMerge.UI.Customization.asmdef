@@ -1,0 +1,8 @@
+{
+  "name": "SweetMerge.UI.Customization",
+  "references": [
+    "Unity.TextMeshPro",
+    "Unity.ugui"
+  ],
+  "autoReferenced": true
+}

@@ -37,6 +37,16 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
     private bool subscribed;
     private bool subscribedToStartupFlow;
     private Coroutine bindingCoroutine;
+    private bool cloudChoiceWasPending;
+
+    private void Update()
+    {
+        bool pending = SweetMerge.Cloud.SimpleCloudBackup.Instance != null &&
+            SweetMerge.Cloud.SimpleCloudBackup.Instance.FreshInstallChoicePending;
+        if (pending == cloudChoiceWasPending) return;
+        cloudChoiceWasPending = pending;
+        Refresh();
+    }
 
     private void Awake()
     {
@@ -145,6 +155,15 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
             return;
         }
 
+        // The cloud-choice modal owns this waiting phase. A full-screen loading
+        // overlay at short.MaxValue would hide it and prevent a decision.
+        if (SweetMerge.Cloud.SimpleCloudBackup.Instance != null &&
+            SweetMerge.Cloud.SimpleCloudBackup.Instance.FreshInstallChoicePending)
+        {
+            overlay.SetActive(false);
+            return;
+        }
+
         string dependencyFailure =
             StartupFlowIntegrationOwner.DependencyFailureMessage;
         if (!string.IsNullOrEmpty(dependencyFailure))
@@ -222,7 +241,7 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         overlay = new GameObject("StartupOverlay", typeof(RectTransform));
         overlay.transform.SetParent(transform, false);
         SetFullRect(overlay.GetComponent<RectTransform>());
-        Canvas parentCanvas = GetComponentInParent<Canvas>();
+        Canvas parentCanvas = GetComponentInParent<Canvas>(true);
         Canvas overlayCanvas = overlay.AddComponent<Canvas>();
         overlayCanvas.overrideSorting = true;
         overlayCanvas.sortingLayerID = parentCanvas.sortingLayerID;
@@ -277,6 +296,7 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
         noteText.text =
             "Your local Save V2 stays on this device. No sign-in or cloud restore runs automatically.";
         noteText.color = new Color(0.88f, 0.84f, 0.8f, 1f);
+        EditableUIView.Attach(overlay, "StartupLoading");
     }
 
     private static TMP_Text CreateText(

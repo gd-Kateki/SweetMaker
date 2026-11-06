@@ -80,6 +80,23 @@ reward-completion events, and diagnostic information. These services use data
 for advertising delivery, measurement, frequency management, security, fraud
 prevention, and, where applicable, personalization.
 
+Before initializing advertising, the Game asks for an age group: under 13,
+13–17, or 18 and above. This age group and your advertising choice are stored
+locally, separately from your cloud save and analytics choice; we do not ask for
+your date of birth. Advertising is unavailable for the under-13 group.
+
+For ages 13–17, the Game requests restricted treatment from Unity, disables
+personalized advertising, signals no sale/sharing and requests that the ad SDK
+does not access the Advertising ID. Adults can choose limited ads or explicitly
+allow personalized ads. Limited ads use the same non-personalized and
+identifier-restriction signals. These signals do not eliminate all technical
+processing needed to deliver an ad.
+
+Review or change these choices through **Settings → Advertising privacy**.
+Choosing limited ads withdraws the Game's personalized-ad consent signal and
+clears previously loaded ad inventory. It does not reverse information already
+processed by a provider. Normal gameplay does not require personalized ads.
+
 Advertising services can process information when their SDK initializes or
 requests an advertisement, even if you do not choose to watch a rewarded ad.
 The analytics consent setting does not control advertising data processing.
@@ -185,6 +202,11 @@ prevention reasons, we limit it to the necessary purpose and explain applicable
 exceptions in responding to your request.
 
 ## 7. Account and data deletion
+
+In the Game, open **Settings → Request account / data deletion** to view the
+instructions and prepare a support email containing your available game player
+identifier. Review and send the email to submit your request. Opening the request
+screen, website, or email composer alone does not delete your account.
 
 You can request deletion without reinstalling the Game by emailing
 **studiosoffcut@gmail.com**, preferably with the subject

@@ -12,6 +12,8 @@ public sealed class AdOfferPopup : MonoBehaviour
     private int amount;
     public static bool Show(bool energy, int amount)
     {
+        if (!AdvertisingPrivacy.Resolved) return PlayerPrivacyUI.ShowAdvertising();
+        if (!AdvertisingPrivacy.CanRequestAds) return false;
         if (instance != null || GameplayModalInputGate.IsGameplayInputBlocked) return false;
         var root = new GameObject("Watch ad offer", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         var popup = root.AddComponent<AdOfferPopup>();
@@ -20,6 +22,11 @@ public sealed class AdOfferPopup : MonoBehaviour
             !GameplayModalInputGate.IsSafeToOpen(popup.lease))
         { Destroy(root); return false; }
         instance = popup; popup.energy = energy; popup.amount = amount;
+        popup.Build(root);
+        return true;
+    }
+    private void Build(GameObject root)
+    {
         root.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
         root.GetComponent<Canvas>().sortingOrder = 32000;
         var scaler = root.GetComponent<CanvasScaler>();
@@ -37,10 +44,10 @@ public sealed class AdOfferPopup : MonoBehaviour
         Label(card.transform, energy ? "More energy?" : "A little cafe bonus!", 35, 60, 32);
         Label(card.transform, energy ? "Watch an ad for +50 energy.\nEnergy fills up to 100." :
             "Watch an ad to earn $" + amount.ToString("N0") + ".", 105, 85, 26);
-        popup.feedback = Label(card.transform, "", 195, 55, 20);
-        popup.watch = Button(card.transform, "Watch Ad", 265, popup.Watch);
-        Button(card.transform, "No thanks", 340, popup.Close);
-        return true;
+        feedback = Label(card.transform, "", 195, 55, 20);
+        watch = Button(card.transform, "Watch Ad", 265, Watch);
+        Button(card.transform, "No thanks", 340, Close);
+        EditableUIView.Attach(root, energy ? "RewardedEnergy" : "RewardedCash");
     }
     private void Update()
     {

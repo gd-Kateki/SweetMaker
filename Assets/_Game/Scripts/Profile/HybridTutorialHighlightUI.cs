@@ -68,6 +68,7 @@ namespace SweetMerge.Profile
             highlightRect = CreateHighlightRect();
             edges = CreateEdges(highlightRect);
             HideHighlight();
+            EditableUIView.Attach(highlightRect.gameObject, "TutorialHighlight");
         }
 
         private void OnEnable()

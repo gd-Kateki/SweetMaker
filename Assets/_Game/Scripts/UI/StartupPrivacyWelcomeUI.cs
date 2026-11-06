@@ -342,7 +342,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         if (initialized)
             return;
 
-        Canvas parentCanvas = GetComponentInParent<Canvas>();
+        Canvas parentCanvas = GetComponentInParent<Canvas>(true);
         if (parentCanvas == null ||
             parentCanvas.rootCanvas.renderMode !=
                 RenderMode.ScreenSpaceOverlay)
@@ -433,6 +433,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         welcomeScreen.SetActive(false);
         overlayRoot.SetActive(false);
         initialized = true;
+        EditableUIView.Attach(overlayRoot, "StartupWelcome");
     }
 
     private static GameObject CreateScreen(

@@ -6,7 +6,8 @@
     "Unity.Services.Core",
     "Unity.Services.Core.Environments",
     "Unity.TextMeshPro",
-    "Unity.ugui"
+    "Unity.ugui",
+    "SweetMerge.UI.Customization"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -1,3 +1,5 @@
+> Historical pre-implementation review. Advertising privacy and the deletion-request entry have since been implemented. See PRIVACY_OPERATIONS.md for the current state and remaining publication/device checks.
+
 # Privacy and release declaration review
 
 Reviewed 6 November 2026 against the published OffCut Studios Legal Center,

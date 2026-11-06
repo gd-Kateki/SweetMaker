@@ -815,5 +815,6 @@ public sealed class SettingsUI : MonoBehaviour
             SweetMerge.Cloud.SimpleCloudPanel.Attach(accountControl.transform,
                 label != null ? label.font : TMP_Settings.defaultFontAsset);
         }
+        PlayerPrivacyUI.AttachSettings(settingsContent, this);
     }
 }

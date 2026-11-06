@@ -151,6 +151,7 @@ public sealed class AndroidDevelopmentConsole : MonoBehaviour
         output.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.content = content;
         panel.SetActive(false);
+        EditableUIView.Attach(gameObject, "AndroidLogConsole");
     }
 
     private static RectTransform Rect(string name, Transform parent)

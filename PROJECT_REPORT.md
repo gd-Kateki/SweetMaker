@@ -149,7 +149,7 @@ The active implementation is the small LevelPlay-based `SimpleAdManager`, config
 
 Rewards are tied to an auction identity and a one-time claim ticket; completion callback, not offer acceptance, grants the reward. Reward application requests a local save. Ads run on Android devices; Editor does not simulate reward payouts. Loading failures retry, and unavailable ads must not prevent basic navigation.
 
-Known limitation: an SDK initialization failure currently tells the player to reopen the game; automatic SDK reinitialization is not implemented. Verify real ad callback order, rewarded payout, dismissals and connection recovery on a test device. The previous elaborate ad architecture was replaced. Archived ad design/privacy documents describe historical work and must not be treated as proof of the current production consent flow. Analytics consent and advertising consent are separate concerns; the current ad manager initializes automatically on Android, so ad-provider privacy configuration needs explicit release review.
+SDK initialization failures now retry after 30 seconds while advertising remains eligible. Verify real ad callback order, rewarded payout, dismissals and connection recovery on a test device. The previous elaborate ad architecture was replaced. Archived ad design/privacy documents describe historical work and must not be treated as proof of the current production consent flow. Analytics consent and advertising consent are separate concerns; ads now wait for the age/privacy flow, and ad-provider privacy configuration still needs device/dashboard verification.
 
 ## 11. Analytics, settings and development tooling
 
@@ -232,3 +232,26 @@ The following were deliberately retained:
 ## 16. Maintenance priorities
 
 First complete the Play internal-device checklist and production privacy/ad-provider review. Preserve the separation between acknowledged gameplay backups, dashboard summaries and leaderboard projections. For competitive or prize-based rankings, move authoritative economy/reward validation to trusted server logic. Keep this report, release version information, dependency lockfile and backend deployment instructions updated with future changes.
+
+
+## Privacy implementation update — 6 November 2026
+
+AdvertisingPrivacy and PlayerPrivacyUI now gate ad startup on a local age band and versioned choice. Ages 13–17 can use limited ads; adult personalization is optional. Settings provides Advertising privacy and an account/data deletion request screen with email and website routes. There is no general Disable Ads switch and no additional ad/CMP SDK. SDK inventory is cleared when privacy choices change; a build guard blocks SDK auto-initialization bypass. See [privacy operations](Docs/PRIVACY_OPERATIONS.md) for exact signals, manual fulfillment and remaining regional/device checks.
+
+Updated policy/deletion text and three standalone HTML pages are prepared under Docs/Website. They have not been published to the external legal website. No production account deletion or live advertising verification was performed.
+
+
+## Cloud-choice presentation fix — 6 November 2026
+
+The fresh-install restore choice now uses the startup overlay priority and highest active UI sorting layer. The home loading overlay yields during that decision, and the account-startup view hides once it hands control to the cloud choice. The prompt waits for existing gameplay operations to finish before building its interactive UI.
+
+A valid remote save that needs a decision after local startup now also opens the choice automatically instead of exposing the action only through Settings. Fresh-install choices are Restore/New Game; existing local progress gets Restore/Keep Device with explicit confirmation and existing owner/write-lock verification. Ordinary updates from an accepted cloud ancestor continue saving automatically. Restoring still stages the backup and asks the player to reopen the game. A fresh-install Android device test remains required after building the updated client.
+
+
+## Editable UI update — 6 November 2026
+
+Game-owned runtime views now support visual prefab overrides through the independent SweetMerge.UI.Customization assembly. The UI Designer exports visual/layout components without cloning gameplay controllers or button listeners. A shared RuntimeUITheme provides optional global artwork/font overrides; 21 starter visual prefabs are supplied under Assets/_Game/Resources/UI/VisualTemplates. Other registered runtime screens can be captured when displayed. Existing scene/prefab UI stays editable in Unity.
+
+[UI_GUIDE.md](UI_GUIDE.md) lists all registered runtime views and editing instructions; [the serialized UI inventory](Docs/UI_SCENE_INVENTORY.md) gives exact scene/prefab hierarchy/controller paths. Provider-owned sign-in, Android dialogs and actual ad creatives remain outside the game's visual-prefab system.
+
+Validation: full Unity EditMode suite passed 669/669 tests after integration, including capture/binding checks, preservation of button actions/live text and existing game regressions. These are automated checks; custom artwork still needs visual review on target devices.

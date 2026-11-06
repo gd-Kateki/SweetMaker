@@ -69,6 +69,7 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
         ApplyControlArtwork();
         ApplyTextColor();
         UpdateCardLayout();
+        EditableUIView.Attach(gameObject, "SettingsArtwork");
     }
 
     private void LateUpdate()

@@ -184,6 +184,8 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
         BuildPanelCard(overlayObject.transform);
         devButtonObject.transform.SetAsLastSibling();
+        EditableUIView.Attach(overlayObject, "DeveloperCheats");
+        EditableUIView.Attach(devButtonObject, "DeveloperButton");
     }
 
     private void BuildPanelCard(Transform overlay)

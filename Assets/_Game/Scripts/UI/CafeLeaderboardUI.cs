@@ -33,12 +33,20 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         if (instance != null && instance != this) { Destroy(gameObject); return; }
         instance = this;
         DontDestroyOnLoad(gameObject);
-        var canvas = gameObject.AddComponent<Canvas>();
+        BuildInterface();
+        SceneManager.activeSceneChanged += SceneChanged;
+    }
+
+    private void BuildInterface()
+    {
+        var canvas = GetComponent<Canvas>();
+        if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 31000;
-        var scaler = gameObject.AddComponent<CanvasScaler>();
+        var scaler = GetComponent<CanvasScaler>();
+        if (scaler == null) scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(720, 1280); scaler.matchWidthOrHeight = 0.5f;
-        gameObject.AddComponent<GraphicRaycaster>();
+        if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
         safeArea = Rect("Safe area", transform); Stretch(safeArea);
         launcher = Button("Leaderboards", safeArea, Open);
         var launchRect = launcher.GetComponent<RectTransform>();
@@ -86,7 +94,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         next = Button("Next", shade, () => { offset += CafeLeaderboards.PageSize; Load(); });
         Bottom(previous, 0, 1f / 3); Bottom(refresh, 1f / 3, 2f / 3); Bottom(next, 2f / 3, 1);
         panel.SetActive(false);
-        SceneManager.activeSceneChanged += SceneChanged;
+        EditableUIView.Attach(gameObject, "Leaderboards");
     }
 
     private void Update()
@@ -168,6 +176,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
                 Stretch(right.rectTransform); right.rectTransform.anchorMin = new Vector2(0.55f, 0);
                 right.rectTransform.offsetMin = new Vector2(0, 8); right.rectTransform.offsetMax = new Vector2(-12, -8);
                 right.alignment = TextAlignmentOptions.MidlineRight;
+                EditableUIView.Attach(row.gameObject, "LeaderboardRow");
             }
             status.text = page.Results.Count == 0 ? "No cafés ranked here yet. Play and cloud-save to join!"
                 : $"Ranks {offset + 1}–{offset + page.Results.Count} · Lifetime totals";

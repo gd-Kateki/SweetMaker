@@ -105,6 +105,7 @@ namespace SweetMerge.Analytics
 
             control.SetProvider(consentProvider);
             EnsureVerticalScrollbar(settingsContent);
+            EditableUIView.Attach(control.gameObject, "AnalyticsSettings");
             return control;
         }
 
@@ -747,6 +748,7 @@ namespace SweetMerge.Analytics
                 Vector2.zero,
                 DismissPrompt);
             dismissButtonObject = dismissButton.gameObject;
+            EditableUIView.Attach(promptCanvas, "AnalyticsPrompt");
             promptCanvas.SetActive(false);
 
             return true;

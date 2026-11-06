@@ -7,7 +7,8 @@
     "Unity.Services.Core",
     "Google.Play.Games",
     "Unity.TextMeshPro",
-    "Unity.ugui"
+    "Unity.ugui",
+    "SweetMerge.UI.Customization"
   ],
   "includePlatforms": [
     "Android",

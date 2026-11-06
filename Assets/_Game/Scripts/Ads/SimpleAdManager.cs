@@ -13,11 +13,13 @@ public sealed class SimpleAdManager : MonoBehaviour
     private LevelPlayInterstitialAd interstitial;
     private string loadedAuction;
     private bool showing, loadingRewarded, loadingInterstitial, initialized;
+    private bool initializationRequested, sdkReady;
+    private float nextInitializationAttempt;
     private float nextInterstitial, cashPlaySeconds, retryRewarded, retryInterstitial;
     private Action afterInterstitial;
     private GameplayModalInputGate.GameplayModalLease adLease;
     private readonly Dictionary<string, RewardTicket> rewards = new Dictionary<string, RewardTicket>();
-    public bool RewardedReady => initialized && !showing && rewarded != null && rewarded.IsAdReady();
+    public bool RewardedReady => AdvertisingPrivacy.CanRequestAds && initialized && !showing && rewarded != null && rewarded.IsAdReady();
     public string Status { get; private set; } = "Ads are loading. Please try again shortly.";
 
     internal sealed class RewardTicket
@@ -43,23 +45,61 @@ public sealed class SimpleAdManager : MonoBehaviour
         settings = Resources.Load<SimpleAdsSettings>("SimpleAdsSettings");
         if (settings == null) { enabled = false; Debug.LogError("ADS | Settings missing."); return; }
         nextInterstitial = Time.realtimeSinceStartup + settings.interstitialIntervalSeconds;
+        AdvertisingPrivacy.Changed += PrivacyChanged;
 #if UNITY_ANDROID && !UNITY_EDITOR
         LevelPlay.OnInitSuccess += OnInitialized;
         LevelPlay.OnInitFailed += OnInitFailed;
-        LevelPlay.Init(settings.androidAppKey);
+        TryInitialize();
 #else
         Status = "Ads run on an Android device. No rewards are simulated in the Editor.";
 #endif
     }
 
+    private void TryInitialize()
+    {
+        if (!AdvertisingPrivacy.CanRequestAds)
+        {
+            Status = AdvertisingPrivacy.Age == AdvertisingPrivacy.AgeGroup.Under13
+                ? "Ads are unavailable for this age group." : "Review Advertising privacy in Settings first.";
+            return;
+        }
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (initializationRequested || Time.realtimeSinceStartup < nextInitializationAttempt) return;
+        AdvertisingPrivacy.ApplySdkSignals();
+        if (sdkReady) { OnInitialized(null); return; }
+        initializationRequested = true;
+        try { LevelPlay.Init(settings.androidAppKey); }
+        catch (Exception exception) { initializationRequested = false; nextInitializationAttempt = Time.realtimeSinceStartup + 30; Debug.LogWarning("ADS | " + exception.Message); }
+#endif
+    }
+
+    private void PrivacyChanged()
+    {
+        // Destroy old inventory so it cannot be shown under a different privacy choice.
+        initialized = false;
+        rewarded?.DestroyAd(); interstitial?.DestroyAd();
+        rewarded = null; interstitial = null; loadedAuction = null;
+        loadingRewarded = loadingInterstitial = false;
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (sdkReady || initializationRequested) AdvertisingPrivacy.ApplySdkSignals();
+#endif
+        // An initialization already in flight finishes using the current signals.
+        if (sdkReady) initializationRequested = false;
+        TryInitialize();
+    }
+
     private void OnInitFailed(LevelPlayInitError error)
     {
-        Status = "Ads could not connect. Reopen the game to retry.";
+        initializationRequested = false;
+        nextInitializationAttempt = Time.realtimeSinceStartup + 30;
+        Status = "Ads could not connect. Retrying shortly.";
         Debug.LogWarning("ADS | Initialization failed: " + error);
     }
 
     private void OnInitialized(LevelPlayConfiguration configuration)
     {
+        sdkReady = true;
+        if (!AdvertisingPrivacy.CanRequestAds) return;
         if (initialized) return;
         initialized = true;
         rewarded = new LevelPlayRewardedAd(settings.rewardedAdUnitId);
@@ -84,17 +124,21 @@ public sealed class SimpleAdManager : MonoBehaviour
 
     private void LoadRewarded()
     {
-        if (!initialized || loadingRewarded || rewarded.IsAdReady()) return;
+        if (!AdvertisingPrivacy.CanRequestAds || !initialized || loadingRewarded || rewarded == null || rewarded.IsAdReady()) return;
         loadingRewarded = true; rewarded.LoadAd();
     }
     private void LoadInterstitial()
     {
-        if (!initialized || loadingInterstitial || interstitial.IsAdReady()) return;
+        if (!AdvertisingPrivacy.CanRequestAds || !initialized || loadingInterstitial || interstitial == null || interstitial.IsAdReady()) return;
         loadingInterstitial = true; interstitial.LoadAd();
     }
 
     private void Update()
     {
+        if (!AdvertisingPrivacy.Resolved && !AdvertisingPrivacy.DeferredForSession && SceneManager.GetActiveScene().name == "Game" && GameplayReady() &&
+            !GameplayModalInputGate.IsGameplayInputBlocked)
+            PlayerPrivacyUI.ShowAdvertising();
+        if (!initialized && AdvertisingPrivacy.CanRequestAds) TryInitialize();
         if (!initialized || showing) return;
         if (Time.realtimeSinceStartup >= retryRewarded) LoadRewarded();
         if (Time.realtimeSinceStartup >= retryInterstitial) LoadInterstitial();
@@ -168,7 +212,7 @@ public sealed class SimpleAdManager : MonoBehaviour
     private IEnumerator HomeAd(Action navigate)
     {
         yield return null; // Finish the Home button's save/departure operation first.
-        if (!initialized || showing || Time.realtimeSinceStartup < nextInterstitial ||
+        if (!AdvertisingPrivacy.CanRequestAds || !initialized || showing || Time.realtimeSinceStartup < nextInterstitial ||
             interstitial == null || !interstitial.IsAdReady() || !BeginAd())
         { navigate(); yield break; }
         afterInterstitial = navigate;
@@ -184,6 +228,7 @@ public sealed class SimpleAdManager : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance != this) return;
+        AdvertisingPrivacy.Changed -= PrivacyChanged;
         LevelPlay.OnInitSuccess -= OnInitialized;
         LevelPlay.OnInitFailed -= OnInitFailed;
         rewarded?.DestroyAd(); interstitial?.DestroyAd();

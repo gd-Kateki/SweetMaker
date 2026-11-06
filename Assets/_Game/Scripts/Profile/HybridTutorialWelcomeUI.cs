@@ -122,6 +122,7 @@ namespace SweetMerge.Profile
                 bodyText.rectTransform,
                 new Vector2(.08f, .63f),
                 new Vector2(.92f, .78f));
+            EditableUIView.Attach(panel, "TutorialWelcome");
         }
 
         private void HandleStartClicked()

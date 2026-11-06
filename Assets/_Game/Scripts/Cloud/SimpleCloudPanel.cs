@@ -59,6 +59,7 @@ namespace SweetMerge.Cloud
                 675,
                 () => panel.HandleCancelClicked());
             panel.cancelOwnershipLink.gameObject.SetActive(false);
+            EditableUIView.Attach(parent.gameObject, "AccountSettings");
         }
 
         private void OnDisable()
@@ -356,6 +357,7 @@ namespace SweetMerge.Cloud
             var text = Text(background.transform, TMP_Settings.defaultFontAsset,
                 SimpleCloudFiles.StartupError ?? "Cloud restore is ready.\n\nClose and reopen the game to finish.\n\nYour previous device progress has been preserved for recovery.", 350, 500);
             text.fontSize = 30; text.alignment = TextAlignmentOptions.Center;
+            EditableUIView.Attach(go, "CloudRestoreRestart");
         }
     }
 }

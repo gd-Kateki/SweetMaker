@@ -475,6 +475,10 @@ namespace SweetMerge.Cloud
                 Status = current == null ? "Offline/local play. Cloud backup is disconnected." : "Checking account backup…";
                 nextCheck = 0;
             }
+            if (CanRestore && !Busy && !SimpleCloudFiles.RestorePending &&
+                (FreshInstallChoicePending || (GameStartupCoordinator.Instance != null && GameStartupCoordinator.Instance.IsStartupComplete)) &&
+                IsCurrentVerifiedOwner(owner) && !GameplayModalInputGate.IsGameplayInputBlocked)
+                FreshInstallCloudChoiceUI.Show(this);
             bool localSaveDue = IsSaveBackupDue(
                 saveBackupPending,
                 Time.unscaledTime,

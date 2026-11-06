@@ -205,7 +205,7 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
         if (featureUi == null || !featureUi.isActiveAndEnabled)
             return false;
 
-        Canvas canvas = featureUi.GetComponentInParent<Canvas>();
+        Canvas canvas = featureUi.GetComponentInParent<Canvas>(true);
         if (canvas == null)
             return false;
 
@@ -302,7 +302,7 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
 
     private void BuildInterface()
     {
-        Canvas parentCanvas = GetComponentInParent<Canvas>();
+        Canvas parentCanvas = GetComponentInParent<Canvas>(true);
         if (parentCanvas == null)
         {
             Debug.LogError(
@@ -380,6 +380,7 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
         Button gotItButton = CreateButton(panel.transform);
         gotItButton.onClick.AddListener(HandleGotItPressed);
         popupRoot.SetActive(false);
+        EditableUIView.Attach(popupRoot, "FeatureIntroduction");
     }
 
     private void DisplayPopup()

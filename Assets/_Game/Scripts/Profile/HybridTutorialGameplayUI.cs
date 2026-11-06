@@ -123,6 +123,8 @@ namespace SweetMerge.Profile
                 new Vector2(.72f, .16f),
                 new Vector2(.96f, .84f));
             retryButton.onClick.AddListener(HandleRetryClicked);
+            EditableUIView.Attach(instructionPanel, "TutorialInstruction");
+            EditableUIView.Attach(recoveryPanel, "TutorialRecovery");
         }
 
         private void HandleRetryClicked()

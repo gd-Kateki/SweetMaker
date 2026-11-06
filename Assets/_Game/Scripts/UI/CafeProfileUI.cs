@@ -230,11 +230,12 @@ public sealed class CafeProfileUI : MonoBehaviour
         cardButton.onClick.AddListener(Open);
 
         CreatePlaceholder(cardRoot.transform, Vector2.zero, 76f);
+        EditableUIView.Attach(cardRoot, "CafeProfileCard");
     }
 
     private void CreatePanel()
     {
-        Canvas rootCanvas = GetComponentInParent<Canvas>();
+        Canvas rootCanvas = GetComponentInParent<Canvas>(true);
         if (rootCanvas == null)
         {
             Debug.LogError("CafeProfileUI requires a parent Canvas.", this);
@@ -283,11 +284,12 @@ public sealed class CafeProfileUI : MonoBehaviour
         closeButton = CreateButton(panel.transform, "Close", "CLOSE",
             new Vector2(0.25f, 0.06f), new Vector2(0.75f, 0.17f));
         closeButton.onClick.AddListener(Close);
+        EditableUIView.Attach(panelRoot, "CafeProfilePanel");
     }
 
     private void CreateNamingPopup()
     {
-        Canvas rootCanvas = GetComponentInParent<Canvas>();
+        Canvas rootCanvas = GetComponentInParent<Canvas>(true);
         if (rootCanvas == null)
             return;
 
@@ -401,6 +403,7 @@ public sealed class CafeProfileUI : MonoBehaviour
 
         namingRoot.SetActive(false);
         namingConfirmationStep.SetActive(false);
+        EditableUIView.Attach(namingRoot, "CafeNaming");
     }
 
     private void ShowNamingConfirmation()

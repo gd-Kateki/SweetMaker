@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace SweetMerge.Cloud
 {
-    // A startup-only modal: local initialization is held by GameStartupCoordinator.
+    // Fresh installs hold startup; later divergent saves also prompt automatically.
     public sealed class FreshInstallCloudChoiceUI : MonoBehaviour
     {
         private static FreshInstallCloudChoiceUI instance;
@@ -14,18 +14,21 @@ namespace SweetMerge.Cloud
         private TMP_Text title, description, newGameLabel, feedback;
         private Button restore, newGame, retry, cancel;
         private string approvedChecksum, approvedWriteLock;
+        private string approvedPlayer;
+        private int approvedEpoch;
         private GameplayModalInputGate.GameplayModalLease inputLease;
+        private bool built;
 
         internal static void Show(SimpleCloudBackup service)
         {
             if (instance != null) return;
             var root = new GameObject("Cloud progress choice", typeof(Canvas),
                 typeof(CanvasScaler), typeof(GraphicRaycaster));
-            DontDestroyOnLoad(root);
+            if (Application.isPlaying) DontDestroyOnLoad(root);
             instance = root.AddComponent<FreshInstallCloudChoiceUI>();
             instance.service = service;
-            instance.Build();
             GameplayModalInputGate.TryAcquireBlockingModal(instance, out instance.inputLease);
+            instance.BuildWhenSafe();
         }
 
         internal static void Close()
@@ -41,7 +44,12 @@ namespace SweetMerge.Cloud
         {
             var canvas = GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 32750;
+            canvas.sortingOrder = short.MaxValue;
+            // Match the highest UI sorting layer, not just its order within Default.
+            foreach (var other in FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                if (other != canvas && SortingLayer.GetLayerValueFromID(other.sortingLayerID) >
+                    SortingLayer.GetLayerValueFromID(canvas.sortingLayerID))
+                    canvas.sortingLayerID = other.sortingLayerID;
             var scaler = GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(720, 1280);
@@ -58,8 +66,9 @@ namespace SweetMerge.Cloud
             var card = new GameObject("Cloud choice card", typeof(RectTransform), typeof(Image));
             card.transform.SetParent(shade.transform, false);
             var rect = card.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(640, 610);
+            rect.anchorMin = new Vector2(0.04f, 0.5f);
+            rect.anchorMax = new Vector2(0.96f, 0.5f);
+            rect.sizeDelta = new Vector2(0, 610);
             card.GetComponent<Image>().color = new Color(1f, 0.95f, 0.87f);
 
             title = Label(card.transform, "Welcome back!", 25, 60, 34);
@@ -77,13 +86,21 @@ namespace SweetMerge.Cloud
             {
                 if (approvedChecksum == null)
                 {
+                    if (!service.FreshInstallChoicePending &&
+                        !service.TryGetKeepDeviceConfirmation(out approvedPlayer, out approvedChecksum,
+                            out approvedWriteLock, out approvedEpoch)) return;
                     approvedChecksum = service.Remote?.checksum;
                     approvedWriteLock = service.ReviewedCloudWriteLock;
                     return;
                 }
                 string checksum = approvedChecksum, writeLock = approvedWriteLock;
+                string player = approvedPlayer;
+                int epoch = approvedEpoch;
                 ClearApproval();
-                await service.StartFreshGameAsync(checksum, writeLock);
+                if (service.FreshInstallChoicePending)
+                    await service.StartFreshGameAsync(checksum, writeLock);
+                else
+                    await service.KeepLocalForConfirmedGuestConflictAsync(player, checksum, writeLock, epoch);
             });
             newGameLabel = newGame.GetComponentInChildren<TMP_Text>();
             cancel = MakeButton(card.transform, "Back", 450, () =>
@@ -96,26 +113,41 @@ namespace SweetMerge.Cloud
                     ? service.ReconnectFreshInstallAsync() : service.CheckAsync(true));
             feedback = Label(card.transform, string.Empty, 525, 65, 18);
             Refresh();
+            EditableUIView.Attach(gameObject, "CloudProgressChoice");
         }
 
-        private void Update() => Refresh();
+        private void BuildWhenSafe()
+        {
+            if (built || !GameplayModalInputGate.IsSafeToOpen(inputLease)) return;
+            built = true;
+            Build();
+        }
+
+        private void Update()
+        {
+            BuildWhenSafe();
+            if (built) Refresh();
+        }
 
         private void Refresh()
         {
             if (service == null) return;
-            bool hasChoice = service.FreshInstallChoicePending && service.CanRestore &&
-                !service.NeedsFreshInstallSignIn;
+            if (!service.FreshInstallChoicePending && !service.CanRestore && !service.Busy)
+            { Close(); return; }
+            bool fresh = service.FreshInstallChoicePending;
+            bool hasChoice = service.CanRestore && !service.NeedsFreshInstallSignIn &&
+                SimpleCloudBackup.GetVerifiedCurrentOwnerId() == service.Remote?.playerId;
             if (service.NeedsFreshInstallSignIn) ClearApproval();
             if (approvedChecksum != service.Remote?.checksum ||
                 approvedWriteLock != service.ReviewedCloudWriteLock)
                 ClearApproval();
             bool confirming = approvedChecksum != null;
-            title.text = confirming ? "Start a new cafe?" : hasChoice ? "Welcome back!" : "Cloud progress";
+            title.text = confirming ? (fresh ? "Start a new cafe?" : "Keep device progress?") : hasChoice ? "Welcome back!" : "Cloud progress";
             description.text = confirming
-                ? "Your saved cafe will be replaced when your new game is backed up. This cannot be undone.\n\nContinue with a new game?"
+                ? "Your cloud save will be replaced with " + (fresh ? "a new game" : "this device's progress") + ". This cannot be undone.\n\nContinue?"
                 : hasChoice
                     ? "We found your cafe: " + service.Remote.cafeName +
-                      ".\n\nRestore your progress, or begin again. Restoring requires reopening the game."
+                      ".\n\n" + (fresh ? "Restore your progress, or begin again." : "Cloud and device progress need a decision. Restore cloud progress, or keep the device copy.") + " Restoring requires reopening the game."
                     : service.Status;
             restore.gameObject.SetActive(hasChoice && !confirming);
             newGame.gameObject.SetActive(hasChoice);
@@ -123,13 +155,13 @@ namespace SweetMerge.Cloud
             retry.gameObject.SetActive(!hasChoice);
             retry.GetComponentInChildren<TMP_Text>().text = service.NeedsFreshInstallSignIn
                 ? "Reconnect Google Play" : "Retry Cloud Check";
-            newGameLabel.text = confirming ? "Confirm New Game" : "Start New Game";
+            newGameLabel.text = confirming ? (fresh ? "Confirm New Game" : "Confirm Keep Device") : (fresh ? "Start New Game" : "Keep Device Progress");
             feedback.text = hasChoice ? service.Status : string.Empty;
             restore.interactable = newGame.interactable = retry.interactable =
                 cancel.interactable = !service.Busy;
         }
 
-        private void ClearApproval() { approvedChecksum = null; approvedWriteLock = null; }
+        private void ClearApproval() { approvedChecksum = null; approvedWriteLock = null; approvedPlayer = null; approvedEpoch = 0; }
 
         private void OnDestroy()
         {
@@ -162,6 +194,9 @@ namespace SweetMerge.Cloud
             var label = root.GetComponent<TextMeshProUGUI>();
             label.font = TMP_Settings.defaultFontAsset;
             label.fontSize = size;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = Mathf.Min(18, size);
+            label.fontSizeMax = size;
             label.color = new Color(0.28f, 0.13f, 0.08f);
             label.text = value;
             label.alignment = TextAlignmentOptions.Center;

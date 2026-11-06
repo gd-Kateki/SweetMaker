@@ -732,6 +732,7 @@ namespace SweetMerge.Startup
                 welcomeDependencyFallback.GetComponentInChildren<Text>();
             if (statusText != null)
                 statusText.text = message;
+            if (welcomeDependencyFallback != null) EditableUIView.Attach(welcomeDependencyFallback, "StartupDependencyError");
         }
 
         private static void RemoveWelcomeDependencyFallback()
@@ -1261,6 +1262,8 @@ namespace SweetMerge.Startup
                     "release the local Save V2 load.");
                 return;
             }
+            if (SimpleCloudBackup.Instance != null && SimpleCloudBackup.Instance.FreshInstallChoicePending)
+                startupView?.Hide();
         }
 
         private void HandleStartupViewEnded()

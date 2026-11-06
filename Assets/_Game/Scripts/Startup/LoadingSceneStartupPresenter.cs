@@ -986,6 +986,7 @@ namespace SweetMerge.Startup
             retryButton.gameObject.SetActive(false);
 
             overlayRoot.transform.SetAsLastSibling();
+            EditableUIView.Attach(overlayRoot, "DevelopmentLoading");
         }
 
         private static Text CreateText(
