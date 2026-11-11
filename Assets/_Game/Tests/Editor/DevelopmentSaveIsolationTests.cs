@@ -69,7 +69,7 @@ public sealed class DevelopmentSaveIsolationTests
     }
 
     [Test]
-    public void DeveloperCommandsAreCompileGuardedAndHaveNoSceneEntryPoint()
+    public void DeveloperCommandsAreRuntimeGuardedAndHaveNoSceneEntryPoint()
     {
         string commandsPath = Path.Combine(
             Application.dataPath,
@@ -80,8 +80,9 @@ public sealed class DevelopmentSaveIsolationTests
         string source = File.ReadAllText(commandsPath);
 
         StringAssert.StartsWith(
-            "#if UNITY_EDITOR || (UNITY_ANDROID && DEVELOPMENT_BUILD)",
+            "#if UNITY_EDITOR || UNITY_ANDROID",
             source.TrimStart());
+        StringAssert.Contains("DeveloperCheatAccess.Allowed", source);
         Assert.IsFalse(source.Contains("MenuItem("));
         Assert.IsFalse(source.Contains("CampaignCompleted"));
         Assert.IsFalse(source.Contains("RaiseCampaignCompleted"));
@@ -110,8 +111,9 @@ public sealed class DevelopmentSaveIsolationTests
         string gameSceneSource = File.ReadAllText(gameScenePath);
 
         StringAssert.StartsWith(
-            "#if UNITY_EDITOR || (UNITY_ANDROID && DEVELOPMENT_BUILD)",
+            "#if UNITY_EDITOR || UNITY_ANDROID",
             panelSource.TrimStart());
+        StringAssert.Contains("!DeveloperCheatAccess.Allowed", panelSource);
         StringAssert.Contains("GameplayCanvas", panelSource);
         StringAssert.Contains("DeveloperCheatCommands.AddCash(", panelSource);
         StringAssert.Contains("DeveloperCheatCommands.SetRebirth(", panelSource);

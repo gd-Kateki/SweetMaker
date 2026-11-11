@@ -12,6 +12,29 @@ internal sealed class EditableUIEditor : EditorWindow
 {
     internal const string DirectoryPath = "Assets/_Game/Resources/UI/VisualTemplates";
     private Vector2 scroll;
+
+    public static void RemoveObsoleteAdvertisingDeferralVisuals()
+    {
+        foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { DirectoryPath }))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (!Path.GetFileName(path).StartsWith("AdvertisingPrivacy_", StringComparison.Ordinal)) continue;
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                foreach (var part in root.GetComponentsInChildren<EditableUIVisual>(true))
+                {
+                    if (part == null || string.IsNullOrEmpty(part.targetPath)) continue;
+                    string leaf = part.targetPath.Split('/').Last();
+                    int end = leaf.LastIndexOf(':');
+                    string name = Uri.UnescapeDataString(end >= 0 ? leaf.Substring(0, end) : leaf);
+                    if (name == "Not now" || name == "Keep current choice") DestroyImmediate(part.gameObject);
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+    }
     [MenuItem("Tools/Sweet Maker/UI Designer")]
     private static void Open() => GetWindow<EditableUIEditor>("UI Designer");
 

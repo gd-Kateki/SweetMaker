@@ -135,7 +135,7 @@ public sealed class SimpleAdManager : MonoBehaviour
 
     private void Update()
     {
-        if (!AdvertisingPrivacy.Resolved && !AdvertisingPrivacy.DeferredForSession && SceneManager.GetActiveScene().name == "Game" && GameplayReady() &&
+        if (!AdvertisingPrivacy.Resolved && SceneManager.GetActiveScene().name == "Game" && GameplayReady() &&
             !GameplayModalInputGate.IsGameplayInputBlocked)
             PlayerPrivacyUI.ShowAdvertising();
         if (!initialized && AdvertisingPrivacy.CanRequestAds) TryInitialize();

@@ -89,7 +89,7 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
         dessertSpawner = FindAnyObjectByType<DessertSpawner>();
         orderDetailsUI = FindAnyObjectByType<OrderDetailsUI>();
         tableModalOpen = orderDetailsUI != null && orderDetailsUI.IsOpen;
-        gameplayCanvas = FindAnyObjectByType<Canvas>();
+        gameplayCanvas = ResolveGameplayCanvas(selectorButtonReference);
         if (dessertSpawner == null || gameplayCanvas == null)
         {
             Debug.LogError(
@@ -212,6 +212,15 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
             tierButtons[i].onClick.AddListener(tierButtonListeners[i]);
         }
         Refresh();
+    }
+
+    internal static Canvas ResolveGameplayCanvas(Button selector)
+    {
+        if (selector == null) return null;
+        // Persistent services and testing overlays have their own canvases.
+        // The serialized control's hierarchy is the authoritative UI owner.
+        var owner = selector.GetComponentInParent<Canvas>(true);
+        return owner != null ? owner.rootCanvas : null;
     }
 
     private void OnDestroy()

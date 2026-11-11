@@ -155,7 +155,7 @@ SDK initialization failures now retry after 30 seconds while advertising remains
 
 The project includes analytics consent/bootstrap and startup privacy UI with a configured privacy-policy link. Settings provide account and backup interaction alongside local preferences. Existing analytics tests cover consent/bootstrap behavior; this does not independently establish dashboard data collection or advertising consent compliance.
 
-The Android development log/error console and cheat panel are development features. They should not appear in a release build. Keep build identity guards and reset/diagnostic tooling: they help prevent mixing development and release accounts or saves. `MobileFrameRateController` adapts the target rate to the mobile display's available refresh rate.
+The Android log/error console remains development-only. The redesigned Test Lab cheat panel can also be included in Android production testing builds using DeveloperTestingSettings; it is currently enabled for QA. Disable that explicit setting for a normal public release. Keep build identity guards and reset/diagnostic tooling: they help prevent mixing development and release accounts or saves. `MobileFrameRateController` adapts the target rate to the mobile display's available refresh rate.
 
 ## 12. Dependencies
 
@@ -255,3 +255,22 @@ Game-owned runtime views now support visual prefab overrides through the indepen
 [UI_GUIDE.md](UI_GUIDE.md) lists all registered runtime views and editing instructions; [the serialized UI inventory](Docs/UI_SCENE_INVENTORY.md) gives exact scene/prefab hierarchy/controller paths. Provider-owned sign-in, Android dialogs and actual ad creatives remain outside the game's visual-prefab system.
 
 Validation: full Unity EditMode suite passed 669/669 tests after integration, including capture/binding checks, preservation of button actions/live text and existing game regressions. These are automated checks; custom artwork still needs visual review on target devices.
+
+
+## Production Test Lab update — 6 November 2026
+
+The Game scene now exposes TEST LAB in Editor, Android development builds and explicitly configured production Android testing builds. DeveloperTestingSettings.enableProductionCheatPanel is enabled for the requested QA release. Release save paths, production UGS and normal cloud/leaderboard sync remain active; cheat changes are real test-account progress. The release build helper records the production-cheat flag in build-info.txt.
+
+Four tabs separate Economy, Progress, Board and Services. The panel has independent mobile UI scaling, safe-area layout, a summary and fixed action feedback; modal ownership blocks underlying input and is released on close/scene changes. Tools include original cash/rebirth/spawn/order/board actions plus energy 50, lifetime earnings/order test counters, Save Now, cloud retry, a normal rewarded-energy offer and diagnostic copy. Full profile reset remains restricted to isolated development saves. Editable V2 launcher/panel prefabs are supplied. See [Test Lab instructions](Docs/TEST_LAB.md).
+
+Validation: 678/678 full Unity EditMode tests passed, including production access policy, responsive panel bounds, confirmation cancellation, modal cleanup, UI bindings and existing save/game regressions. Rendered preview screens were inspected. Actual Play-installed Android testing remains required after building the updated client.
+
+
+## Oven selector canvas fix — 6 November 2026
+
+SpawnPoolSelectorUI now resolves its canvas from the serialized selector button hierarchy instead of selecting any available Canvas. This prevents Test Lab, leaderboard and other overlay canvases from causing a false parent-validation error. The authored Game scene button and panel references were verified without moving or replacing them. All six targeted ownership/layout regression tests passed.
+
+
+## Advertising choice update — 6 November 2026
+
+Removed Not now, Keep current choice and session deferral from the advertising privacy UI and its editable visual templates. Eligible users now choose limited ads, or personalized ads for adults. This does not imply consent when unresolved, and under-13 restrictions remain.

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR || (UNITY_ANDROID && DEVELOPMENT_BUILD)
+#if UNITY_EDITOR || UNITY_ANDROID
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -73,7 +73,37 @@ internal static class DeveloperCheatCommands
         if (!progression.SetEnergyForDevelopment(0))
             return Failure("Energy rejected the requested zero value.");
 
-        return AppliedAndSaved(save, "Energy set to 0/30.");
+        return AppliedAndSaved(save, "Energy set to 0/" + progression.MaximumEnergy + ".");
+    }
+
+    internal static DeveloperCheatCommandResult SetEnergy(int amount)
+    {
+        if (!TryGetReadyManagers(out var progression, out _, out var save, out _, out _, out var reason)) return Failure(reason);
+        if (amount < 0 || amount > progression.MaximumEnergy || !progression.SetEnergyForDevelopment(amount))
+            return Failure("Energy must be between zero and " + progression.MaximumEnergy + ".");
+        return AppliedAndSaved(save, "Energy set to " + amount + "/" + progression.MaximumEnergy + ".");
+    }
+
+    internal static DeveloperCheatCommandResult AddGameplayEarnings(int amount)
+    {
+        if (!TryGetReadyManagers(out _, out var economy, out var save, out _, out _, out var reason)) return Failure(reason);
+        if (amount <= 0 || economy.CurrentCash < 0 || economy.CurrentCash > int.MaxValue - amount ||
+            !economy.TryAddGameplayEarnings(amount, out _)) return Failure("Earnings must be positive and fit the wallet.");
+        return AppliedAndSaved(save, "Added test earnings to wallet and lifetime money earned.");
+    }
+
+    internal static DeveloperCheatCommandResult AddCompletedOrders(int amount)
+    {
+        if (!TryGetReadyManagers(out _, out var economy, out var save, out _, out _, out var reason)) return Failure(reason);
+        if (amount <= 0 || economy.TotalOrdersCompleted > long.MaxValue - amount) return Failure("Order total would overflow.");
+        economy.RestoreLifetimeStatistics(economy.TotalOrdersCompleted + amount, economy.TotalMoneyEarned);
+        return AppliedAndSaved(save, "Added " + amount + " to the lifetime order counter for leaderboard testing; current orders were not fulfilled.");
+    }
+
+    internal static DeveloperCheatCommandResult SaveNow()
+    {
+        if (!TryGetReadyManagers(out _, out _, out var save, out _, out _, out var reason)) return Failure(reason);
+        return AppliedAndSaved(save, "Saved the current verified session.");
     }
 
     internal static DeveloperCheatCommandResult RefillEnergy()
@@ -211,6 +241,8 @@ internal static class DeveloperCheatCommands
 
     internal static DeveloperCheatCommandResult ResetAllProgress()
     {
+        if (!SavePathPolicy.IsDevelopmentSaveIsolationEnabled)
+            return Failure("Full profile reset is limited to isolated development saves. Production progress was not changed.");
         if (!TryGetReadyManagers(
                 out PlayerProgressionManager progression,
                 out EconomyManager economy,
@@ -361,11 +393,11 @@ internal static class DeveloperCheatCommands
         grid = Object.FindAnyObjectByType<GridManager>();
         spawner = Object.FindAnyObjectByType<DessertSpawner>();
 
-        if (!SavePathPolicy.IsDevelopmentSaveIsolationEnabled)
-            return "Development save isolation is disabled.";
+        if (!DeveloperCheatAccess.Allowed)
+            return "Cheat panel access is disabled for this build.";
 
-#if UNITY_ANDROID && DEVELOPMENT_BUILD
-        if (!Application.identifier.EndsWith(
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (Debug.isDebugBuild && !Application.identifier.EndsWith(
                 ".dev",
                 System.StringComparison.OrdinalIgnoreCase))
         {
@@ -379,7 +411,7 @@ internal static class DeveloperCheatCommands
                 Path.GetFullPath(SavePathPolicy.GetSaveDirectory()),
                 System.StringComparison.OrdinalIgnoreCase))
         {
-            return "Active save directory does not match the development-isolated path.";
+            return "Active save directory does not match this build's save path.";
         }
 
         if (SceneManager.GetActiveScene().name != "Game")
@@ -431,7 +463,7 @@ internal static class DeveloperCheatCommands
             true,
             saved,
             saved
-                ? successMessage + " Development V2 save validated and written."
+                ? successMessage + " V2 save validated and written."
                 : successMessage + " State changed in memory, but the V2 save failed.");
     }
 

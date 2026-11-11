@@ -85,6 +85,7 @@ internal static class ReleaseBuildTemporary
             "Version: " + PlayerSettings.bundleVersion + "\nVersion code: " + PlayerSettings.Android.bundleVersionCode + "\n" +
             "Target SDK: " + PlayerSettings.Android.targetSdkVersion + "\n" +
             "Development build: false\nUGS environment: production\n" +
+            "Production cheat panel: " + (Resources.Load<DeveloperTestingSettings>("DeveloperTestingSettings")?.enableProductionCheatPanel == true) + "\n" +
             "Upload track: Google Play internal testing\n");
     }
 }

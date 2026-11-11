@@ -63,7 +63,6 @@ public sealed class PlayerPrivacyUI : MonoBehaviour
             Button(card, "Under 13", 0.48f, () => choose(AdvertisingPrivacy.AgeGroup.Under13));
             Button(card, "13–17", 0.59f, () => choose(AdvertisingPrivacy.AgeGroup.Teen));
             Button(card, "18 or older", 0.70f, () => choose(AdvertisingPrivacy.AgeGroup.Adult));
-            Button(card, "Not now", 0.81f, Defer);
         }
         else if (age == AdvertisingPrivacy.AgeGroup.Under13)
         {
@@ -78,15 +77,12 @@ public sealed class PlayerPrivacyUI : MonoBehaviour
                 "\n\nYou can change your privacy choices in Settings. Analytics consent is separate.", 0.11f, 0.44f, 24);
             Button(card, "Use limited ads", 0.59f, () => Select(AdvertisingPrivacy.AdChoice.Limited));
             if (adult) Button(card, "Allow personalized ads", 0.70f, () => Select(AdvertisingPrivacy.AdChoice.Personalized));
-            if (AdvertisingPrivacy.Resolved) Button(card, "Keep current choice", 0.81f, Close);
-            else Button(card, "Not now", 0.81f, Defer);
         }
         Button(card, "Privacy policy", 0.92f, () => Application.OpenURL(PolicyUrl), 0.07f);
         EditableUIView.Attach(gameObject, "AdvertisingPrivacy_" + age);
     }
 
     private void Select(AdvertisingPrivacy.AdChoice choice) { AdvertisingPrivacy.SelectChoice(choice); Close(); }
-    private void Defer() { AdvertisingPrivacy.DeferForSession(); Close(); }
 
     private void BuildDeletion()
     {

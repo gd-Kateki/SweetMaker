@@ -1,4 +1,4 @@
-#if UNITY_EDITOR || (UNITY_ANDROID && DEVELOPMENT_BUILD)
+#if UNITY_EDITOR || UNITY_ANDROID
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -45,6 +45,14 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     private bool resetConfirmationPending;
     private bool missingSceneUiReported;
     private bool hasInitializedRebirthSelection;
+    private readonly List<GameObject> tabs = new List<GameObject>();
+    private readonly List<Button> tabButtons = new List<Button>();
+    private TextMeshProUGUI summaryText, resultText;
+    private ScrollRect bodyScroll;
+    private GameplayModalInputGate.GameplayModalLease panelLease;
+    private int selectedTab;
+    private bool cloudCheckRunning;
+    private GameObject testingCanvasRoot;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -55,7 +63,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
     {
-        if (instance != null)
+        if (instance != null || !DeveloperCheatAccess.Allowed)
             return;
 
         var bootstrap = new GameObject("Developer Cheat Panel");
@@ -82,13 +90,22 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
     private void OnDestroy()
     {
+        panelLease?.Dispose();
+        if (testingCanvasRoot != null)
+        {
+            if (Application.isPlaying) Destroy(testingCanvasRoot); else DestroyImmediate(testingCanvasRoot);
+        }
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         if (instance == this)
             instance = null;
     }
 
+    private void OnDisable() { panelLease?.Dispose(); panelLease = null; }
+
     private void Update()
     {
+        if (overlayObject != null && overlayObject.activeSelf && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true)
+            SetPanelOpen(false);
         if (Time.unscaledTime < nextRefreshTime)
             return;
 
@@ -96,11 +113,16 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         if (gameplayCanvas == null)
             TryAttachToGameplayCanvas();
 
-        RefreshPanel();
+        if (overlayObject != null && overlayObject.activeSelf) RefreshPanel();
+        else if (devButtonObject != null) devButtonObject.GetComponent<Button>().interactable = DeveloperCheatAccess.Allowed && !GameplayModalInputGate.IsGameplayInputBlocked;
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        panelLease?.Dispose(); panelLease = null;
+        commandButtons.Clear(); tabs.Clear(); tabButtons.Clear();
+        testingCanvasRoot = null;
+        hasInitializedRebirthSelection = false;
         gameplayCanvas = null;
         gameplayEventSystem = null;
         devButtonObject = null;
@@ -162,13 +184,26 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         if (devButtonObject != null || overlayObject != null)
             return;
 
+        testingCanvasRoot = new GameObject("TestingCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        SceneManager.MoveGameObjectToScene(testingCanvasRoot, canvasTransform.gameObject.scene);
+        var canvas = testingCanvasRoot.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 32030;
+        var parentCanvas = canvasTransform.GetComponentInParent<Canvas>(true);
+        if (parentCanvas != null) canvas.sortingLayerID = parentCanvas.sortingLayerID;
+        var scaler = testingCanvasRoot.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(720, 1280); scaler.matchWidthOrHeight = 0.5f;
+        var safe = CreateRect("SafeArea", testingCanvasRoot.transform);
+        SetStretch(safe.GetComponent<RectTransform>(), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        safe.AddComponent<SafeAreaFitter>();
+        canvasTransform = safe.transform;
+
         devButtonObject = CreateButton(
-            "DEV",
+            "TEST LAB",
             canvasTransform,
             new Vector2(1f, 1f),
             new Vector2(1f, 1f),
-            new Vector2(-24f, -30f),
-            new Vector2(150f, 64f),
+            new Vector2(-20f, -100f),
+            new Vector2(170f, 62f),
             new Color(0.23f, 0.12f, 0.36f),
             TogglePanel);
         RectTransform devRect = devButtonObject.GetComponent<RectTransform>();
@@ -184,105 +219,137 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
         BuildPanelCard(overlayObject.transform);
         devButtonObject.transform.SetAsLastSibling();
-        EditableUIView.Attach(overlayObject, "DeveloperCheats");
-        EditableUIView.Attach(devButtonObject, "DeveloperButton");
+        EditableUIView.Attach(overlayObject, "DeveloperCheatsV2");
+        EditableUIView.Attach(devButtonObject, "DeveloperButtonV2");
     }
 
     private void BuildPanelCard(Transform overlay)
     {
-        GameObject card = CreateRect("Developer Cheat Panel Card", overlay);
-        SetStretch(card.GetComponent<RectTransform>(),
-            new Vector2(0.035f, 0.025f),
-            new Vector2(0.965f, 0.975f),
-            Vector2.zero,
-            Vector2.zero);
-        Image cardImage = card.AddComponent<Image>();
-        cardImage.color = new Color(0.12f, 0.12f, 0.16f, 0.99f);
-
+        GameObject card = CreateRect("Testing workspace", overlay);
+        SetStretch(card.GetComponent<RectTransform>(), new Vector2(0.025f, 0.025f), new Vector2(0.975f, 0.975f), Vector2.zero, Vector2.zero);
+        card.AddComponent<Image>().color = new Color(0.055f, 0.075f, 0.12f, 0.99f);
         GameObject header = CreateRect("Header", card.transform);
-        SetAnchored(header.GetComponent<RectTransform>(),
-            new Vector2(0f, 1f),
-            new Vector2(1f, 1f),
-            new Vector2(0f, 1f),
-            new Vector2(-24f, 86f));
-        header.GetComponent<RectTransform>().offsetMax =
-            new Vector2(-18f, -14f);
-        header.GetComponent<RectTransform>().offsetMin =
-            new Vector2(18f, -88f);
-
-        CreateText(
-            "Developer Cheats",
-            header.transform,
-            32f,
-            TextAlignmentOptions.MidlineLeft,
-            new Color(1f, 0.89f, 0.56f));
-        GameObject closeButton = CreateButton(
-            "CLOSE",
-            header.transform,
-            new Vector2(1f, 0.5f),
-            new Vector2(1f, 0.5f),
-            new Vector2(-4f, 0f),
-            new Vector2(150f, 58f),
-            new Color(0.34f, 0.18f, 0.19f),
-            () => SetPanelOpen(false));
-        closeButton.GetComponent<RectTransform>().pivot =
-            new Vector2(1f, 0.5f);
-
+        SetStretch(header.GetComponent<RectTransform>(), new Vector2(0, 1), Vector2.one, new Vector2(20, -88), new Vector2(-20, -12));
+        var title = CreateText("TEST LAB", header.transform, 30, TextAlignmentOptions.MidlineLeft, new Color(0.65f, 0.85f, 1));
+        title.rectTransform.offsetMax = new Vector2(-126, -4);
+        var close = CreateButton("Close", header.transform, Vector2.one, Vector2.one, new Vector2(-4, -8), new Vector2(116, 60), new Color(0.2f, 0.25f, 0.36f), () => SetPanelOpen(false));
+        close.GetComponent<RectTransform>().pivot = Vector2.one;
+        GameObject banner = CreateRect("Build identity", card.transform);
+        SetStretch(banner.GetComponent<RectTransform>(), new Vector2(0, 1), Vector2.one, new Vector2(20, -144), new Vector2(-20, -88));
+        CreateText(Debug.isDebugBuild || Application.isEditor ? "DEVELOPMENT TESTING" : "PRODUCTION TEST • changes save and may cloud-sync", banner.transform, 21, TextAlignmentOptions.MidlineLeft, new Color(1, 0.76f, 0.35f));
+        GameObject summary = CreateRect("Live summary", card.transform);
+        SetStretch(summary.GetComponent<RectTransform>(), new Vector2(0, 1), Vector2.one, new Vector2(20, -204), new Vector2(-20, -146));
+        summaryText = CreateText("Waiting for gameplay…", summary.transform, 24, TextAlignmentOptions.MidlineLeft, Color.white);
+        GameObject navigation = CreateRect("Categories", card.transform);
+        SetStretch(navigation.GetComponent<RectTransform>(), new Vector2(0, 1), Vector2.one, new Vector2(20, -278), new Vector2(-20, -210));
+        var navLayout = navigation.AddComponent<HorizontalLayoutGroup>(); navLayout.spacing = 6;
+        navLayout.childControlWidth = navLayout.childControlHeight = true;
+        navLayout.childForceExpandWidth = navLayout.childForceExpandHeight = true;
+        string[] names = { "Economy", "Progress", "Board", "Services" };
+        for (int i = 0; i < names.Length; i++)
+        {
+            int index = i;
+            tabButtons.Add(CreateButton(names[i], navigation.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0.12f, 0.19f, 0.3f), () => SelectTab(index)).GetComponent<Button>());
+        }
         GameObject scrollObject = CreateRect("Cheat Scroll View", card.transform);
-        SetAnchored(scrollObject.GetComponent<RectTransform>(),
-            Vector2.zero,
-            Vector2.one,
-            Vector2.zero,
-            Vector2.zero);
-        RectTransform scrollRectTransform =
-            scrollObject.GetComponent<RectTransform>();
-        scrollRectTransform.offsetMin = new Vector2(22f, 18f);
-        scrollRectTransform.offsetMax = new Vector2(-22f, -98f);
-
-        ScrollRect scrollRect = scrollObject.AddComponent<ScrollRect>();
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-        scrollRect.scrollSensitivity = 42f;
-
+        SetStretch(scrollObject.GetComponent<RectTransform>(), Vector2.zero, Vector2.one, new Vector2(20, 128), new Vector2(-20, -292));
+        bodyScroll = scrollObject.AddComponent<ScrollRect>(); bodyScroll.horizontal = false; bodyScroll.vertical = true;
+        bodyScroll.movementType = ScrollRect.MovementType.Clamped; bodyScroll.scrollSensitivity = 42;
         GameObject viewport = CreateRect("Viewport", scrollObject.transform);
-        SetStretch(viewport.GetComponent<RectTransform>(),
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        Image viewportImage = viewport.AddComponent<Image>();
-        viewportImage.color = Color.white;
-        viewportImage.raycastTarget = true;
-        Mask mask = viewport.AddComponent<Mask>();
-        mask.showMaskGraphic = false;
-        scrollRect.viewport = viewport.GetComponent<RectTransform>();
-
+        SetStretch(viewport.GetComponent<RectTransform>(), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        viewport.AddComponent<Image>().color = new Color(0.08f, 0.11f, 0.17f); viewport.AddComponent<RectMask2D>();
+        bodyScroll.viewport = viewport.GetComponent<RectTransform>();
         GameObject content = CreateRect("Content", viewport.transform);
-        RectTransform contentRect = content.GetComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0f, 1f);
-        contentRect.anchorMax = new Vector2(1f, 1f);
-        contentRect.pivot = new Vector2(0.5f, 1f);
-        contentRect.anchoredPosition = Vector2.zero;
-        contentRect.sizeDelta = new Vector2(0f, 0f);
-        VerticalLayoutGroup contentLayout =
-            content.AddComponent<VerticalLayoutGroup>();
-        contentLayout.spacing = 12f;
-        contentLayout.padding = new RectOffset(4, 4, 4, 14);
-        contentLayout.childControlWidth = true;
-        contentLayout.childControlHeight = true;
-        contentLayout.childForceExpandWidth = true;
-        contentLayout.childForceExpandHeight = false;
-        ContentSizeFitter fitter = content.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        scrollRect.content = contentRect;
+        var contentRect = content.GetComponent<RectTransform>(); contentRect.anchorMin = new Vector2(0, 1); contentRect.anchorMax = Vector2.one;
+        contentRect.pivot = new Vector2(0.5f, 1); contentRect.anchoredPosition = Vector2.zero; contentRect.sizeDelta = Vector2.zero;
+        ConfigureColumn(content); content.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        bodyScroll.content = contentRect;
+        foreach (string name in names)
+        {
+            GameObject page = CreateRect(name, content.transform); ConfigureColumn(page); tabs.Add(page);
+        }
+        BuildCashSection(tabs[0].transform); BuildEnergySection(tabs[0].transform); BuildLifetimeStatisticsSection(tabs[0].transform);
+        BuildTestCountersSection(tabs[0].transform);
+        BuildCafeProgressionSection(tabs[1].transform); BuildRebirthSection(tabs[1].transform); BuildDessertSection(tabs[1].transform);
+        BuildProfileSection(tabs[2].transform); BuildBoardSection(tabs[2].transform);
+        BuildServicesSection(tabs[3].transform); BuildDiagnosticsSection(tabs[3].transform);
+        GameObject footer = CreateRect("Action feedback", card.transform);
+        SetStretch(footer.GetComponent<RectTransform>(), Vector2.zero, new Vector2(1, 0), new Vector2(20, 16), new Vector2(-20, 116));
+        footer.AddComponent<Image>().color = new Color(0.11f, 0.16f, 0.24f);
+        resultText = CreateText("Choose an action. Changes are saved immediately.", footer.transform, 22, TextAlignmentOptions.MidlineLeft, Color.white);
+        SelectTab(0);
+    }
 
-        BuildCashSection(content.transform);
-        BuildLifetimeStatisticsSection(content.transform);
-        BuildCafeProgressionSection(content.transform);
-        BuildEnergySection(content.transform);
-        BuildRebirthSection(content.transform);
-        BuildDessertSection(content.transform);
-        BuildProfileSection(content.transform);
-        BuildBoardSection(content.transform);
-        BuildDiagnosticsSection(content.transform);
+    private static void ConfigureColumn(GameObject root)
+    {
+        var layout = root.AddComponent<VerticalLayoutGroup>(); layout.spacing = 12;
+        layout.padding = new RectOffset(10, 10, 8, 16); layout.childControlWidth = layout.childControlHeight = true;
+        layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
+    }
+
+    private void SelectTab(int index)
+    {
+        selectedTab = Mathf.Clamp(index, 0, tabs.Count - 1);
+        for (int i = 0; i < tabs.Count; i++)
+        {
+            tabs[i].SetActive(i == selectedTab);
+            tabButtons[i].interactable = i != selectedTab;
+            var colors = tabButtons[i].colors; colors.disabledColor = new Color(0.13f, 0.42f, 0.6f);
+            tabButtons[i].colors = colors;
+        }
+        CancelClearBoardConfirmation(); CancelResetProgressConfirmation();
+        if (bodyScroll != null) { Canvas.ForceUpdateCanvases(); bodyScroll.verticalNormalizedPosition = 1; }
+    }
+
+    private void BuildTestCountersSection(Transform content)
+    {
+        AddSection(content, "LEADERBOARD TEST TOTALS");
+        CreateRow(content,
+            row => CreateButton("Earn +$1K", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.12f, 0.32f, 0.27f),
+                () => RunCommand("Test gameplay earnings", () => DeveloperCheatCommands.AddGameplayEarnings(1000)), true),
+            row => CreateButton("Orders +1", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.12f, 0.32f, 0.27f),
+                () => RunCommand("Test lifetime order count", () => DeveloperCheatCommands.AddCompletedOrders(1)), true));
+    }
+
+    private void BuildServicesSection(Transform content)
+    {
+        AddSection(content, "SAVE & CLOUD");
+        CreateRow(content,
+            row => CreateButton("Save now", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.15f, 0.28f, 0.42f),
+                () => RunCommand("Save now", DeveloperCheatCommands.SaveNow), true),
+            row => CreateButton("Check cloud", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.15f, 0.28f, 0.42f),
+                CheckCloud));
+        CreateRow(content,
+            row => CreateButton("Copy report", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.15f, 0.28f, 0.42f), CopyReport),
+            row => CreateButton("Energy ad offer", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.15f, 0.28f, 0.42f),
+                () => { SetPanelOpen(false); AdOfferPopup.Show(true, 50); }));
+    }
+
+    private async void CheckCloud()
+    {
+        if (cloudCheckRunning) return;
+        var cloud = SweetMerge.Cloud.SimpleCloudBackup.Instance;
+        if (cloud == null || cloud.Busy) { ReportRejectedCommand("Cloud check", "Cloud is unavailable or already busy."); return; }
+        cloudCheckRunning = true;
+        try
+        {
+            SetPanelOpen(false);
+            await cloud.CheckAsync(true);
+            lastCommandName = "Cloud check"; lastResult = new DeveloperCheatCommandResult(false, false, cloud.Status);
+        }
+        catch (Exception exception) { ReportRejectedCommand("Cloud check", exception.Message); }
+        finally { cloudCheckRunning = false; }
+    }
+
+    private void CopyReport()
+    {
+        RefreshPanel();
+        GUIUtility.systemCopyBuffer = "Dessert Merge Cafe " + Application.version + " | " + Application.identifier + "\n" +
+            (diagnosticsText != null ? diagnosticsText.text : "Diagnostics unavailable.") + "\nCloud: " +
+            (SweetMerge.Cloud.SimpleCloudBackup.Instance?.Status ?? "Unavailable");
+        lastCommandName = "Copy report"; lastResult = new DeveloperCheatCommandResult(false, false, "Diagnostic report copied.");
+        RefreshPanel();
     }
 
     private void BuildCashSection(Transform content)
@@ -348,6 +415,8 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         AddSection(content, "ENERGY");
         CreateRow(
             content,
+            row => CreateButton("SET 50", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0.2f, 0.3f, 0.4f), () => RunCommand("Set Energy to 50", () => DeveloperCheatCommands.SetEnergy(50)), true),
             row => CreateButton(
                 "SET 0",
                 row,
@@ -361,7 +430,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
                     DeveloperCheatCommands.SetEnergyToZero),
                 true),
             row => CreateButton(
-                "REFILL 30",
+                "REFILL 100",
                 row,
                 Vector2.zero,
                 Vector2.one,
@@ -390,6 +459,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         CreateButton("+", row.transform, Vector2.zero, Vector2.one,
             Vector2.zero, Vector2.zero, new Color(0.27f, 0.27f, 0.34f),
             () => ChangeRebirth(1));
+        row = CreateLayoutRow(content, 66f);
         setRebirthButton = CreateButton(
             "APPLY REBIRTH",
             row.transform,
@@ -412,7 +482,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
     private void BuildDessertSection(Transform content)
     {
-        AddSection(content, "DESSERTS — DEBUG PLACEMENT (NOT OVEN SPAWNING)");
+        AddSection(content, "DESSERT PLACEMENT");
         GameObject row = CreateLayoutRow(content, 66f);
         CreateButton("-", row.transform, Vector2.zero, Vector2.one,
             Vector2.zero, Vector2.zero, new Color(0.27f, 0.27f, 0.34f),
@@ -426,6 +496,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         CreateButton("+", row.transform, Vector2.zero, Vector2.one,
             Vector2.zero, Vector2.zero, new Color(0.27f, 0.27f, 0.34f),
             () => ChangeTier(1));
+        row = CreateLayoutRow(content, 66f);
         spawnDessertButton = CreateButton(
             "PLACE DESSERT",
             row.transform,
@@ -442,7 +513,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
     private void BuildProfileSection(Transform content)
     {
-        AddSection(content, "DEVELOPMENT PROFILE");
+        AddSection(content, "PROFILE & ORDERS");
         GameObject resetRow = CreateLayoutRow(content, 66f);
         resetProgressButton = CreateButton(
             "Reset All Progress",
@@ -518,11 +589,11 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         diagnosticsText = CreateText(
             string.Empty,
             content,
-            18f,
+            24f,
             TextAlignmentOptions.TopLeft,
             Color.white);
         diagnosticsText.textWrappingMode = TextWrappingModes.Normal;
-        SetLayoutHeight(diagnosticsText.gameObject, 330f);
+        SetLayoutHeight(diagnosticsText.gameObject, 760f);
     }
 
     private void AddSection(Transform content, string title)
@@ -578,13 +649,16 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         RectTransform rect = buttonObject.GetComponent<RectTransform>();
         SetAnchored(rect, anchorMin, anchorMax, anchoredPosition, size);
         Image image = buttonObject.AddComponent<Image>();
-        image.color = color;
+        image.color = Color.white; // Selectable supplies the tint; avoid multiplying it twice.
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = image;
+        var colors = button.colors; colors.normalColor = color; colors.highlightedColor = Color.Lerp(color, Color.white, 0.18f);
+        colors.pressedColor = Color.Lerp(color, Color.black, 0.2f); colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(0.13f, 0.16f, 0.22f, 0.7f); colors.fadeDuration = 0.08f; button.colors = colors;
         button.onClick.AddListener(() => onClick());
         if (requiresCommandReady)
             commandButtons.Add(button);
-        CreateText(label, buttonObject.transform, 20f,
+        CreateText(label, buttonObject.transform, 28f,
             TextAlignmentOptions.Center, Color.white);
         return buttonObject;
     }
@@ -635,6 +709,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         text.text = value;
         text.font = TMP_Settings.defaultFontAsset;
         text.fontSize = fontSize;
+        text.enableAutoSizing = true; text.fontSizeMin = 18; text.fontSizeMax = fontSize; text.richText = false;
         text.alignment = alignment;
         text.color = color;
         text.raycastTarget = false;
@@ -739,13 +814,17 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         string commandName,
         Func<DeveloperCheatCommandResult> command)
     {
+        if (panelLease == null || !GameplayModalInputGate.IsSafeToOpen(panelLease))
+        { ReportRejectedCommand(commandName, "Wait for a safe gameplay state and reopen the panel."); return; }
         clearConfirmationPending = false;
         resetConfirmationPending = false;
         clearCancelButton?.gameObject.SetActive(false);
         resetCancelButton?.gameObject.SetActive(false);
         localFailureReason = null;
         lastCommandName = commandName;
-        lastResult = command();
+        try { lastResult = command(); }
+        catch (Exception exception) { lastResult = new DeveloperCheatCommandResult(false, false, exception.Message); }
+        if (!lastResult.Applied) localFailureReason = lastResult.Message;
         RefreshPanel();
     }
 
@@ -768,7 +847,21 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         if (overlayObject == null)
             return;
 
+        if (isOpen && !overlayObject.activeSelf)
+        {
+            if (!DeveloperCheatAccess.Allowed || GameplayModalInputGate.IsGameplayInputBlocked ||
+                !GameplayModalInputGate.TryAcquireBlockingModal(this, out panelLease)) return;
+            if (!GameplayModalInputGate.IsSafeToOpen(panelLease)) { panelLease.Dispose(); panelLease = null; return; }
+        }
+        if (!isOpen)
+        {
+            panelLease?.Dispose(); panelLease = null;
+            clearConfirmationPending = resetConfirmationPending = false;
+            clearCancelButton?.gameObject.SetActive(false); resetCancelButton?.gameObject.SetActive(false);
+        }
+
         overlayObject.SetActive(isOpen);
+        if (devButtonObject != null) devButtonObject.SetActive(!isOpen);
         if (isOpen)
             overlayObject.transform.SetAsLastSibling();
         else if (devButtonObject != null)
@@ -796,6 +889,15 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         string unavailableReason =
             DeveloperCheatCommands.GetAvailabilityMessage();
         bool ready = unavailableReason == null;
+        if (summaryText != null) summaryText.text = economy != null && progression != null
+            ? "$" + economy.CurrentCash.ToString("N0") + "   •   Energy " + progression.CurrentEnergy + "/" + progression.MaximumEnergy + "   •   R" + progression.CurrentRebirthCount
+            : "Waiting for verified gameplay…";
+        if (resultText != null)
+        {
+            resultText.text = localFailureReason ?? (lastResult != null ? lastCommandName + ": " + lastResult.Message : unavailableReason ?? "Choose an action. Changes are saved immediately.");
+            resultText.color = localFailureReason != null ? new Color(1, 0.55f, 0.5f) : lastResult != null && lastResult.Applied && !lastResult.Saved
+                ? new Color(1, 0.76f, 0.35f) : new Color(0.75f, 0.9f, 1);
+        }
 
         if (ready && !hasInitializedRebirthSelection)
         {
@@ -825,7 +927,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
         if (clearBoardButton != null)
             clearBoardButton.interactable = ready;
         if (resetProgressButton != null)
-            resetProgressButton.interactable = ready;
+            resetProgressButton.interactable = ready && SavePathPolicy.IsDevelopmentSaveIsolationEnabled;
         if (refreshOrdersButton != null)
             refreshOrdersButton.interactable = ready;
 
@@ -930,6 +1032,9 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             "Board: " + board + "\n" +
             "Save mode: " + saveMode + "\n" +
             "Save directory: " + saveDirectory + "\n" +
+            "Cloud: " + (SweetMerge.Cloud.SimpleCloudBackup.Instance?.Status ?? "Unavailable") + "\n" +
+            "Ads: " + (SimpleAdManager.Instance?.Status ?? "Unavailable") + "\n" +
+            "Ad privacy: " + AdvertisingPrivacy.Age + " / " + AdvertisingPrivacy.Choice + "\n" +
             "Last command: " + lastCommandName + "\n" +
             "Result: " + commandStatus +
             (localFailureReason != null
@@ -978,7 +1083,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             {
                 label.text = resetConfirmationPending
                     ? "CONFIRM RESET ALL PROGRESS"
-                    : "Reset All Progress";
+                    : SavePathPolicy.IsDevelopmentSaveIsolationEnabled ? "Reset All Progress" : "Reset: isolated DEV only";
             }
         }
     }

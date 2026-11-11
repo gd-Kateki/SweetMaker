@@ -10,10 +10,8 @@ public static class AdvertisingPrivacy
     private const int PolicyVersion = 1;
     private static string Prefix => "dmc.ads.privacy." + SavePathPolicy.ModeName + ".";
     public static event Action Changed;
-    public static bool DeferredForSession { get; private set; }
-    public static void DeferForSession() => DeferredForSession = true;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetSession() { DeferredForSession = false; Changed = null; }
+    private static void ResetSession() { Changed = null; }
     public static AgeGroup Age => (AgeGroup)PlayerPrefs.GetInt(Prefix + "age", 0);
     public static AdChoice Choice => PlayerPrefs.GetInt(Prefix + "version", 0) == PolicyVersion
         ? (AdChoice)PlayerPrefs.GetInt(Prefix + "choice", 0) : AdChoice.Unknown;

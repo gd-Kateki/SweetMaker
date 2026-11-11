@@ -11,6 +11,28 @@ public sealed class PlayerPrivacyTests
         .Select(a => a.GetType(name)).First(t => t != null);
     private static Type Privacy => Find("AdvertisingPrivacy");
 
+    [TestCase(0, 4)]
+    [TestCase(1, 2)]
+    [TestCase(2, 2)]
+    [TestCase(3, 3)]
+    public void AdvertisingScreensHaveNoDeferralOrSkipChoice(int age, int buttonCount)
+    {
+        var owner = new GameObject("Privacy options test", typeof(RectTransform)); owner.SetActive(false);
+        try
+        {
+            var card = new GameObject("Privacy content", typeof(RectTransform)); card.transform.SetParent(owner.transform, false);
+            Type ui = Find("PlayerPrivacyUI"); var view = owner.AddComponent(ui);
+            ui.GetField("card", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(view, card.GetComponent<RectTransform>());
+            ui.GetMethod("BuildAdvertising", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(view, new[] { Enum.ToObject(Privacy.GetNestedType("AgeGroup"), age) });
+            var buttons = owner.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+            Assert.AreEqual(buttonCount, buttons.Length);
+            Assert.IsFalse(buttons.Any(b => b.name == "Not now" || b.name == "Keep current choice"));
+            if (age >= 2) Assert.IsTrue(buttons.Any(b => b.name == "Use limited ads"), "Declining personalization must remain available.");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(owner); }
+    }
+
     [TestCase(0, 0, false)]
     [TestCase(0, 1, false)]
     [TestCase(1, 1, false)]
@@ -45,9 +67,6 @@ public sealed class PlayerPrivacyTests
         try
         {
             age("Adult"); Assert.IsFalse(flag("CanRequestAds"));
-            Privacy.GetMethod("DeferForSession").Invoke(null, null);
-            Assert.IsTrue(flag("DeferredForSession"));
-            Assert.IsFalse(flag("CanRequestAds"), "Dismissing privacy must never fabricate consent.");
             choose("Personalized"); Assert.IsTrue(flag("Personalized"));
             choose("Limited"); Assert.IsFalse(flag("Personalized")); Assert.IsTrue(flag("CanRequestAds"));
             age("Teen"); Assert.IsFalse(flag("CanRequestAds"));

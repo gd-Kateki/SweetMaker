@@ -15,8 +15,9 @@ No AdMob, UMP or other CMP was added.
 - Changing choices destroys loaded ad inventory and applies new SDK signals.
   There is no SDK shutdown API here: withdrawing personalization does not promise
   to stop every existing network operation or erase prior provider data.
-- Dismissing the first privacy prompt defers it for the current session, permits
-  gameplay, and never creates an ad consent. Settings or an ad offer can reopen it.
+- There is no Not now/skip/keep-current button. Eligible players choose limited
+  ads or, for adults, personalized ads. An unresolved choice is not treated as
+  consent; under-13 restrictions remain in place.
 - Age/choice stay local and are not included in the cloud save. Policy version
   changes require a fresh choice. Initial unknown states block ads.
 - A build guard rejects LevelPlay automatic initialization/Integration Helper,
@@ -80,7 +81,7 @@ reviewing its consent/age handling. Flags do not prove actual network behavior.
 
 Device checks: no saved choice; each age band; teen limited rewarded/interstitial
 ads; adult limited/personalized; changing choice after ads load; restart/offline/
-reconnect; gameplay without a completed choice; deletion email with/without a
+reconnect; no-skip privacy choices; deletion email with/without a
 mail client; external deletion after uninstall; and administrative fulfillment.
 Verify no ad request precedes the choice. Use ad test devices.
 
@@ -89,4 +90,7 @@ References:
 - https://support.google.com/googleplay/android-developer/answer/13327111
 
 
-Validation: the full EditMode suite passed 661/661 tests after integration. The final focused run passed 23/23 tests covering privacy dismissal, age transitions, limited/personalized choices, Settings layout and deletion-email escaping. Device and backend checks above remain outstanding.
+Validation: the full EditMode suite passed 661/661 tests after integration. The final focused run passed 23/23 tests covering the original privacy flow and age transitions, limited/personalized choices, Settings layout and deletion-email escaping. Device and backend checks above remain outstanding.
+
+
+No-deferral update: 32/32 focused privacy, advertising and visual-template tests passed after removing postponement/skip controls.

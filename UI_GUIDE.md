@@ -138,7 +138,7 @@ screens. Additional views can be captured with UI Designer when displayed.
 | `TutorialHighlight` | Target-following tutorial highlight | Profile/HybridTutorialHighlightUI.cs |
 | `EnergyHUD` | Scene energy HUD plus generated + button | UI/EnergyHudUI.cs |
 | `SettingsArtwork` | Optional visual override of settings frame/controls | UI/SettingsScreenPresentation.cs |
-| `DeveloperCheats` / `DeveloperButton` | DEV cheat panel and launcher; development only | Development/DeveloperCheatPanel.cs |
+| `DeveloperCheatsV2` / `DeveloperButtonV2` | Test Lab and launcher; Editor/dev plus explicitly enabled production testing | Development/DeveloperCheatPanel.cs |
 | `AndroidLogConsole` | Android development log/error console | Development/AndroidDevelopmentConsole.cs |
 
 ## Customization implementation

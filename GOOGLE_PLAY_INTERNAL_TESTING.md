@@ -46,7 +46,9 @@ Passing these checks does not verify UGS/Play credentials or device behavior.
 5. Verify both leaderboards in production show the correct cafe, lifetime total,
    and current rebirth after a successful backup and the sync interval.
 6. Verify Home interstitial timing, energy reward, dynamic cash reward, and no
-   duplicate rewards. Use ad test devices. Confirm no DEV/log-console UI appears.
+   duplicate rewards. Use ad test devices. Confirm the Test Lab appears only when
+   production testing is enabled in DeveloperTestingSettings; the Android development
+   log console remains absent from release. See Docs/TEST_LAB.md.
 7. After confirming a successful cloud backup, verify reinstall restores the
    correct account and offers Restore/New Game. Exercise offline/reconnect and
    account switching with dedicated test accounts.
