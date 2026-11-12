@@ -83,14 +83,6 @@ internal sealed class EditableUIEditor : EditorWindow
             var profileRoot = MakeCanvas(staging.transform, "Cafe profile preview");
             var profile = profileRoot.AddComponent<CafeProfileUI>();
             Call(profile, "CreateCard"); Call(profile, "CreatePanel"); Call(profile, "CreateNamingPopup");
-            var accountRoot = MakeCanvas(staging.transform, "Account section");
-            var account = accountRoot.AddComponent<SweetMerge.Authentication.GooglePlayGamesAccountSettingsControl>();
-            Call(account, "BuildControls");
-            SweetMerge.Cloud.SimpleCloudPanel.Attach(accountRoot.transform, TMP_Settings.defaultFontAsset);
-            PlayerPrivacyUI.AttachSettings(accountRoot.transform, null); // No button is invoked in the preview.
-            var analyticsRoot = MakeCanvas(staging.transform, "Analytics section");
-            Call(analyticsRoot.AddComponent<SweetMerge.Analytics.AnalyticsConsentSettingsControl>(), "BuildControls");
-            EditableUIView.Attach(analyticsRoot, "AnalyticsSettings");
             foreach (var view in staging.GetComponentsInChildren<EditableUIView>(true))
             {
                 string path = DirectoryPath + "/" + view.TemplateKey + ".prefab";
@@ -101,6 +93,7 @@ internal sealed class EditableUIEditor : EditorWindow
                 finally { DestroyImmediate(visual); }
             }
             AssetDatabase.SaveAssets();
+            SettingsLayoutEditor.EnsureDesignPrefab();
             Debug.Log("Starter UI visual templates created. Existing designs were preserved.");
         }
         finally { DestroyImmediate(staging); }
@@ -137,11 +130,13 @@ internal sealed class EditableUIEditor : EditorWindow
 
     private void OnGUI()
     {
+        if (GUILayout.Button("Edit complete Settings UI (both scenes)")) SettingsLayoutEditor.EditSettings();
+        if (GUILayout.Button("Edit complete Upgrade UI (both scenes)")) UpgradeDesignerEditor.EditScreen();
         EditorGUILayout.HelpBox("Scene UIs: edit their scene/prefab normally. Runtime UIs: enter Play Mode, open the screen, then capture its visual prefab below. Exit Play Mode and edit the prefab. Only visuals/layout are applied; real button actions and live text stay wired by the game. See UI_GUIDE.md.", MessageType.Info);
         if (GUILayout.Button("Create / select shared fonts and artwork theme")) CreateTheme();
         scroll = EditorGUILayout.BeginScrollView(scroll);
         foreach (var view in Resources.FindObjectsOfTypeAll<EditableUIView>()
-            .Where(v => v != null && !EditorUtility.IsPersistent(v) && v.gameObject.scene.IsValid())
+            .Where(v => v != null && v.IsAppearanceOwner && !EditorUtility.IsPersistent(v) && v.gameObject.scene.IsValid())
             .OrderBy(v => v.TemplateKey))
         {
             EditorGUILayout.LabelField(view.TemplateKey, EditorStyles.boldLabel);
@@ -154,7 +149,7 @@ internal sealed class EditableUIEditor : EditorWindow
     [MenuItem("Tools/Sweet Maker/UI/Capture Selected Runtime View")]
     private static void CaptureSelection()
     {
-        var view = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponentInParent<EditableUIView>(true) : null;
+        var view = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponentsInParent<EditableUIView>(true).FirstOrDefault(v => v.IsAppearanceOwner) : null;
         if (view == null) { Debug.LogWarning("Select a generated UI root or one of its children with an EditableUIView ancestor."); return; }
         Capture(view);
     }
@@ -168,6 +163,7 @@ internal sealed class EditableUIEditor : EditorWindow
         string path = DirectoryPath + "/" + key + ".prefab";
         if (File.Exists(path) && !EditorUtility.DisplayDialog("Replace visual template?", "This replaces existing design edits in " + path + ".", "Replace", "Cancel")) return;
         var clone = CopyVisualTree(view.transform, null, view.transform);
+        if (key == "SettingsArtwork") SettingsLayoutEditor.MakeDesignVisible(clone);
         try
         {
             PrefabUtility.SaveAsPrefabAsset(clone, path);

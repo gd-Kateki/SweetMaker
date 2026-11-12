@@ -9,7 +9,9 @@ public sealed class EditableUIView : MonoBehaviour
 {
     public const string TemplateFolder = "UI/VisualTemplates/";
     [SerializeField] private string templateKey;
+    [SerializeField] private bool includeNestedViews;
     public string TemplateKey => templateKey;
+    public bool IsAppearanceOwner => AppearanceOwner(transform) == this;
     private bool dirty = true;
     private readonly List<GameObject> decorations = new List<GameObject>();
     private static RuntimeUITheme theme;
@@ -24,10 +26,22 @@ public sealed class EditableUIView : MonoBehaviour
         var view = root.GetComponent<EditableUIView>() ?? root.AddComponent<EditableUIView>();
         view.templateKey = key; view.dirty = true;
     }
+    public void IncludeNestedViews() { includeNestedViews = true; dirty = true; }
+
+    private static EditableUIView AppearanceOwner(Transform target)
+    {
+        EditableUIView owner = null;
+        for (var current = target; current != null; current = current.parent)
+        {
+            var view = current.GetComponent<EditableUIView>();
+            if (view != null && (owner == null || view.includeNestedViews)) owner = view;
+        }
+        return owner;
+    }
     private void OnEnable() => dirty = true;
     private void LateUpdate()
     {
-        if (!dirty || string.IsNullOrEmpty(templateKey)) return;
+        if (!dirty || string.IsNullOrEmpty(templateKey) || AppearanceOwner(transform) != this) return;
         dirty = false;
         if (!themeLoaded) { themeLoaded = true; theme = Resources.Load<RuntimeUITheme>("UI/RuntimeUITheme"); }
         if (!templates.TryGetValue(templateKey, out var template))
@@ -43,13 +57,13 @@ public sealed class EditableUIView : MonoBehaviour
         if (skin == null) return;
         foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
         {
-            if (text.GetComponentInParent<EditableUIView>(true)?.transform != root) continue;
+            if (AppearanceOwner(text.transform)?.transform != root) continue;
             if (skin.font != null) text.font = skin.font;
             if (skin.overrideTextColor) text.color = skin.textColor;
         }
         foreach (var image in root.GetComponentsInChildren<Image>(true))
         {
-            if (image.GetComponentInParent<EditableUIView>(true)?.transform != root) continue;
+            if (AppearanceOwner(image.transform)?.transform != root) continue;
             bool button = image.GetComponent<Button>() != null;
             if (button && skin.buttonSprite != null) { image.sprite = skin.buttonSprite; image.type = Image.Type.Sliced; }
             if (button && skin.overrideButtonColor) image.color = skin.buttonColor;
@@ -72,13 +86,14 @@ public sealed class EditableUIView : MonoBehaviour
         {
             Transform target = Resolve(transform, part.targetPath);
             if (target == null) continue; // A newer screen can have additional elements.
-            if (target.GetComponentInParent<EditableUIView>(true) != this) continue;
+            if (AppearanceOwner(target) != this) continue;
             CopyPart(part, target);
             // New artist-authored children are decorations, not functional controls.
             foreach (Transform child in part.transform)
             {
                 if (child.GetComponent<EditableUIVisual>() != null) continue;
                 var copy = Instantiate(child.gameObject, target, false);
+                copy.transform.SetSiblingIndex(child.GetSiblingIndex());
                 foreach (var graphic in copy.GetComponentsInChildren<Graphic>(true)) graphic.raycastTarget = false;
                 decorations.Add(copy);
             }

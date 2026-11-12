@@ -97,11 +97,32 @@ public sealed class EditableUITests
             var nestedDesign = new GameObject("Nested", typeof(RectTransform), typeof(Image)); nestedDesign.transform.SetParent(template.transform, false);
             Part(nestedDesign, "Nested:0"); nestedDesign.GetComponent<Image>().color = Color.red;
             var decoration = new GameObject("Ribbon", typeof(RectTransform), typeof(Image)); decoration.transform.SetParent(template.transform, false);
+            var backdrop = new GameObject("Backdrop", typeof(RectTransform), typeof(Image)); backdrop.transform.SetParent(template.transform, false); backdrop.transform.SetAsFirstSibling();
             Apply(view, template.transform); Apply(view, template.transform);
+            StringAssert.StartsWith("Backdrop", live.transform.GetChild(0).name, "Decorative popup backgrounds must stay behind live content.");
             Assert.AreEqual(Color.green, nested.GetComponent<Image>().color);
             var ribbons = live.GetComponentsInChildren<Image>(true).Where(i => i.name.StartsWith("Ribbon")).ToArray();
             Assert.AreEqual(1, ribbons.Length, "Reapplying a visual design must not duplicate decorations.");
             Assert.IsFalse(ribbons[0].raycastTarget);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(live); UnityEngine.Object.DestroyImmediate(template); }
+    }
+
+    [Test]
+    public void CompleteDesignCanOwnNestedSectionsWithoutChangingDefaultIsolation()
+    {
+        var live = new GameObject("Root", typeof(RectTransform));
+        var template = new GameObject("Root", typeof(RectTransform));
+        try
+        {
+            var view = live.AddComponent(View); Part(template, "");
+            var nested = new GameObject("Nested", typeof(RectTransform), typeof(Image)); nested.transform.SetParent(live.transform, false);
+            nested.AddComponent(View); nested.GetComponent<Image>().color = Color.green;
+            var design = new GameObject("Nested", typeof(RectTransform), typeof(Image)); design.transform.SetParent(template.transform, false);
+            Part(design, "Nested:0"); design.GetComponent<Image>().color = Color.magenta;
+            View.GetMethod("IncludeNestedViews").Invoke(view, null);
+            Apply(view, template.transform);
+            Assert.AreEqual(Color.magenta, nested.GetComponent<Image>().color);
         }
         finally { UnityEngine.Object.DestroyImmediate(live); UnityEngine.Object.DestroyImmediate(template); }
     }

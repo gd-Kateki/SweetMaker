@@ -115,6 +115,12 @@ public class UpgradeScreenUI : MonoBehaviour
         HideSpawnPoolSelector();
         upgradeScreen.transform.SetAsLastSibling();
         upgradeScreen.SetActive(true);
+        var scroll = upgradeScreen.GetComponentInChildren<ScrollRect>(true);
+        if (scroll != null && scroll.content != null)
+        {
+            scroll.StopMovement();
+            scroll.content.anchoredPosition = Vector2.zero;
+        }
         FeatureIntroductionPopup.TryShowForFeatureFrom(
             this,
             FeatureIntroduction.Upgrades,

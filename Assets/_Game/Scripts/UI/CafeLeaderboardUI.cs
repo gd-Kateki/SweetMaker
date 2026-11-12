@@ -166,9 +166,9 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
                 string rebirth = data == null ? "—" : data.rebirth.ToString();
                 var row = Rect("Entry", rows);
                 row.gameObject.AddComponent<Image>().color = entry.PlayerId == displayedOwner
-                    ? new Color(0.4f, 0.27f, 0.1f) : new Color(0.23f, 0.16f, 0.11f);
-                row.gameObject.AddComponent<LayoutElement>().preferredHeight = 100;
-                var left = Label($"#{entry.Rank + 1}  {name}", row, 25);
+                    ? new Color(0.85f, 0.94f, 0.88f) : Color.white;
+                row.gameObject.AddComponent<LayoutElement>().preferredHeight = 112;
+                var left = Label($"#{entry.Rank + 1}  {name}" + (entry.PlayerId == displayedOwner ? " (You)" : ""), row, 25);
                 Stretch(left.rectTransform); left.rectTransform.anchorMax = new Vector2(0.55f, 1);
                 left.rectTransform.offsetMin = new Vector2(12, 8);
                 left.rectTransform.offsetMax = new Vector2(-8, -8);

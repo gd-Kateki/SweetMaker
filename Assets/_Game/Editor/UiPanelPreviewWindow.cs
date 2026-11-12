@@ -24,10 +24,6 @@ internal sealed class UiPanelPreviewWindow : EditorWindow
             MainBakeryScene,
             "MainCanvas/UpgradeScreen"),
         new PreviewGroup(
-            "Settings overlay",
-            MainBakeryScene,
-            "MainCanvas/SettingsOverlay"),
-        new PreviewGroup(
             "Rebirth panel and backdrop",
             GameScene,
             "GameplayCanvas/RebirthPanel",
@@ -48,10 +44,6 @@ internal sealed class UiPanelPreviewWindow : EditorWindow
             "Recycle confirmation overlay",
             GameScene,
             "GameplayCanvas/RecycleConfirmationController/RecycleConfirmationOverlay"),
-        new PreviewGroup(
-            "Settings overlay",
-            GameScene,
-            "GameplayCanvas/SettingsOverlay")
     };
 
     private string statusMessage;
@@ -70,6 +62,8 @@ internal sealed class UiPanelPreviewWindow : EditorWindow
 
     private void OnGUI()
     {
+        if (GUILayout.Button("Edit complete Settings UI (shared by both scenes)"))
+            SettingsLayoutEditor.EditSettings();
         EditorGUILayout.LabelField("Temporary UI Panel Preview", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
             "Preview states are temporary. Saving, closing, switching scenes, " +
