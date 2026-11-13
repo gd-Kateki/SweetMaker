@@ -136,6 +136,9 @@ public sealed class EditableUIView : MonoBehaviour
         {
             targetText.font = text.font; targetText.fontSharedMaterial = text.fontSharedMaterial;
             targetText.color = text.color; targetText.fontSize = text.fontSize; targetText.fontStyle = text.fontStyle;
+            targetText.enableVertexGradient = text.enableVertexGradient;
+            targetText.colorGradient = text.colorGradient;
+            targetText.colorGradientPreset = text.colorGradientPreset;
             targetText.enableAutoSizing = text.enableAutoSizing; targetText.fontSizeMin = text.fontSizeMin; targetText.fontSizeMax = text.fontSizeMax;
             targetText.alignment = text.alignment; targetText.margin = text.margin;
             targetText.characterSpacing = text.characterSpacing; targetText.lineSpacing = text.lineSpacing;

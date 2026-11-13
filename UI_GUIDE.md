@@ -108,6 +108,41 @@ Hierarchy paths above omit separator parents for readability; use
 
 ## Runtime UI templates
 
+### Edit from the scene Hierarchy
+
+Each scene now has **UI Designs (Editor Only)**. Expand an entry to access its
+linked visual prefab and edit colours, fonts, artwork and layout in the Inspector.
+Select the entry's parent to use **Preview this UI**, **Hide UI previews**, or
+**Save design to game**. Saving applies the prefab changes to the actual shared
+design, so the game and other scenes using it receive those changes. Saving only
+the scene keeps local preview overrides; use **Save design to game** for runtime
+changes. Unity's normal prefab Overrides controls are also available.
+
+For a hidden subpanel, select that child and use **Tools → Sweet Maker → UI →
+Preview Selected Scene UI** to reveal its ancestors and frame it in Scene view.
+Preview one design at a time. These copies are stripped when scenes are processed
+for Play Mode/builds; they do not replace the wired gameplay controls.
+
+| Scene | Designs in its editor group |
+| --- | --- |
+| MainBakery | Startup welcome/loading/recovery, café profile/naming, leaderboards/row, tutorial welcome/backdrop, collection introduction, shared account/privacy/cloud/energy UIs |
+| Game | Tutorial instructions/recovery/highlight, rewarded cash, feature introductions, Test Lab/launcher, shared account/privacy/cloud/energy UIs |
+| Welcome | Startup welcome, dependency recovery, cloud choice/restart |
+| Loading | Development loading, dependency recovery, cloud choice/restart |
+
+Shared groups include Settings, analytics consent, all four advertising-privacy
+states, account deletion, cloud choice/restart, energy HUD/rewarded energy, and the
+Android log console. Existing scene-authored UI (orders, rebirth, collection and
+the wired UpgradeScreen instance with its cards) stays in its original canvas
+hierarchy. Repeated collection rows use the linked source prefabs under
+`Assets/_Game/Prefabs/UI/`.
+
+The live bakery Energy HUD is at **MainCanvas → TopBar → EnergyHUD**. Edit its
+placement in the scene and its shared appearance in the `EnergyHUD` visual design.
+
+To rebuild missing entries after adding scenes/designs, use **Tools → Sweet Maker
+→ UI → Add Scene UI Designs**. Existing entries and their overrides are preserved.
+
 Template keys correspond to `<key>.prefab` inside
 `Assets/_Game/Resources/UI/VisualTemplates/`. Starter templates are supplied for
 the main account, ads, privacy, cloud-choice, profile, tutorial and leaderboard
@@ -322,3 +357,20 @@ GeneratedUiPolish is a one-time editor migration/build helper, not a runtime UI
 system or a tool for overwriting your later design work. Visual previews are
 written to tmp/ui-library-<key>.png; the rendering tools do not sign in, send
 analytics, restore saves or request ads.
+
+### Title colours
+
+Main headings use rainbow-inspired violet, berry, teal and blue gradients.
+Section headings use a quieter violet-to-blue gradient. Destructive/deletion
+titles keep a red-to-amber warning palette. Light and dark variants preserve
+the existing title contrast. These are static colours, with no animated effects.
+
+Edit a title's TextMeshPro component in its visual prefab (or the original
+scene/prefab for scene-authored UI): use **Color Gradient** and its four corner
+colours; keep Vertex Color white to avoid tinting the gradient. Turn off Color
+Gradient for a solid colour. Generated UI copies these settings into the live
+heading while preserving its actual text and actions.
+
+**Tools → Sweet Maker → UI → Apply Title Colours** reapplies the default palette
+across the current UI assets and Home/Game scenes. It overwrites custom title
+colours, so use individual Inspector edits for later customization.

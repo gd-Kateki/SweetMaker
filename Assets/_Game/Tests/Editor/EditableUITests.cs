@@ -75,10 +75,16 @@ public sealed class EditableUITests
             textType.GetProperty("richText").SetValue(liveText, false);
             textType.GetProperty("text").SetValue(designText, "Preview only: 32");
             textType.GetProperty("fontSize").SetValue(designText, 41f);
+            textType.GetProperty("enableVertexGradient").SetValue(designText, true);
+            var gradient = Activator.CreateInstance(Find("TMPro.VertexGradient"),
+                new object[] { Color.magenta, Color.blue, Color.cyan, Color.green });
+            textType.GetProperty("colorGradient").SetValue(designText, gradient);
             var part = Part(design, "");
             View.GetMethod("CopyPart", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { part, live.transform });
             Assert.AreEqual("Current money: 64", textType.GetProperty("text").GetValue(liveText));
             Assert.AreEqual(false, textType.GetProperty("richText").GetValue(liveText));
+            Assert.AreEqual(true, textType.GetProperty("enableVertexGradient").GetValue(liveText));
+            Assert.AreEqual(gradient, textType.GetProperty("colorGradient").GetValue(liveText));
             Assert.AreEqual(41f, textType.GetProperty("fontSize").GetValue(liveText));
         }
         finally { UnityEngine.Object.DestroyImmediate(live); UnityEngine.Object.DestroyImmediate(design); }

@@ -289,7 +289,7 @@ public sealed class RebirthUI : MonoBehaviour
 
             SetButtonState(false, "COMPLETE");
             SetReadyIndicator(false);
-            SetEntryButtonState("PRESTIGE COMPLETE");
+            SetEntryButtonState();
             UpdateEligibilityState(false);
             return;
         }
@@ -314,7 +314,7 @@ public sealed class RebirthUI : MonoBehaviour
                         progressionManager.IsEligibleForNextRebirth;
         UpdateEligibilityState(eligible);
         SetReadyIndicator(eligible);
-        SetEntryButtonState("PRESTIGE");
+        SetEntryButtonState();
 
         if (requirementsText != null)
         {
@@ -427,10 +427,10 @@ public sealed class RebirthUI : MonoBehaviour
             rebirthButtonText.text = label;
     }
 
-    private void SetEntryButtonState(string label)
+    private void SetEntryButtonState()
     {
         if (entryButtonText != null)
-            entryButtonText.text = label;
+            entryButtonText.text = string.Empty;
         if (entryButton != null)
             entryButton.interactable = !IsModalOpen();
     }
@@ -489,6 +489,6 @@ public sealed class RebirthUI : MonoBehaviour
         SetRequirementText(campaignStatusText, string.Empty);
         SetButtonState(false, "REBIRTH");
         SetReadyIndicator(false);
-        SetEntryButtonState("PRESTIGE");
+        SetEntryButtonState();
     }
 }
