@@ -57,6 +57,7 @@ public sealed class DessertCollectionIndexUI : MonoBehaviour
         openButton.onClick.AddListener(HandleOpenClicked);
         closeButton.onClick.AddListener(HandleCloseClicked);
         overlay.SetActive(false);
+        HomeOverlayVisibility.Attach(overlay);
         catalog = DessertCatalog.LoadShared();
         if (catalog == null)
         {

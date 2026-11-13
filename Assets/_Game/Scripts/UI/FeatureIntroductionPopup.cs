@@ -381,6 +381,7 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
         gotItButton.onClick.AddListener(HandleGotItPressed);
         popupRoot.SetActive(false);
         EditableUIView.Attach(popupRoot, "FeatureIntroduction");
+        HomeOverlayVisibility.Attach(popupRoot);
     }
 
     private void DisplayPopup()

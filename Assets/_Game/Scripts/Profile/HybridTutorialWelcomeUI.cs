@@ -11,6 +11,8 @@ namespace SweetMerge.Profile
     {
         private HybridTutorialController controller;
         private GameObject panel;
+        private GameObject backdrop;
+        private GameplayModalInputGate.GameplayModalLease welcomeLease;
         private TMP_Text titleText;
         private TMP_Text bodyText;
         private Button startButton;
@@ -85,12 +87,25 @@ namespace SweetMerge.Profile
 
         private void OnDisable()
         {
+            welcomeLease?.Dispose(); welcomeLease = null;
+            if (backdrop != null) backdrop.SetActive(false);
+            if (panel != null) panel.SetActive(false);
             Unsubscribe();
             UnsubscribeFromReadiness();
         }
 
+        private void OnDestroy() { welcomeLease?.Dispose(); welcomeLease = null; }
+        private void LateUpdate() => Refresh();
+
         private void BuildPanel()
         {
+            backdrop = new GameObject("WelcomeBackdrop", typeof(RectTransform), typeof(Image));
+            backdrop.transform.SetParent(transform, false);
+            SetFullStretch((RectTransform)backdrop.transform);
+            backdrop.GetComponent<Image>().color = new Color(.10f,.06f,.16f,.82f);
+            backdrop.GetComponent<Image>().raycastTarget = true;
+            backdrop.SetActive(false);
+            EditableUIView.Attach(backdrop, "TutorialWelcomeBackdrop");
             panel = CreatePanel(transform, "WelcomePanel");
             titleText = CreateText(
                 panel.transform,
@@ -123,12 +138,15 @@ namespace SweetMerge.Profile
                 new Vector2(.08f, .63f),
                 new Vector2(.92f, .78f));
             EditableUIView.Attach(panel, "TutorialWelcome");
+            HomeOverlayVisibility.Attach(panel);
         }
 
         private void HandleStartClicked()
         {
             controller = HybridTutorialController.Instance;
-            if (controller == null ||
+            if (panel == null || !panel.activeInHierarchy ||
+                !StartupFlowIntegrationOwner.CanPresentHomeOnboarding ||
+                GameplayModalInputGate.HasBlockingModalOtherThan(this) || controller == null ||
                 !controller.IsReady ||
                 controller.State.Stage != TutorialStage.Welcome ||
                 controller.State.IsCompleted)
@@ -264,7 +282,13 @@ namespace SweetMerge.Profile
                 StartupFlowIntegrationOwner.CanPresentTutorialWelcome &&
                 controller.State.Stage == TutorialStage.Welcome &&
                 !controller.State.IsCompleted;
+            visible = visible && !GameplayModalInputGate.HasBlockingModalOtherThan(this) &&
+                GameplayModalInputGate.TryAcquireBlockingModal(this, out welcomeLease) &&
+                GameplayModalInputGate.IsSafeToOpen(welcomeLease);
+            if (!visible) { welcomeLease?.Dispose(); welcomeLease = null; }
+            if (backdrop != null) backdrop.SetActive(visible);
             panel.SetActive(visible);
+            if (visible) transform.SetAsLastSibling();
         }
 
         private static GameObject CreatePanel(

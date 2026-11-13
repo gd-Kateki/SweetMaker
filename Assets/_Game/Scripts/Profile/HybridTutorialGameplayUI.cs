@@ -67,12 +67,14 @@ namespace SweetMerge.Profile
 
         private void OnEnable()
         {
+            GameplayModalInputGate.BlockingStateChanged += Refresh;
             Subscribe();
             Refresh();
         }
 
         private void OnDisable()
         {
+            GameplayModalInputGate.BlockingStateChanged -= Refresh;
             Unsubscribe();
         }
 
@@ -298,16 +300,18 @@ namespace SweetMerge.Profile
 
             bool ready = controller.IsReady &&
                 !controller.State.IsCompleted;
-            instructionPanel.SetActive(ready &&
+            bool showRecovery = controller.HasRecoverableError ||
+                !string.IsNullOrEmpty(completionError);
+            bool overlayVisible = GameplayModalInputGate.IsGameplayInputBlocked;
+            instructionPanel.SetActive(ready && !overlayVisible &&
+                !showRecovery &&
                 controller.State.Stage != TutorialStage.Welcome);
             instructionText.text = GetInstruction(
                 controller.State.Stage,
                 orderManager != null &&
                 orderManager.HasTutorialOrderForFirstCustomer);
 
-            bool showRecovery = controller.HasRecoverableError ||
-                !string.IsNullOrEmpty(completionError);
-            recoveryPanel.SetActive(showRecovery);
+            recoveryPanel.SetActive(showRecovery && !overlayVisible);
             recoveryText.text = !string.IsNullOrEmpty(completionError)
                 ? completionError
                 : controller.RecoverableError;

@@ -1,8 +1,12 @@
 # UI editing guide and inventory
 
-Updated 12 November 2026.
+Updated 13 November 2026.
 
 ## Where to start
+
+- **All generated designs:** Tools → Sweet Maker → UI Library. Search the 30
+  visual prefabs, open one in Prefab Mode and edit without Play Mode. The same
+  window links to the preview tools for existing scene panels.
 
 - **Existing scene UI:** open `Assets/_Game/Scenes/MainBakery.unity` or `Game.unity`,
   select the UI in Hierarchy, and edit Images, TMP fonts, RectTransforms and the
@@ -132,6 +136,7 @@ screens. Additional views can be captured with UI Designer when displayed.
 | `CafeNaming` | Cafe naming input and confirmation | UI/CafeProfileUI.cs |
 | `FeatureIntroduction` | Upgrade/rebirth/collection introduction | UI/FeatureIntroductionPopup.cs |
 | `TutorialWelcome` | Home tutorial start/welcome | Profile/HybridTutorialWelcomeUI.cs |
+| `TutorialWelcomeBackdrop` | Full-screen tutorial welcome dimmer; runtime input blocking is preserved | Profile/HybridTutorialWelcomeUI.cs |
 | `TutorialInstruction` | Gameplay tutorial instructions | Profile/HybridTutorialGameplayUI.cs |
 | `TutorialRecovery` | Tutorial recovery/retry | Profile/HybridTutorialGameplayUI.cs |
 | `TutorialHighlight` | Target-following tutorial highlight | Profile/HybridTutorialHighlightUI.cs |
@@ -269,3 +274,51 @@ Do not rename bound elements or remove their Editable UI Visual markers.
 Leaderboard rows are created from live results, so edit their separate row design.
 Editor-rendered PNGs in tmp/CafeProfilePanel-updated.png and
 Leaderboards-updated.png use illustrative values without contacting UGS.
+
+## Leaderboard overlay visibility (13 November 2026)
+
+The leaderboard launcher appears only on the ready, unobstructed Home screen.
+Settings, My Café, naming, Collection, startup and tutorial/introduction overlays
+register their actual visible roots through HomeOverlayVisibility. Modal leases
+also hide the launcher. An open leaderboard closes when another overlay or modal
+needs the screen, and scene changes hide it immediately. Closing it releases only
+its own input lease. LateUpdate enforces visibility after UI click handlers and
+before rendering; the editable artwork and leaderboard data flow are unchanged.
+
+When adding a custom home overlay in code, attach HomeOverlayVisibility to its
+actual show/hide root, not to an always-active controller or launcher button.
+
+## Remaining generated screens (13 November 2026)
+
+The remaining UI pass covers rewarded energy/cash offers, account/data deletion,
+Home loading, development loading, startup dependency errors, optional analytics
+consent and the cloud-restore restart notice. They now use the same rounded
+surfaces, readable text and consistent buttons as the other updated screens.
+Status and feedback areas have dedicated space, and recovery instructions stay
+inside their cards. Consent wording, player data and actions stay owned by the
+original controllers. The obsolete loading note about automatic sign-in/cloud
+was replaced with a short explanation of local progress and cloud backup.
+
+Seven previously uncaptured designs are now available: AnalyticsPrompt,
+DevelopmentLoading, StartupDependencyError, CloudRestoreRestart, EnergyHUD,
+AndroidLogConsole and TutorialHighlight. The energy + button uses the shared
+style; existing energy icons/artwork are preserved. The log console keeps its
+dark theme and live severity colors, with editable button artwork. Tutorial
+highlight styling is editable while its controller retains ownership of target
+position and border geometry. Test Lab retains its existing dark design.
+
+Use Tools → Sweet Maker → UI Library for all 30 generated designs. Select hidden
+sections in Prefab Mode and use Show currently selected hidden panel to preview
+them. Keep binding markers, bound names and the controls' hierarchy. Preview
+visibility is never copied to live screens. Edit allowed styling/layout and save;
+re-enter Play Mode or rebuild to load the changes. Actual button listeners,
+interactable/hidden states, rich-text permissions and dynamic labels are preserved.
+
+EnergyHUD deliberately excludes icon sprites/colors from copying. TutorialHighlight
+deliberately excludes layout copying so gameplay targets stay correctly highlighted.
+Shared theme overrides still take precedence over individual designs.
+
+GeneratedUiPolish is a one-time editor migration/build helper, not a runtime UI
+system or a tool for overwriting your later design work. Visual previews are
+written to tmp/ui-library-<key>.png; the rendering tools do not sign in, send
+analytics, restore saves or request ads.

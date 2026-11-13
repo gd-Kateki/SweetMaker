@@ -294,9 +294,10 @@ public sealed class MainBakeryStartupUI : MonoBehaviour
 
         noteText = CreateText(panel.transform, "InternetNote", 16);
         noteText.text =
-            "Your local Save V2 stays on this device. No sign-in or cloud restore runs automatically.";
+            "Your progress is stored on this device. Sign in to use cloud backup.";
         noteText.color = new Color(0.88f, 0.84f, 0.8f, 1f);
         EditableUIView.Attach(overlay, "StartupLoading");
+        HomeOverlayVisibility.Attach(overlay);
     }
 
     private static TMP_Text CreateText(

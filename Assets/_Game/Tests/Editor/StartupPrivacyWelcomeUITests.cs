@@ -143,6 +143,8 @@ public sealed class StartupPrivacyWelcomeUITests
             "WelcomeScreen/RetryCachedGoogleSessionButton");
         Assert.That(retryButton.gameObject.activeSelf, Is.False);
         Invoke("SetGoogleRecoveryActionsVisible", true);
+        Assert.IsFalse(Find("WelcomeScreen/GoogleSignInButton").gameObject.activeSelf,
+            "Only one sign-in action should be presented during cached-session recovery.");
         Assert.That(retryButton.gameObject.activeSelf, Is.True);
 
         Click("WelcomeScreen/RetryCachedGoogleSessionButton");
@@ -252,7 +254,7 @@ public sealed class StartupPrivacyWelcomeUITests
     }
 
     [Test]
-    public void PendingRestoreRecoveryHidesGuestButKeepsGoogleSignIn()
+    public void PendingRestoreRecoveryHidesGuestAndShowsOneSignInAction()
     {
         Invoke("ShowWelcome");
         Invoke("SetGuestPlayVisible", false);
@@ -264,7 +266,7 @@ public sealed class StartupPrivacyWelcomeUITests
             Is.False);
         Assert.That(
             Find("WelcomeScreen/GoogleSignInButton").gameObject.activeSelf,
-            Is.True);
+            Is.False);
         Assert.That(
             Find("WelcomeScreen/RetryCachedGoogleSessionButton")
                 .gameObject.activeSelf,

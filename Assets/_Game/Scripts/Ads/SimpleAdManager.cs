@@ -136,14 +136,14 @@ public sealed class SimpleAdManager : MonoBehaviour
     private void Update()
     {
         if (!AdvertisingPrivacy.Resolved && SceneManager.GetActiveScene().name == "Game" && GameplayReady() &&
-            !GameplayModalInputGate.IsGameplayInputBlocked)
+            AutomaticOffersAllowed())
             PlayerPrivacyUI.ShowAdvertising();
         if (!initialized && AdvertisingPrivacy.CanRequestAds) TryInitialize();
         if (!initialized || showing) return;
         if (Time.realtimeSinceStartup >= retryRewarded) LoadRewarded();
         if (Time.realtimeSinceStartup >= retryInterstitial) LoadInterstitial();
         if (SceneManager.GetActiveScene().name != "Game" || !GameplayReady() ||
-            GameplayModalInputGate.IsGameplayInputBlocked) return;
+            !AutomaticOffersAllowed()) return;
         cashPlaySeconds += Time.unscaledDeltaTime;
         if (cashPlaySeconds >= settings.cashOfferIntervalSeconds && RewardedReady)
         {
@@ -155,6 +155,17 @@ public sealed class SimpleAdManager : MonoBehaviour
     {
         double average = count > 0 ? (double)total / count : minimum;
         return (int)Math.Min(1000000, Math.Max(minimum, Math.Ceiling(average * multiplier)));
+    }
+
+    internal static bool CanAutomaticallyOffer(bool tutorialReady, bool tutorialCompleted, bool overlayVisible)
+        => tutorialReady && tutorialCompleted && !overlayVisible;
+
+    private static bool AutomaticOffersAllowed()
+    {
+        var tutorial = SweetMerge.Profile.HybridTutorialController.Instance;
+        return CanAutomaticallyOffer(tutorial != null && tutorial.IsReady,
+            tutorial != null && tutorial.State.IsCompleted,
+            GameplayModalInputGate.IsGameplayInputBlocked || HomeOverlayVisibility.IsAnyVisible);
     }
 
     private int CashOffer()
@@ -212,7 +223,7 @@ public sealed class SimpleAdManager : MonoBehaviour
     private IEnumerator HomeAd(Action navigate)
     {
         yield return null; // Finish the Home button's save/departure operation first.
-        if (!AdvertisingPrivacy.CanRequestAds || !initialized || showing || Time.realtimeSinceStartup < nextInterstitial ||
+        if (!AutomaticOffersAllowed() || !AdvertisingPrivacy.CanRequestAds || !initialized || showing || Time.realtimeSinceStartup < nextInterstitial ||
             interstitial == null || !interstitial.IsAdReady() || !BeginAd())
         { navigate(); yield break; }
         afterInterstitial = navigate;

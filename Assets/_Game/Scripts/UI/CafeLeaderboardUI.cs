@@ -20,7 +20,6 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
     private string displayedOwner;
     private float nextRefresh;
     private static CafeLeaderboardUI instance;
-    private SettingsUI settings;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
@@ -94,6 +93,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         next = Button("Next", shade, () => { offset += CafeLeaderboards.PageSize; Load(); });
         Bottom(previous, 0, 1f / 3); Bottom(refresh, 1f / 3, 2f / 3); Bottom(next, 2f / 3, 1);
         panel.SetActive(false);
+        launcher.gameObject.SetActive(false);
         EditableUIView.Attach(gameObject, "Leaderboards");
     }
 
@@ -102,11 +102,6 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         Rect bounds = Screen.safeArea;
         safeArea.anchorMin = new Vector2(bounds.xMin / Screen.width, bounds.yMin / Screen.height);
         safeArea.anchorMax = new Vector2(bounds.xMax / Screen.width, bounds.yMax / Screen.height);
-        bool bakery = SceneManager.GetActiveScene().name == "MainBakery";
-        if (bakery && settings == null) settings = FindAnyObjectByType<SettingsUI>();
-        launcher.gameObject.SetActive(bakery && !panel.activeSelf &&
-            (settings == null || !settings.IsOpenOrWaitingForSafeGameplayBoundary));
-        launcher.interactable = !GameplayModalInputGate.IsGameplayInputBlocked;
         if (!panel.activeSelf) return;
         if (displayedOwner != SimpleCloudBackup.GetVerifiedCurrentOwnerId())
         {
@@ -117,11 +112,31 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) Close();
     }
 
+    private bool HomeIsAvailable()
+    {
+        if (SceneManager.GetActiveScene().name != SceneNavigationManager.MainBakeryScene ||
+            HomeOverlayVisibility.IsAnyVisible) return false;
+        var readiness = ApplicationReadinessCoordinator.Instance;
+        return readiness == null || readiness.CanBeginGameplay;
+    }
+
+    private void LateUpdate()
+    {
+        // Run after UI click/update handlers so a newly opened overlay hides the launcher
+        // before this frame renders, regardless of the leaderboard canvas sorting order.
+        bool homeAvailable = HomeIsAvailable();
+        if (panel.activeSelf && (!homeAvailable || GameplayModalInputGate.HasBlockingModalOtherThan(this))) Close();
+        bool show = homeAvailable && !panel.activeSelf && !GameplayModalInputGate.IsGameplayInputBlocked;
+        launcher.gameObject.SetActive(show);
+        launcher.interactable = show;
+    }
+
     private void Open()
     {
-        if (GameplayModalInputGate.IsGameplayInputBlocked ||
+        if (panel.activeSelf || !HomeIsAvailable() || GameplayModalInputGate.IsGameplayInputBlocked ||
             !GameplayModalInputGate.TryAcquireBlockingModal(this, out lease)) return;
         if (!GameplayModalInputGate.IsSafeToOpen(lease)) { lease.Dispose(); lease = null; return; }
+        launcher.gameObject.SetActive(false);
         panel.SetActive(true); offset = 0; Load();
     }
 
@@ -222,7 +237,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
     {
         if (panel != null) Close();
     }
-    private void SceneChanged(Scene before, Scene after) { settings = null; Close(); }
+    private void SceneChanged(Scene before, Scene after) { launcher.gameObject.SetActive(false); Close(); }
     private void OnDestroy()
     {
         generation++; lease?.Dispose(); SceneManager.activeSceneChanged -= SceneChanged;

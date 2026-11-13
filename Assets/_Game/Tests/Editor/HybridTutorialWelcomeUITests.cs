@@ -163,6 +163,46 @@ public sealed class HybridTutorialWelcomeUITests
     }
 
     [Test]
+    public void WelcomeYieldsToAnotherModalAndReturnsWhenItCloses()
+    {
+        SetTutorialState("Welcome", ready: true);
+        CreateWelcomeUi();
+        Assert.IsTrue(GetPanel().activeSelf);
+        Type gate = FindRuntimeType("GameplayModalInputGate");
+        object[] args = { controller, null };
+        Assert.IsTrue((bool)gate.GetMethod("TryAcquireBlockingModal").Invoke(null, args));
+        try
+        {
+            Invoke(GetWelcomeUi(), "Refresh");
+            Assert.IsFalse(GetPanel().activeSelf);
+        }
+        finally { ((IDisposable)args[1]).Dispose(); }
+        Invoke(GetWelcomeUi(), "Refresh");
+        Assert.IsTrue(GetPanel().activeSelf);
+    }
+
+    [Test]
+    public void WelcomeBlocksBackgroundAndReleasesInputAfterTheWelcomeStep()
+    {
+        SetTutorialState("Welcome", ready: true);
+        CreateWelcomeUi();
+        Assert.That(GetPanel().activeSelf, Is.True);
+        var ui = GetWelcomeUi();
+        var backdrop = (GameObject)welcomeUiType.GetField("backdrop", InstanceNonPublic).GetValue(ui);
+        var lease = welcomeUiType.GetField("welcomeLease", InstanceNonPublic).GetValue(ui);
+        Assert.IsTrue(backdrop.activeInHierarchy);
+        Assert.IsTrue(backdrop.GetComponent<Image>().raycastTarget);
+        Assert.AreEqual(Vector2.zero, ((RectTransform)backdrop.transform).anchorMin);
+        Assert.AreEqual(Vector2.one, ((RectTransform)backdrop.transform).anchorMax);
+        Assert.IsTrue((bool)lease.GetType().GetProperty("IsActive").GetValue(lease));
+        SetTutorialState("Spawn", ready: true);
+        Invoke(ui, "Refresh");
+        Assert.IsFalse(backdrop.activeSelf);
+        Assert.IsFalse(GetPanel().activeSelf);
+        Assert.IsFalse((bool)lease.GetType().GetProperty("IsActive").GetValue(lease));
+    }
+
+    [Test]
     public void IncompleteTutorialKeepsItsStageForResume()
     {
         SetTutorialState("Merge", ready: true);

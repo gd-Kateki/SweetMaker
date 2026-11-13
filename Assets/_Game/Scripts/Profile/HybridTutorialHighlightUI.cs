@@ -153,6 +153,7 @@ namespace SweetMerge.Profile
         {
             controller = HybridTutorialController.Instance;
             if (controller == null ||
+                GameplayModalInputGate.IsGameplayInputBlocked ||
                 !controller.IsReady ||
                 controller.State.IsCompleted)
             {

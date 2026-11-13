@@ -262,6 +262,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         }
 
         retryGoogleRestorationButton.gameObject.SetActive(visible);
+        googleSignInButton.gameObject.SetActive(!visible);
     }
 
     public void SetSwitchAccountVisible(bool visible)
@@ -288,6 +289,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         }
 
         retryGoogleRestorationButton.gameObject.SetActive(visible);
+        googleSignInButton.gameObject.SetActive(!visible);
     }
 
     public void SetRetryStartupVisible(bool visible)
@@ -434,6 +436,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         overlayRoot.SetActive(false);
         initialized = true;
         EditableUIView.Attach(overlayRoot, "StartupWelcome");
+        HomeOverlayVisibility.Attach(overlayRoot);
     }
 
     private static GameObject CreateScreen(
@@ -492,7 +495,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         retryButton = CreateButton(
             screen.transform,
             "RetryStartupButton",
-            "Retry Startup",
+            "Try again",
             font,
             new Vector2(0.30f, 0.015f),
             new Vector2(0.70f, 0.075f));
@@ -539,7 +542,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         signInButton = CreateButton(
             screen.transform,
             "GoogleSignInButton",
-            "Google Sign In",
+            "Sign in with Google Play",
             font,
             new Vector2(0.12f, 0.65f),
             new Vector2(0.88f, 0.75f));
@@ -553,7 +556,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         retryRestorationButton = CreateButton(
             screen.transform,
             "RetryCachedGoogleSessionButton",
-            "Retry Cached Session",
+            "Retry sign-in",
             font,
             new Vector2(0.12f, 0.35f),
             new Vector2(0.88f, 0.45f));
@@ -561,7 +564,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         switchAccount = CreateButton(
             screen.transform,
             "SwitchAccountButton",
-            "Switch Account Help",
+            "How to change account",
             font,
             new Vector2(0.12f, 0.22f),
             new Vector2(0.88f, 0.32f));
@@ -569,7 +572,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         retryStartup = CreateButton(
             screen.transform,
             "RetryStartupButton",
-            "Retry Startup",
+            "Try again",
             font,
             new Vector2(0.30f, 0.02f),
             new Vector2(0.70f, 0.09f));

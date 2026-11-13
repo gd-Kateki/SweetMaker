@@ -44,6 +44,7 @@ public sealed class SettingsUI : MonoBehaviour
     private void Awake()
     {
         ValidateReferences();
+        HomeOverlayVisibility.Attach(overlayRoot);
         RefreshGameVersion();
         EnsureAnalyticsConsentControl();
         EnsureAccountSettingsControl();

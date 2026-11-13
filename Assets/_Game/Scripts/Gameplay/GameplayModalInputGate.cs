@@ -84,6 +84,14 @@ public static class GameplayModalInputGate
         return IsActive(lease) && activeGameplayOperations == 0;
     }
 
+    public static bool HasBlockingModalOtherThan(MonoBehaviour owner)
+    {
+        ReleaseDestroyedOwners();
+        foreach (var lease in ModalLeases.Values)
+            if (lease.Owner != owner) return true;
+        return false;
+    }
+
     /// <summary>
     /// Begins a short-lived committed gameplay operation. New operations
     /// are rejected while any blocking modal owns a lease.

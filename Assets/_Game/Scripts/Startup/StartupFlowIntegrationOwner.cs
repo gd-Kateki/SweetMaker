@@ -104,6 +104,11 @@ namespace SweetMerge.Startup
                    (startupDecisionConfirmed && localStartupReady);
         }
 
+        internal static bool CanPresentHomeOnboarding(bool restorePending, bool cloudChoicePending, bool startupReady)
+        {
+            return !restorePending && !cloudChoicePending && startupReady;
+        }
+
         internal static bool ShouldStartFlow(
             bool integrationEnabled,
             bool isMainBakery,
@@ -182,13 +187,12 @@ namespace SweetMerge.Startup
             }
         }
 
-        public static bool CanPresentTutorialWelcome
+        public static bool CanPresentTutorialWelcome => CanPresentHomeOnboarding;
+
+        public static bool CanPresentHomeOnboarding
         {
             get
             {
-                if (!FeatureEnabled)
-                    return true;
-
                 StartupFlowIntegrationOwner current = instance;
                 GameStartupCoordinator gameStartup =
                     GameStartupCoordinator.Instance;
@@ -199,11 +203,15 @@ namespace SweetMerge.Startup
                     gameStartup.IsStartupComplete &&
                     readiness != null &&
                     readiness.CanBeginGameplay;
-                return StartupIntegrationPolicy.ShouldShowTutorialWelcome(
-                    true,
+                bool startupReady = StartupIntegrationPolicy.ShouldShowTutorialWelcome(
+                    FeatureEnabled,
                     current != null &&
                         current.startupDecisionConfirmed,
                     localStartupReady);
+                return StartupIntegrationPolicy.CanPresentHomeOnboarding(
+                    SimpleCloudFiles.RestorePending || SimpleCloudFiles.StartupRestorePending,
+                    SimpleCloudBackup.Instance != null && SimpleCloudBackup.Instance.FreshInstallChoicePending,
+                    startupReady);
             }
         }
 

@@ -44,6 +44,7 @@ public sealed class CafeProfileUI : MonoBehaviour
     private bool restoreGatePending;
     private bool localProfileInitialized;
     private float nextManagerRetryTime;
+    private bool lastHomeOnboardingAvailable;
 
     private void Awake()
     {
@@ -83,6 +84,12 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void Update()
     {
+        bool onboardingAvailable = SweetMerge.Startup.StartupFlowIntegrationOwner.CanPresentHomeOnboarding;
+        if (onboardingAvailable != lastHomeOnboardingAvailable)
+        {
+            lastHomeOnboardingAvailable = onboardingAvailable;
+            RefreshNamingEligibility();
+        }
         if (!tutorialSubscribed)
             SubscribeToTutorial();
 
@@ -285,6 +292,7 @@ public sealed class CafeProfileUI : MonoBehaviour
             new Vector2(0.25f, 0.06f), new Vector2(0.75f, 0.17f));
         closeButton.onClick.AddListener(Close);
         EditableUIView.Attach(panelRoot, "CafeProfilePanel");
+        HomeOverlayVisibility.Attach(panelRoot);
     }
 
     private void CreateNamingPopup()
@@ -404,6 +412,7 @@ public sealed class CafeProfileUI : MonoBehaviour
         namingRoot.SetActive(false);
         namingConfirmationStep.SetActive(false);
         EditableUIView.Attach(namingRoot, "CafeNaming");
+        HomeOverlayVisibility.Attach(namingRoot);
     }
 
     private void ShowNamingConfirmation()
@@ -647,7 +656,7 @@ public sealed class CafeProfileUI : MonoBehaviour
             profileOperationInProgress)
             return false;
 
-        return true;
+        return SweetMerge.Startup.StartupFlowIntegrationOwner.CanPresentHomeOnboarding;
     }
 
     private void RefreshNamingEligibility()
@@ -656,6 +665,12 @@ public sealed class CafeProfileUI : MonoBehaviour
             SweetMerge.Cloud.SimpleCloudFiles.RestorePending ||
             namingRoot == null)
             return;
+
+        if (!SweetMerge.Startup.StartupFlowIntegrationOwner.CanPresentHomeOnboarding)
+        {
+            namingRoot.SetActive(false);
+            return;
+        }
 
         bool tutorialCompleted =
             UnityEngine.SceneManagement.SceneManager

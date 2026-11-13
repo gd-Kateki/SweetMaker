@@ -50,6 +50,7 @@ public sealed class EnergyHudUI : MonoBehaviour
 
         BindProgressionManager();
         AddEnergyButton();
+        EditableUIView.Attach(hudRoot.gameObject, "EnergyHUD");
         Refresh();
     }
 
@@ -74,7 +75,6 @@ public sealed class EnergyHudUI : MonoBehaviour
             if (progressionManager != null && progressionManager.CurrentEnergy < progressionManager.MaximumEnergy)
                 AdOfferPopup.Show(true, 50);
         });
-        EditableUIView.Attach(hudRoot.gameObject, "EnergyHUD");
     }
 
     private void Update()
