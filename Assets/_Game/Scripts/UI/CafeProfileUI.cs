@@ -15,7 +15,7 @@ public sealed class CafeProfileUI : MonoBehaviour
     private readonly Color goldColor = new Color(1f, 0.78f, 0.25f, 1f);
     private readonly Color mutedStarColor = new Color(0.45f, 0.42f, 0.48f, 1f);
 
-    private GameObject cardRoot;
+    [SerializeField] private GameObject cardRoot;
     private GameObject panelRoot;
     private Button cardButton;
     private Button closeButton;
@@ -225,18 +225,24 @@ public sealed class CafeProfileUI : MonoBehaviour
 
     private void CreateCard()
     {
-        cardRoot = CreateRect("CafeProfileCard", transform);
-        SetAnchors(cardRoot, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(18f, -48f), new Vector2(114f, 48f));
+        bool create = cardRoot == null;
+        if (create)
+        {
+            cardRoot = CreateRect("CafeProfileCard", transform);
+            SetAnchors(cardRoot, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(18f, -48f), new Vector2(114f, 48f));
+        }
 
-        Image background = cardRoot.AddComponent<Image>();
+        Image background = cardRoot.GetComponent<Image>();
+        if (background == null) background = cardRoot.AddComponent<Image>();
         background.color = cardColor;
 
-        cardButton = cardRoot.AddComponent<Button>();
+        cardButton = cardRoot.GetComponent<Button>();
+        if (cardButton == null) cardButton = cardRoot.AddComponent<Button>();
         cardButton.targetGraphic = background;
         cardButton.onClick.AddListener(Open);
 
-        CreatePlaceholder(cardRoot.transform, Vector2.zero, 76f);
+        if (create) CreatePlaceholder(cardRoot.transform, Vector2.zero, 76f);
         EditableUIView.Attach(cardRoot, "CafeProfileCard");
     }
 

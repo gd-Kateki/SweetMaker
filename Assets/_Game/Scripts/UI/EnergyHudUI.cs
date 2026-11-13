@@ -56,12 +56,23 @@ public sealed class EnergyHudUI : MonoBehaviour
 
     private void AddEnergyButton()
     {
-        if (hudRoot == null || hudRoot.Find("EnergyPlus") != null) return;
+        if (hudRoot == null) return;
+        var existing = hudRoot.Find("EnergyPlus");
+        if (existing != null)
+        {
+            // A scene-authored button owns its artwork/layout. An independent
+            // view keeps the parent HUD template/theme from restyling its subtree.
+            if (existing.GetComponent<EditableUIView>() == null)
+                existing.gameObject.AddComponent<EditableUIView>();
+            BindEnergyButton(existing.gameObject);
+            return;
+        }
         var go = new GameObject("EnergyPlus", typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(hudRoot, false);
         var rect = go.GetComponent<RectTransform>();
         rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
-        rect.anchoredPosition = new Vector2(-8, 0); rect.sizeDelta = new Vector2(44, 44);
+        rect.pivot = new Vector2(1, .5f);
+        rect.anchoredPosition = new Vector2(-6, 0); rect.sizeDelta = new Vector2(48, 48);
         go.GetComponent<Image>().color = new Color(0.28f, 0.13f, 0.08f);
         var label = new GameObject("Plus", typeof(RectTransform), typeof(TextMeshProUGUI));
         label.transform.SetParent(go.transform, false);
@@ -70,11 +81,28 @@ public sealed class EnergyHudUI : MonoBehaviour
         labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
         var text = label.GetComponent<TextMeshProUGUI>(); text.font = energyText.font;
         text.text = "+"; text.fontSize = 32; text.alignment = TextAlignmentOptions.Center; text.raycastTarget = false;
-        go.GetComponent<Button>().onClick.AddListener(() =>
+        BindEnergyButton(go);
+    }
+
+    private void BindEnergyButton(GameObject go)
+    {
+        var button = go.GetComponent<Button>();
+        if (button == null) button = go.AddComponent<Button>();
+        var image = go.GetComponent<Image>();
+        if (image != null)
         {
-            if (progressionManager != null && progressionManager.CurrentEnergy < progressionManager.MaximumEnergy)
-                AdOfferPopup.Show(true, 50);
-        });
+            image.raycastTarget = true;
+            if (button.targetGraphic == null) button.targetGraphic = image;
+        }
+        button.onClick.RemoveListener(HandleAddEnergyClicked);
+        button.onClick.AddListener(HandleAddEnergyClicked);
+        go.SetActive(true);
+    }
+
+    private void HandleAddEnergyClicked()
+    {
+        if (progressionManager != null && progressionManager.CurrentEnergy < progressionManager.MaximumEnergy)
+            AdOfferPopup.Show(true, 50);
     }
 
     private void Update()

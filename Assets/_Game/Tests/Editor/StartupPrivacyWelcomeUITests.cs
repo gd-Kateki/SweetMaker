@@ -325,7 +325,7 @@ public sealed class StartupPrivacyWelcomeUITests
         Assert.That(card.anchorMax.y, Is.LessThanOrEqualTo(0.94f));
         Assert.That(
             GetText("PrivacyScreen/PrivacyInformation"),
-            Does.Contain("Advertising is not currently active"));
+            Does.Contain("Advertising preferences are requested separately after this choice"));
         Assert.That(
             Find("PrivacyScreen/PrivacyPolicyButton").GetComponent<Button>(),
             Is.Not.Null);

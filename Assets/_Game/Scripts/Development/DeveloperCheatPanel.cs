@@ -445,7 +445,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
 
     private void BuildRebirthSection(Transform content)
     {
-        AddSection(content, "REBIRTH");
+        AddSection(content, "PRESTIGE");
         GameObject row = CreateLayoutRow(content, 66f);
         CreateButton("-", row.transform, Vector2.zero, Vector2.one,
             Vector2.zero, Vector2.zero, new Color(0.27f, 0.27f, 0.34f),
@@ -461,7 +461,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             () => ChangeRebirth(1));
         row = CreateLayoutRow(content, 66f);
         setRebirthButton = CreateButton(
-            "APPLY REBIRTH",
+            "APPLY PRESTIGE",
             row.transform,
             Vector2.zero,
             Vector2.one,
@@ -469,11 +469,11 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             Vector2.zero,
             new Color(0.28f, 0.24f, 0.42f),
             () => RunCommand(
-                "Set rebirth R" + selectedRebirth,
+                "Set prestige R" + selectedRebirth,
                 () => DeveloperCheatCommands.SetRebirth(selectedRebirth)),
             true).GetComponent<Button>();
         CreateText(
-            "Oven level and merge-tier cap are derived from rebirth. Cash is unchanged.",
+            "Oven level and merge-tier cap are derived from prestige. Cash is unchanged.",
             content,
             19f,
             TextAlignmentOptions.MidlineLeft,
@@ -965,7 +965,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             if (!hasCafeProgression)
             {
                 cafeProgressionText.text =
-                    "Completed Rebirths: " +
+                    "Completed Prestiges: " +
                     (progression != null
                         ? progression.CurrentRebirthCount.ToString(
                             "N0",
@@ -978,7 +978,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             else
             {
                 cafeProgressionText.text =
-                    "Completed Rebirths: " +
+                    "Completed Prestiges: " +
                     progression.CurrentRebirthCount.ToString(
                         "N0",
                         CultureInfo.InvariantCulture) +
@@ -987,7 +987,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
                     CafeProgressionCatalog.MaximumRegularStarLevel +
                     "\nNext Star: " +
                     (nextStarRebirth.HasValue
-                        ? "Rebirth " + nextStarRebirth.Value.ToString(
+                        ? "Prestige " + nextStarRebirth.Value.ToString(
                             "N0",
                             CultureInfo.InvariantCulture)
                         : "MAX");
@@ -1025,7 +1025,7 @@ public sealed class DeveloperCheatPanel : MonoBehaviour
             "Energy: " + (progression != null
                 ? progression.CurrentEnergy + "/" + progression.MaximumEnergy
                 : "Unavailable") + "\n" +
-            "Rebirth: " + (progression != null ? "R" + progression.CurrentRebirthCount : "Unavailable") + "\n" +
+            "Prestige: " + (progression != null ? "R" + progression.CurrentRebirthCount : "Unavailable") + "\n" +
             "Oven: " + (progression != null ? "L" + progression.OvenLevel : "Unavailable") + "\n" +
             "Merge cap: " + (progression != null ? "T" + progression.MaxUnlockedDessertTier : "Unavailable") + "\n" +
             "Campaign: " + completion + "\n" +

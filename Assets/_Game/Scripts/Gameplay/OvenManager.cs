@@ -9,6 +9,7 @@ public class OvenManager : MonoBehaviour
     private bool isProcessingRequest;
 
     public bool LastRequestFailedForNoBoardSpace { get; private set; }
+    public bool LastRequestFailedForNoEnergy { get; private set; }
 
     public bool CanUseOven
     {
@@ -27,6 +28,7 @@ public class OvenManager : MonoBehaviour
     public void RequestSpawn()
     {
         LastRequestFailedForNoBoardSpace = false;
+        LastRequestFailedForNoEnergy = false;
 
         if (!CanUseOven)
         {
@@ -60,6 +62,7 @@ public class OvenManager : MonoBehaviour
 
         if (progression.CurrentEnergy <= 0)
         {
+            LastRequestFailedForNoEnergy = true;
             Debug.Log("OVEN | Spawn request rejected: no Energy.");
             return;
         }

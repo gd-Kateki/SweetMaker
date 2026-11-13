@@ -20,6 +20,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
     private string displayedOwner;
     private float nextRefresh;
     private static CafeLeaderboardUI instance;
+    public static void OpenFromHome() { if (instance != null) instance.Open(); }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
@@ -71,7 +72,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         Place(status.rectTransform, 180, 90, 24, 24);
         var header = Label("Rank / Café", shade, 23);
         TopColumn(header.rectTransform, 0, 0.55f, 275, 45);
-        var totalsHeader = Label("Total / Rebirth", shade, 23);
+        var totalsHeader = Label("Total / Prestige", shade, 23);
         TopColumn(totalsHeader.rectTransform, 0.55f, 1, 275, 45);
         totalsHeader.alignment = TextAlignmentOptions.MidlineRight;
         var viewport = Rect("Scroll", shade); Stretch(viewport);
@@ -127,8 +128,10 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
         bool homeAvailable = HomeIsAvailable();
         if (panel.activeSelf && (!homeAvailable || GameplayModalInputGate.HasBlockingModalOtherThan(this))) Close();
         bool show = homeAvailable && !panel.activeSelf && !GameplayModalInputGate.IsGameplayInputBlocked;
-        launcher.gameObject.SetActive(show);
-        launcher.interactable = show;
+        var sceneLauncher = HomeLeaderboardButton.Instance;
+        launcher.gameObject.SetActive(show && sceneLauncher == null);
+        launcher.interactable = show && sceneLauncher == null;
+        if (sceneLauncher != null) sceneLauncher.SetVisible(show);
     }
 
     private void Open()
@@ -137,6 +140,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
             !GameplayModalInputGate.TryAcquireBlockingModal(this, out lease)) return;
         if (!GameplayModalInputGate.IsSafeToOpen(lease)) { lease.Dispose(); lease = null; return; }
         launcher.gameObject.SetActive(false);
+        if (HomeLeaderboardButton.Instance != null) HomeLeaderboardButton.Instance.SetVisible(false);
         panel.SetActive(true); offset = 0; Load();
     }
 
@@ -187,7 +191,7 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
                 Stretch(left.rectTransform); left.rectTransform.anchorMax = new Vector2(0.55f, 1);
                 left.rectTransform.offsetMin = new Vector2(12, 8);
                 left.rectTransform.offsetMax = new Vector2(-8, -8);
-                var right = Label((orders ? "" : "$") + CafeLeaderboards.FormatTotal(entry) + "\nRebirth " + rebirth, row, 23);
+                var right = Label((orders ? "" : "$") + CafeLeaderboards.FormatTotal(entry) + "\nPrestige " + rebirth, row, 23);
                 Stretch(right.rectTransform); right.rectTransform.anchorMin = new Vector2(0.55f, 0);
                 right.rectTransform.offsetMin = new Vector2(0, 8); right.rectTransform.offsetMax = new Vector2(-12, -8);
                 right.alignment = TextAlignmentOptions.MidlineRight;
@@ -237,7 +241,12 @@ public sealed class CafeLeaderboardUI : MonoBehaviour
     {
         if (panel != null) Close();
     }
-    private void SceneChanged(Scene before, Scene after) { launcher.gameObject.SetActive(false); Close(); }
+    private void SceneChanged(Scene before, Scene after)
+    {
+        launcher.gameObject.SetActive(false);
+        if (HomeLeaderboardButton.Instance != null) HomeLeaderboardButton.Instance.SetVisible(false);
+        Close();
+    }
     private void OnDestroy()
     {
         generation++; lease?.Dispose(); SceneManager.activeSceneChanged -= SceneChanged;

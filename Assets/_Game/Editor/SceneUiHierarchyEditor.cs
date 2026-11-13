@@ -93,6 +93,15 @@ internal static class SceneUiHierarchyEditor
     internal static void Show(SceneUiDesign entry, Transform selected)
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode || selected == null) return;
+        if (selected == entry.Design?.transform)
+        {
+            string key = Path.GetFileNameWithoutExtension(entry.assetPath);
+            if (key == "StartupWelcome") { ShowStartupScreen(entry, true); return; }
+            var panel = entry.Design.GetComponentsInChildren<EditableUIVisual>(true).FirstOrDefault(p =>
+                key == "CafeProfilePanel" && p.name == "CafeProfilePanel" ||
+                key == "Leaderboards" && p.targetPath == "Safe%20area:0/Leaderboards:1");
+            if (panel != null) selected = panel.transform;
+        }
         Undo.RegisterFullObjectHierarchyUndo(entry.transform.parent.gameObject, "Preview UI design");
         foreach (Transform sibling in entry.transform.parent) sibling.gameObject.SetActive(sibling == entry.transform);
         entry.transform.parent.gameObject.SetActive(true);
@@ -101,6 +110,19 @@ internal static class SceneUiHierarchyEditor
         Selection.activeGameObject = selected.gameObject;
         SceneView.lastActiveSceneView?.FrameSelected();
         SceneView.RepaintAll();
+    }
+
+    internal static void ShowStartupScreen(SceneUiDesign entry, bool signIn)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode || entry.Design == null) return;
+        Undo.RegisterFullObjectHierarchyUndo(entry.gameObject, "Preview startup screen");
+        Transform selected = null;
+        foreach (var value in entry.Design.GetComponentsInChildren<Transform>(true))
+        {
+            if (value.name == "WelcomeScreen") { value.gameObject.SetActive(signIn); if (signIn) selected = value; }
+            if (value.name == "PrivacyScreen") { value.gameObject.SetActive(!signIn); if (!signIn) selected = value; }
+        }
+        if (selected != null) Show(entry, selected);
     }
 
     public static void Validate()
@@ -112,7 +134,8 @@ internal static class SceneUiHierarchyEditor
             try
             {
                 var group = scene.GetRootGameObjects().Single(r => r.name == GroupName);
-                if (!group.CompareTag("EditorOnly") || group.activeSelf) throw new InvalidOperationException("Unsafe UI preview group: " + pair.Key);
+                // Artists may save an active editor preview; scene processing strips it regardless.
+                if (!group.CompareTag("EditorOnly")) throw new InvalidOperationException("Unsafe UI preview group: " + pair.Key);
                 var entries = group.GetComponentsInChildren<SceneUiDesign>(true);
                 if (entries.Select(e => e.assetPath).Distinct().Count() != entries.Length) throw new InvalidOperationException("Duplicate UI designs: " + pair.Key);
                 foreach (var key in pair.Value)

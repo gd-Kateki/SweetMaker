@@ -889,6 +889,7 @@ namespace SweetMerge.Startup
                 return;
             }
 
+            if (!startupView.EnsureAdvertisingBefore(ContinuePendingRestoreRecovery)) return;
             startupView.ShowWelcome();
             startupView.SetFeedback(
                 "A cloud restore is pending. Verify the Google account " +

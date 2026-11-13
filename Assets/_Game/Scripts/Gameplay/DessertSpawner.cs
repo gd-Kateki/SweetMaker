@@ -266,6 +266,7 @@ public class DessertSpawner : MonoBehaviour
             return true;
 
         selectedSpawnPoolId = poolId;
+        SaveManager.Instance?.RecordSelectedSpawnPool(poolId);
         PrepareNextDessert();
         PublishSpawnPoolChanged();
         return true;
@@ -282,6 +283,7 @@ public class DessertSpawner : MonoBehaviour
             : "P1";
         bool wasValid = restoredPool == poolId;
         selectedSpawnPoolId = restoredPool;
+        SaveManager.Instance?.RecordSelectedSpawnPool(restoredPool);
         PublishSpawnPoolChanged();
         if (!wasValid)
         {
@@ -500,7 +502,8 @@ public class DessertSpawner : MonoBehaviour
     private void PublishSpawnPoolChanged()
     {
         string poolId = selectedSpawnPoolId;
-        SaveManager.Instance?.RecordSelectedSpawnPool(poolId);
+        // Startup broadcasts its temporary default before saved selection restoration.
+        // Only explicit selection/restoration should update the remembered choice.
         SpawnPoolChanged?.Invoke(
             poolId,
             GetSpawnPoolFirstTier(poolId),

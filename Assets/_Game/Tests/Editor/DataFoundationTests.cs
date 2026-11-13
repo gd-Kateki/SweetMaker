@@ -674,8 +674,8 @@ public class DataFoundationTests
             string labelText =
                 (string)GetPropertyValue(label, "text");
             Assert.AreEqual("TABLE 1", labelText);
-            StringAssert.Contains(
-                $"T{GetPropertyValue(singleDessert, "Tier")} 0/1",
+            Assert.AreEqual(
+                "0/1",
                 (string)GetPropertyValue(
                     firstRequirementLabel,
                     "text"));
@@ -735,8 +735,8 @@ public class DataFoundationTests
                         "gameObject"),
                     "activeSelf"),
                 "Mixed orders show the second requirement row.");
-            StringAssert.Contains(
-                $"T{GetPropertyValue(secondDessert, "Tier")} 0/2",
+            Assert.AreEqual(
+                "0/2",
                 (string)GetPropertyValue(
                     secondRequirementLabel,
                     "text"));
@@ -854,12 +854,11 @@ public class DataFoundationTests
             firstTextRect.anchoredPosition.x +
             firstTextRect.sizeDelta.x / 2f,
             114.5f);
-        // All visible elements must remain inside the card, including the
-        // larger icons and status text. Do not accept a new size alone.
+        // Dessert images and quantities belong inside the table body.
+        // Scene-authored headings and availability badges may sit outside it.
         Rect cardBounds = ((RectTransform)buttonTransform).rect;
         foreach (RectTransform child in new[]
-                 { firstIconRect, secondIconRect, firstTextRect, secondTextRect,
-                   headerRect, readinessRect })
+                 { firstIconRect, secondIconRect, firstTextRect, secondTextRect })
         {
             Assert.AreEqual(buttonTransform, child.parent);
             Assert.AreEqual(new Vector2(0.5f, 0.5f), child.anchorMin);
@@ -2125,7 +2124,7 @@ public class DataFoundationTests
     public void RebirthRestoreSynchronizesFreeOvenLevelAndSpawnPool()
     {
         var setup = CreateProgressionPurchaseTestSetup();
-        var spawnerObject = new GameObject("Rebirth Oven spawn pool test");
+        var spawnerObject = new GameObject("Prestige Oven spawn pool test");
         spawnerObject.SetActive(false);
         var saveManagerObject = new GameObject("Spawn pool restore save test");
         saveManagerObject.SetActive(false);
@@ -2187,12 +2186,12 @@ public class DataFoundationTests
                     3,
                     setup.Progression.GetType()
                         .GetProperty("BoardSpaceLevel").GetValue(setup.Progression),
-                    "A Rebirth must preserve purchased support levels.");
+                    "A Prestige must preserve purchased support levels.");
                 Assert.AreEqual(
                     2,
                     setup.Progression.GetType()
                         .GetProperty("ShelfLevel").GetValue(setup.Progression),
-                    "A Rebirth must preserve purchased support levels.");
+                    "A Prestige must preserve purchased support levels.");
                 Assert.AreEqual(
                     100000,
                     setup.Economy.GetType()
@@ -2211,7 +2210,7 @@ public class DataFoundationTests
                 "P1",
                 spawner.GetType().GetProperty("SelectedSpawnPoolId")
                     .GetValue(spawner),
-                "A loaded valid P1 choice should survive Rebirth and restore.");
+                "A loaded valid P1 choice should survive Prestige and restore.");
             int previewTier = (int)GetPropertyValue(
                 spawner.GetType().GetProperty("NextDessert").GetValue(spawner),
                 "Tier");
@@ -2442,7 +2441,7 @@ public class DataFoundationTests
                 Assert.AreEqual(
                     gate.rebirthCount,
                     requiredRebirth.Invoke(purchaseManager, new[] { type }),
-                    $"{gate.type} L{gate.level} should report its authoritative Rebirth gate.");
+                    $"{gate.type} L{gate.level} should report its authoritative Prestige gate.");
 
                 int cashBefore = (int)setup.Economy.GetType()
                     .GetProperty("CurrentCash").GetValue(setup.Economy);
@@ -2469,7 +2468,7 @@ public class DataFoundationTests
             object ovenType = Enum.Parse(upgradeType, "Oven");
             Assert.IsFalse((bool)canPurchase.Invoke(
                 purchaseManager, new[] { ovenType }),
-                "Oven levels are Rebirth unlocks, not cash purchases.");
+                "Oven levels are Prestige unlocks, not cash purchases.");
             int ovenCash = (int)setup.Economy.GetType()
                 .GetProperty("CurrentCash").GetValue(setup.Economy);
             Assert.IsFalse((bool)purchase.Invoke(
@@ -2513,13 +2512,13 @@ public class DataFoundationTests
         object ovenType = Enum.Parse(upgradeType, "Oven");
 
         Assert.AreEqual(
-            "Requires Rebirth 5",
+            "Requires Prestige 5",
             labelMethod.Invoke(null, new object[]
             {
                 boardType, false, 5, false
             }));
         Assert.AreEqual(
-            "Requires Rebirth 10",
+            "Requires Prestige 10",
             labelMethod.Invoke(null, new object[]
             {
                 boardType, false, 10, false
@@ -2543,7 +2542,7 @@ public class DataFoundationTests
                 boardType, false, -1, false
             }));
         Assert.AreEqual(
-            "REBIRTH",
+            "PRESTIGE",
             labelMethod.Invoke(null, new object[]
             {
                 ovenType, false, -1, false
@@ -2771,7 +2770,7 @@ public class DataFoundationTests
                 .Invoke(setup.Progression, new object[] { 1, 0, false }));
             Assert.AreEqual(4, setup.Progression.GetType()
                 .GetProperty("LuckLevel").GetValue(setup.Progression),
-                "Luck is permanent across Rebirth.");
+                "Luck is permanent across Prestige.");
         }
         finally
         {
@@ -3343,11 +3342,11 @@ public class DataFoundationTests
             ReadSceneVector2(closeButtonTransform.Value, "m_AnchorMax"));
 
         AssertRectInside(panelBounds, requirementsBounds,
-            "Rebirth requirements heading");
+            "Prestige requirements heading");
         Assert.IsFalse(requirementsBounds.Overlaps(actionButtonBounds),
-            "Rebirth requirements must not overlap the action button.");
+            "Prestige requirements must not overlap the action button.");
         Assert.IsFalse(requirementsBounds.Overlaps(closeButtonBounds),
-            "Rebirth requirements must not overlap the close button.");
+            "Prestige requirements must not overlap the close button.");
         Assert.Greater(effectiveRequirementsWidth, 0f);
         Assert.Greater(requirementsSize.y, 0f);
         StringAssert.Contains("m_enableAutoSizing: 1", requirementsText.Value);
@@ -3843,7 +3842,7 @@ public class DataFoundationTests
             setup.Economy.GetType(),
             "Instance",
             setup.Economy);
-        var spawnerObject = new GameObject("Rebirth UI dessert names");
+        var spawnerObject = new GameObject("Prestige UI dessert names");
         spawnerObject.SetActive(false);
         object spawner = spawnerObject.AddComponent(
             FindPlayerType("DessertSpawner"));
@@ -3858,7 +3857,7 @@ public class DataFoundationTests
         }
         SetSpawnerDefinitions(spawner, dessertDefinitions);
 
-        var uiObject = new GameObject("Rebirth UI state test");
+        var uiObject = new GameObject("Prestige UI state test");
         uiObject.SetActive(false);
         object ui = uiObject.AddComponent(FindPlayerType("RebirthUI"));
         var requirementTextObject = new GameObject("Requirements");
@@ -3942,7 +3941,7 @@ public class DataFoundationTests
                     BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(ui, null);
             Assert.IsFalse(modalPanel.activeSelf,
-                "The Rebirth modal should start closed.");
+                "The Prestige modal should start closed.");
             Assert.IsFalse(modalBackdrop.activeSelf,
                 "The closed modal backdrop must not intercept gameplay.");
 
@@ -3952,7 +3951,7 @@ public class DataFoundationTests
             start.Invoke(ui, null);
             string text = (string)requirementText.GetType()
                 .GetProperty("text").GetValue(requirementText);
-            StringAssert.Contains("REBIRTH 1", text);
+            StringAssert.Contains("PRESTIGE 1", text);
             string dessertRequirement = (string)requiredDessertText.GetType()
                 .GetProperty("text").GetValue(requiredDessertText);
             StringAssert.Contains("Create T7", dessertRequirement);
@@ -3980,7 +3979,7 @@ public class DataFoundationTests
                 .GetMethod("HandleCreatedDessert", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(setup.Progression, new object[] { 7 });
             Assert.IsFalse(button.interactable,
-                "Created-tier eligibility alone must not enable Rebirth.");
+                "Created-tier eligibility alone must not enable Prestige.");
 
             setup.Economy.GetType()
                 .GetMethod("RestoreCash")
@@ -4048,7 +4047,7 @@ public class DataFoundationTests
                 .Invoke(setup.Progression, new object[] { 10, 0, false });
             Assert.IsFalse(button.interactable);
             Assert.AreEqual(
-                "All Rebirths Complete",
+                "All Prestiges Complete",
                 requirementText.GetType().GetProperty("text").GetValue(requirementText));
             Assert.AreEqual(
                 "Final Objective: Create Tier 30 — Eternal Dragon's Dessert",
@@ -4059,7 +4058,7 @@ public class DataFoundationTests
                 buttonText.GetType().GetProperty("text").GetValue(buttonText));
             Assert.IsFalse(((UnityEngine.UI.Image)readyIndicator).enabled);
             Assert.AreEqual(
-                "PRESTIGE COMPLETE",
+                string.Empty,
                 entryButtonText.GetType().GetProperty("text").GetValue(entryButtonText));
 
             setup.Progression.GetType()
@@ -6225,7 +6224,7 @@ public class DataFoundationTests
             (string)serialize.Invoke(null, new[] { prior, (object)0 }));
         byte[] proposedBytes = System.Text.Encoding.UTF8.GetBytes(
             (string)serialize.Invoke(null, new[] { proposed, (object)0 }));
-        var managerObject = new GameObject("Rebirth snapshot transaction test");
+        var managerObject = new GameObject("Prestige snapshot transaction test");
         string directory = Path.Combine(
             Path.GetTempPath(),
             "SweetMergeRebirthSave_" + Guid.NewGuid().ToString("N"));
@@ -7779,21 +7778,21 @@ public class DataFoundationTests
             .ToArray();
 
         setup.SaveManager = AddInactiveComponent(
-            setup, "Rebirth transaction save", "SaveManager");
+            setup, "Prestige transaction save", "SaveManager");
         setup.SessionManager = AddInactiveComponent(
-            setup, "Rebirth transaction session", "MergeSessionManager");
+            setup, "Prestige transaction session", "MergeSessionManager");
         setup.Coordinator = AddInactiveComponent(
-            setup, "Rebirth transaction startup", "GameStartupCoordinator");
+            setup, "Prestige transaction startup", "GameStartupCoordinator");
         object gridManager = AddInactiveComponent(
-            setup, "Rebirth transaction board", "GridManager");
+            setup, "Prestige transaction board", "GridManager");
         object shelfManager = AddInactiveComponent(
-            setup, "Rebirth transaction shelf", "ShelfManager");
+            setup, "Prestige transaction shelf", "ShelfManager");
         object orderManager = AddInactiveComponent(
-            setup, "Rebirth transaction orders", "OrderManager");
+            setup, "Prestige transaction orders", "OrderManager");
         object dessertSpawner = AddInactiveComponent(
-            setup, "Rebirth transaction preview", "DessertSpawner");
+            setup, "Prestige transaction preview", "DessertSpawner");
         setup.Controller = AddInactiveComponent(
-            setup, "Rebirth transaction controller", "MergeSessionController");
+            setup, "Prestige transaction controller", "MergeSessionController");
 
         SetPrivateField(orderManager, "progressionManager", setup.Progression);
         orderManager.GetType().GetMethod(

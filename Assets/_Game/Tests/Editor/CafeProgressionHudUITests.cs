@@ -395,7 +395,7 @@ public class CafeProgressionHudUITests
         }
 
         Debug.Log(
-            "Cafe HUD save-restoration diagnostic: rebirth=" +
+            "Cafe HUD save-restoration diagnostic: prestige=" +
             rebirthState + ", title=" + title + ", stars=" + starState);
     }
 

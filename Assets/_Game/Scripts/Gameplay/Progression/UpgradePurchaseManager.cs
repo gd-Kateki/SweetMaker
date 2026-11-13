@@ -315,7 +315,7 @@ public class UpgradePurchaseManager : MonoBehaviour
         {
             Debug.Log(
                 "UPGRADE PURCHASE BLOCKED | " +
-                "Oven levels are unlocked by completed Rebirths.");
+                "Oven levels are unlocked by completed Prestiges.");
             return false;
         }
 

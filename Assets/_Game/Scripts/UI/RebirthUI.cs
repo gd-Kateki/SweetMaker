@@ -88,14 +88,14 @@ public sealed class RebirthUI : MonoBehaviour
 
         if (progressionManager == null)
         {
-            Debug.LogError("REBIRTH UI | PlayerProgressionManager is unavailable.");
+            Debug.LogError("PRESTIGE UI | PlayerProgressionManager is unavailable.");
             RefreshUnavailable();
             return;
         }
 
         if (economyManager == null)
         {
-            Debug.LogError("REBIRTH UI | EconomyManager is unavailable.");
+            Debug.LogError("PRESTIGE UI | EconomyManager is unavailable.");
             RefreshUnavailable();
             return;
         }
@@ -109,17 +109,17 @@ public sealed class RebirthUI : MonoBehaviour
         if (rebirthButton != null)
             rebirthButton.onClick.AddListener(HandleRebirthClicked);
         else
-            Debug.LogError("REBIRTH UI | Rebirth button reference is missing.");
+            Debug.LogError("PRESTIGE UI | Prestige button reference is missing.");
 
         if (entryButton != null)
             entryButton.onClick.AddListener(HandleOpenClicked);
         else
-            Debug.LogError("REBIRTH UI | Entry button reference is missing.");
+            Debug.LogError("PRESTIGE UI | Entry button reference is missing.");
 
         if (closeButton != null)
             closeButton.onClick.AddListener(HandleCloseClicked);
         else
-            Debug.LogError("REBIRTH UI | Close button reference is missing.");
+            Debug.LogError("PRESTIGE UI | Close button reference is missing.");
 
         Refresh();
     }
@@ -224,7 +224,7 @@ public sealed class RebirthUI : MonoBehaviour
         try
         {
             if (!progressionManager.TryRebirth())
-                Debug.LogWarning("REBIRTH UI | Rebirth transaction was not completed.");
+                Debug.LogWarning("PRESTIGE UI | Prestige transaction was not completed.");
             else
                 Close();
         }
@@ -251,7 +251,7 @@ public sealed class RebirthUI : MonoBehaviour
                 if (!progressionManager.CampaignComplete)
                 {
                     requirementsText.text =
-                        "All Rebirths Complete";
+                        "All Prestiges Complete";
                     SetRequirementText(campaignStatusText, FinalObjectiveText);
                 }
                 else
@@ -319,7 +319,7 @@ public sealed class RebirthUI : MonoBehaviour
         if (requirementsText != null)
         {
             requirementsText.text =
-                $"REBIRTH {progressionManager.NextRebirthNumber}";
+                $"PRESTIGE {progressionManager.NextRebirthNumber}";
         }
         SetRequirementText(
             requiredDessertText,
@@ -335,7 +335,7 @@ public sealed class RebirthUI : MonoBehaviour
             $"Eligibility: {(eligible ? "READY" : "Requirements incomplete")}");
         SetRequirementText(campaignStatusText, string.Empty);
 
-        SetButtonState(eligible && !rebirthClickInProgress, "REBIRTH");
+        SetButtonState(eligible && !rebirthClickInProgress, "PRESTIGE");
     }
 
     public void Open()
@@ -350,7 +350,7 @@ public sealed class RebirthUI : MonoBehaviour
                 out gameplayModalLease))
         {
             Debug.LogError(
-                "REBIRTH UI | Could not acquire the gameplay modal input gate.",
+                "PRESTIGE UI | Could not acquire the gameplay modal input gate.",
                 this);
             return;
         }
@@ -481,13 +481,13 @@ public sealed class RebirthUI : MonoBehaviour
     private void RefreshUnavailable()
     {
         if (requirementsText != null)
-            requirementsText.text = "Rebirth unavailable";
+            requirementsText.text = "Prestige unavailable";
         SetRequirementText(requiredDessertText, string.Empty);
         SetRequirementText(tierProgressText, string.Empty);
         SetRequirementText(cashRequirementText, string.Empty);
         SetRequirementText(eligibilityText, string.Empty);
         SetRequirementText(campaignStatusText, string.Empty);
-        SetButtonState(false, "REBIRTH");
+        SetButtonState(false, "PRESTIGE");
         SetReadyIndicator(false);
         SetEntryButtonState();
     }

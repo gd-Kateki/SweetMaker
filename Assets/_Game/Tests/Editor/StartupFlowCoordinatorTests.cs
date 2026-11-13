@@ -103,6 +103,37 @@ public sealed class StartupFlowCoordinatorTests
     }
 
     [Test]
+    [TestCase("AllowAnalyticsButton")]
+    [TestCase("DeclineAnalyticsButton")]
+    public void AdvertisingChoicesFinishAfterAnalyticsAndBeforeSignInOptions(string analyticsButton)
+    {
+        bool ready = false;
+        int requests = 0;
+        Action resume = null;
+        object coordinator = CreateCoordinator(NewStorePath(), false, next =>
+        {
+            requests++;
+            if (ready) return true;
+            resume = next;
+            Call(view, "Hide");
+            return false;
+        });
+        Call(coordinator, "Initialize");
+        Assert.AreEqual(0, requests, "Analytics must be first.");
+        Click("PrivacyScreen/" + analyticsButton);
+        Assert.AreEqual(1, requests);
+        Assert.IsFalse((bool)GetProperty(view, "IsVisible"));
+        Click("WelcomeScreen/GoogleSignInButton");
+        Click("WelcomeScreen/GuestPlayButton");
+        Assert.AreEqual(0, authenticationCallCount);
+        Assert.AreEqual("Idle", GetProperty(coordinator, "Outcome").ToString());
+        ready = true;
+        resume();
+        Assert.AreEqual("Welcome", GetProperty(view, "VisibleScreen").ToString());
+        Call(coordinator, "Dispose");
+    }
+
+    [Test]
     public void UnconfirmedPrivacyChoiceStaysOnPrivacyScreen()
     {
         consentPersistenceSucceeds = false;
@@ -414,7 +445,8 @@ public sealed class StartupFlowCoordinatorTests
 
     private object CreateCoordinator(
         string path,
-        bool hasConsent = false)
+        bool hasConsent = false,
+        Func<Action, bool> advertisingGate = null)
     {
         consentChosen = hasConsent;
         object store = CreateStore(path);
@@ -440,7 +472,8 @@ public sealed class StartupFlowCoordinatorTests
                 view,
                 consentQuery,
                 consentWriter,
-                googleAuthentication
+                googleAuthentication,
+                advertisingGate
             });
     }
 

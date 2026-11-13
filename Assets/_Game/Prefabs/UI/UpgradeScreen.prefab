@@ -1434,7 +1434,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2443458557906387767, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_text
-      value: REBIRTH
+      value: PRESTIGE
       objectReference: {fileID: 0}
     - target: {fileID: 3790715771410225071, guid: f57edfc7bd9b74a4c942b4e61bc5d7a6, type: 3}
       propertyPath: m_text

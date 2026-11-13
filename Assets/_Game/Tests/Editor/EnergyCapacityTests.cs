@@ -46,6 +46,26 @@ public sealed class EnergyCapacityTests
     }
 
     [Test]
+    public void EmptyEnergyOvenRequestSignalsRewardOfferWithoutSpawningOrConsumingEnergy()
+    {
+        Assert.IsTrue(RestoreEnergy(0, 60000, DateTime.UtcNow.Ticks));
+        var root = new GameObject("Empty-energy oven test");
+        try
+        {
+            var spawner = root.AddComponent(FindType("DessertSpawner"));
+            var ovenType = FindType("OvenManager");
+            var oven = root.AddComponent(ovenType);
+            ovenType.GetField("dessertSpawner", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(oven, spawner);
+            ovenType.GetMethod("RequestSpawn").Invoke(oven, null);
+            Assert.IsTrue((bool)ovenType.GetProperty("LastRequestFailedForNoEnergy").GetValue(oven));
+            Assert.IsFalse((bool)ovenType.GetProperty("LastRequestFailedForNoBoardSpace").GetValue(oven));
+            Assert.AreEqual(0, GetCurrentEnergy());
+            Assert.IsTrue((bool)ovenType.GetProperty("CanUseOven").GetValue(oven));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root); }
+    }
+
+    [Test]
     public void NewPlayerInitializesAt100Energy()
     {
         Assert.AreEqual(100, GetMaximumEnergy());

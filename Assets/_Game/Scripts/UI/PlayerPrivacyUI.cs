@@ -12,6 +12,7 @@ public sealed class PlayerPrivacyUI : MonoBehaviour
     private GameplayModalInputGate.GameplayModalLease lease;
     private RectTransform card;
     private bool deleting;
+    public static bool AdvertisingOpen => instance != null && !instance.deleting;
 
     public static bool ShowAdvertising() => Show(false);
     public static bool ShowDeletion() => Show(true);

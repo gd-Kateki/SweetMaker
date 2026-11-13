@@ -58,5 +58,8 @@ public class OvenController : MonoBehaviour, IPointerDownHandler
             if (ovenManager.LastRequestFailedForNoBoardSpace)
                 AudioManager.Play(SfxId.Action_Invalid);
         }
+        // Open only after the oven input operation releases its modal guard.
+        if (ovenManager.LastRequestFailedForNoEnergy)
+            AdOfferPopup.Show(true, 50);
     }
 }

@@ -550,11 +550,11 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
         {
             case FeatureIntroduction.Upgrades:
                 title = "Grow Your Café!";
-                body = "Spend cash to improve your café! Expand your board, serve more customers, increase your earnings, and unlock other improvements. Some upgrades require Rebirths, while higher Oven levels are earned through Rebirth progression.";
+                body = "Spend cash to improve your café! Expand your board, serve more customers, increase your earnings, and unlock other improvements. Some upgrades require Prestiges, while higher Oven levels are earned through Prestige progression.";
                 return;
             case FeatureIntroduction.Rebirth:
                 title = "A Fresh Start!";
-                body = "Reach the required dessert tier during your current run and collect enough cash to Rebirth. Rebirth resets your cash, board, shelf, orders and current run, but keeps your non-Oven upgrades and Dessert Collection progress. Every second Rebirth increases your Oven level!";
+                body = "Reach the required dessert tier during your current run and collect enough cash to Prestige. Prestige resets your cash, board, shelf, orders and current run, but keeps your non-Oven upgrades and Dessert Collection progress. Every second Prestige increases your Oven level!";
                 return;
             case FeatureIntroduction.Collection:
                 title = "Discover Them All!";

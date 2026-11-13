@@ -139,19 +139,19 @@ internal static class DeveloperCheatCommands
         }
 
         if (rebirthCount < 0 || rebirthCount > 10)
-            return Failure("Rebirth must be between R0 and R10.");
+            return Failure("Prestige must be between R0 and R10.");
 
         if (!progression.RestoreRebirthProgression(
                 rebirthCount,
                 rebirthCount == 10 ? 29 : 0,
                 false))
         {
-            return Failure("Progression rejected the requested rebirth state.");
+            return Failure("Progression rejected the requested prestige state.");
         }
 
         return AppliedAndSaved(
             save,
-            "Rebirth set to R" + rebirthCount +
+            "Prestige set to R" + rebirthCount +
             "; Oven derived as L" + progression.OvenLevel +
             "; run tier reset; cash unchanged.");
     }

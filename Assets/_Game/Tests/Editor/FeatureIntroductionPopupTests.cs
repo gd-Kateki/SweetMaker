@@ -69,8 +69,8 @@ public sealed class FeatureIntroductionPopupTests
         Assert.That(popupRoot.GetComponent<GraphicRaycaster>(), Is.Not.Null);
     }
 
-    [TestCase("Upgrades", "Grow Your Café!", "Spend cash to improve your café! Expand your board, serve more customers, increase your earnings, and unlock other improvements. Some upgrades require Rebirths, while higher Oven levels are earned through Rebirth progression.")]
-    [TestCase("Rebirth", "A Fresh Start!", "Reach the required dessert tier during your current run and collect enough cash to Rebirth. Rebirth resets your cash, board, shelf, orders and current run, but keeps your non-Oven upgrades and Dessert Collection progress. Every second Rebirth increases your Oven level!")]
+    [TestCase("Upgrades", "Grow Your Café!", "Spend cash to improve your café! Expand your board, serve more customers, increase your earnings, and unlock other improvements. Some upgrades require Prestiges, while higher Oven levels are earned through Prestige progression.")]
+    [TestCase("Rebirth", "A Fresh Start!", "Reach the required dessert tier during your current run and collect enough cash to Prestige. Prestige resets your cash, board, shelf, orders and current run, but keeps your non-Oven upgrades and Dessert Collection progress. Every second Prestige increases your Oven level!")]
     [TestCase("Collection", "Discover Them All!", "Discover new dessert tiers by spawning and merging desserts. Find all 30 tiers and claim cash rewards at 6, 12, 18, 24 and 30 discoveries!")]
     public void ConfigureUsesApprovedFeatureContent(
         string feature,

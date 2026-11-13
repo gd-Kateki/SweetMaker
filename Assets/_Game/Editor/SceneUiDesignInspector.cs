@@ -11,6 +11,11 @@ internal sealed class SceneUiDesignInspector : Editor
         EditorGUILayout.HelpBox("Expand this entry to edit its linked UI. Save the design to update the shared prefab used by the game. Shared screens update in every scene. Editing copies are excluded from builds.", MessageType.Info);
         EditorGUILayout.ObjectField("Shared design", AssetDatabase.LoadAssetAtPath<GameObject>(design.assetPath), typeof(GameObject), false);
         if (GUILayout.Button("Preview this UI")) SceneUiHierarchyEditor.Show(design, design.Design?.transform);
+        if (design.assetPath.EndsWith("/StartupWelcome.prefab"))
+        {
+            if (GUILayout.Button("Preview sign-in options")) SceneUiHierarchyEditor.ShowStartupScreen(design, true);
+            if (GUILayout.Button("Preview Analytics screen")) SceneUiHierarchyEditor.ShowStartupScreen(design, false);
+        }
         if (GUILayout.Button("Hide UI previews")) design.transform.parent.gameObject.SetActive(false);
         using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || design.Design == null))
         {

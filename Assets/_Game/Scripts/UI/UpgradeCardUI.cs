@@ -511,12 +511,12 @@ public class UpgradeCardUI : MonoBehaviour
         bool canAfford)
     {
         if (type == UpgradeType.Oven)
-            return "REBIRTH";
+            return "PRESTIGE";
 
         if (!unlockedByRebirth)
         {
             return requiredRebirthCount >= 0
-                ? $"Requires Rebirth {requiredRebirthCount}"
+                ? $"Requires Prestige {requiredRebirthCount}"
                 : "LOCKED";
         }
 

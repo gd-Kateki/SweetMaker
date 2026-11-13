@@ -328,7 +328,6 @@ public class CustomerButtonUI : MonoBehaviour
             );
 
             requirementLabels[iconIndex].text =
-                $"T{requirement.Dessert.Tier} " +
                 $"{available}/{requirement.Amount}";
             requirementLabels[iconIndex]
                 .gameObject.SetActive(true);

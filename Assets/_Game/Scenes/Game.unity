@@ -336,7 +336,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/EnergyHUD.prefab
 --- !u!1 &52000944
@@ -599,7 +599,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1.5, y: 75}
+  m_AnchoredPosition: {x: 1.5, y: 106.4}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &68024842
@@ -919,6 +919,81 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 108292184}
+  m_CullTransparentMesh: 1
+--- !u!1 &111595517
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 111595518}
+  - component: {fileID: 111595520}
+  - component: {fileID: 111595519}
+  m_Layer: 0
+  m_Name: Image
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &111595518
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 111595517}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1259454059}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 20, y: 20}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &111595519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 111595517}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 3803023705015740789, guid: 1a7462d7e80cc444986e488ec41ff63a, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &111595520
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 111595517}
   m_CullTransparentMesh: 1
 --- !u!1001 &112986506
 PrefabInstance:
@@ -1334,7 +1409,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AndroidLogConsole.prefab
 --- !u!1 &162830246
@@ -2647,7 +2722,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -65}
+  m_AnchoredPosition: {x: 0, y: -119.1}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &341136582
@@ -3261,7 +3336,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AnalyticsPrompt.prefab
 --- !u!1 &442593066
@@ -3498,7 +3573,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -4136,7 +4211,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/CloudProgressChoice.prefab
 --- !u!1 &503294724
@@ -4182,7 +4257,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/TutorialInstruction.prefab
 --- !u!1 &505775531
@@ -4242,7 +4317,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: REBIRTH 1
+  m_text: PRESTIGE 1
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5634,7 +5709,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.99998, y: -65}
+  m_AnchoredPosition: {x: -0.99998, y: -118.6}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &577848913
@@ -5715,7 +5790,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AdvertisingPrivacy_Adult.prefab
 --- !u!1 &648641082
@@ -5928,7 +6003,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/TutorialHighlight.prefab
 --- !u!1 &705582560
@@ -6619,7 +6694,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -6690,7 +6765,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/RewardedCash.prefab
 --- !u!1001 &872199693
@@ -7041,7 +7116,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AdvertisingPrivacy_Teen.prefab
 --- !u!1 &915782262
@@ -7913,7 +7988,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/CloudRestoreRestart.prefab
 --- !u!1 &1116452695
@@ -8101,7 +8176,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3991f55f523c0734a9d534b64cb4dcd1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   gridManager: {fileID: 0}
   currentState: 0
@@ -8820,7 +8895,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 75}
+  m_AnchoredPosition: {x: 0, y: 106.4}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1183043706
@@ -9262,7 +9337,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/DeveloperCheatsV2.prefab
 --- !u!1 &1209453497
@@ -9645,6 +9720,127 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1228486871}
   m_CullTransparentMesh: 1
+--- !u!1 &1259454058
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1259454059}
+  - component: {fileID: 1259454062}
+  - component: {fileID: 1259454061}
+  - component: {fileID: 1259454060}
+  m_Layer: 0
+  m_Name: EnergyPlus
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1259454059
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259454058}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 111595518}
+  m_Father: {fileID: 5000001012}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 1, y: 0.5}
+  m_AnchorMax: {x: 1, y: 0.5}
+  m_AnchoredPosition: {x: 16.7, y: 0}
+  m_SizeDelta: {x: 48, y: 48}
+  m_Pivot: {x: 1, y: 0.5}
+--- !u!114 &1259454060
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259454058}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 1259454061}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1259454061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259454058}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: -404436681794916676, guid: 019800a6934523744867961c8846201f, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1259454062
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259454058}
+  m_CullTransparentMesh: 1
 --- !u!1 &1264160719
 GameObject:
   m_ObjectHideFlags: 0
@@ -9688,7 +9884,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AdvertisingPrivacy_Under13.prefab
 --- !u!1 &1273620436
@@ -10343,7 +10539,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b6e3fb0a67a5c849b4651776717b40a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NextDessertPreview
   dessertSpawner: {fileID: 1028014066}
   previewRenderer: {fileID: 653063348}
@@ -11091,7 +11287,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1, y: -65}
+  m_AnchoredPosition: {x: 1, y: -118.6}
   m_SizeDelta: {x: 227, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1530514401
@@ -11329,7 +11525,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 75}
+  m_AnchoredPosition: {x: 0, y: 106.4}
   m_SizeDelta: {x: 224, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1569072702
@@ -12006,7 +12202,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: REBIRTH
+  m_text: PRESTIGE
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -12231,7 +12427,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/FeatureIntroduction.prefab
 --- !u!1 &1761638737
@@ -12277,7 +12473,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/AccountDeletion.prefab
 --- !u!1 &1764018132
@@ -12371,7 +12567,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/RewardedEnergy.prefab
 --- !u!1 &1782016318
@@ -14248,7 +14444,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/DeveloperButtonV2.prefab
 --- !u!1 &2132434090
@@ -14479,7 +14675,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3add7fa9812764544976aa2df0e75080, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SweetMerge.UI.Customization::SceneUiDesign
   assetPath: Assets/_Game/Resources/UI/VisualTemplates/SettingsArtwork.prefab
 --- !u!1 &2200000000
@@ -15150,7 +15346,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 386.5, y: 334.8}
+  m_AnchoredPosition: {x: 375, y: 325.1}
   m_SizeDelta: {x: 227, y: 49}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000001003
@@ -15472,6 +15668,7 @@ GameObject:
   - component: {fileID: 5000001012}
   - component: {fileID: 5000001013}
   - component: {fileID: 5000001014}
+  - component: {fileID: 5000001015}
   m_Layer: 5
   m_Name: EnergyHUD
   m_TagString: Untagged
@@ -15495,6 +15692,7 @@ RectTransform:
   - {fileID: 5401589}
   - {fileID: 1991784448}
   - {fileID: 5000001032}
+  - {fileID: 1259454059}
   m_Father: {fileID: 1561043377}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
@@ -15540,6 +15738,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &5000001015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5000001011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c3b95e30c6014847916a905a4eadbac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SweetMerge.UI.Customization::EditableUIView
+  templateKey: EnergyHUD
+  includeNestedViews: 0
 --- !u!1 &5000001021
 GameObject:
   m_ObjectHideFlags: 0
@@ -15775,7 +15987,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -15848,7 +16060,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1.5, y: -65}
+  m_AnchoredPosition: {x: 1.5, y: -119.099976}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001003
@@ -15985,8 +16197,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -61.3, y: 35.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -49.3, y: 40.4}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001013
 CanvasRenderer:
@@ -16060,8 +16272,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -61.30002, y: -17.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -49.3, y: -35.1}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001023
 CanvasRenderer:
@@ -16135,8 +16347,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: 35.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 37, y: 41.8}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001033
 CanvasRenderer:
@@ -16166,7 +16378,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T1 0/2
+  m_text: 0/2
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -16193,15 +16405,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -16272,8 +16484,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: -17.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 37, y: -33.7}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000001043
 CanvasRenderer:
@@ -16303,7 +16515,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T2 0/1
+  m_text: 0/1
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -16330,15 +16542,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -16421,7 +16633,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.99999, y: -65}
+  m_AnchoredPosition: {x: -0.99999, y: -118.59998}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002003
@@ -16558,8 +16770,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -58.2, y: 35.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -47.8, y: 42.3}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002013
 CanvasRenderer:
@@ -16633,8 +16845,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -58.2, y: -17.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -47.8, y: -34.5}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002023
 CanvasRenderer:
@@ -16708,8 +16920,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: 35.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 36.4, y: 44.9}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002033
 CanvasRenderer:
@@ -16739,7 +16951,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T1 0/2
+  m_text: 0/2
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -16766,15 +16978,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -16845,8 +17057,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: -17.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 33.9, y: -33.2}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000002043
 CanvasRenderer:
@@ -16876,7 +17088,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T2 0/1
+  m_text: 0/1
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -16903,15 +17115,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -16994,7 +17206,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1, y: -65}
+  m_AnchoredPosition: {x: 1, y: -118.59999}
   m_SizeDelta: {x: 224, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003003
@@ -17131,8 +17343,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -58.4, y: 35.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -50.5, y: 40.5}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003013
 CanvasRenderer:
@@ -17206,8 +17418,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -58.39998, y: -17.5}
-  m_SizeDelta: {x: 50, y: 50}
+  m_AnchoredPosition: {x: -50.7, y: -35.6}
+  m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003023
 CanvasRenderer:
@@ -17281,8 +17493,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: 35.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 31.3, y: 39.8}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003033
 CanvasRenderer:
@@ -17312,7 +17524,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T1 0/2
+  m_text: 0/2
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -17339,15 +17551,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -17418,8 +17630,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 48, y: -17.5}
-  m_SizeDelta: {x: 132, y: 24}
+  m_AnchoredPosition: {x: 31.3, y: -36}
+  m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6000003043
 CanvasRenderer:
@@ -17449,7 +17661,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: T2 0/1
+  m_text: 0/1
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -17476,15 +17688,15 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1

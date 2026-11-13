@@ -5,18 +5,19 @@ Reviewed: 13 November 2026.
 ## Intended flow
 
 1. Resolve the analytics privacy choice when no choice is saved.
-2. Choose Google Play sign-in or guest play. Returning accounts may restore a cached session.
-3. Resolve an existing cloud save before allowing conflicting local progress to upload. A pending restore or cloud-choice decision takes priority over home onboarding. Follow the restart notice when a restore requires it.
-4. Once startup and local data are ready, show the tutorial welcome on Home. Starting it enters gameplay.
-5. Guide the player through spawning, merging, and completing the tutorial order. Preserve tutorial progress across sessions; completed tutorials do not replay.
-6. On returning Home after the tutorial, offer café naming if the profile still needs a name. Keep the permanent-name confirmation.
-7. Allow automatic advertising privacy prompts and cash offers after tutorial completion, when no blocking screen is open. Explicit energy-reward requests still use the existing advertising privacy checks.
+2. Resolve age group, then advertising preferences using the existing privacy dialogs. Teens receive limited-ad choices; adults can choose limited or personalized ads. Wait for the dialog to close before proceeding. Reuse saved choices on subsequent launches.
+3. Choose Google Play sign-in or guest play. Returning accounts may restore a cached session, after the privacy steps are resolved.
+4. Resolve an existing cloud save before allowing conflicting local progress to upload. A pending restore or cloud-choice decision takes priority over home onboarding. Follow the restart notice when a restore requires it.
+5. Once startup and local data are ready, show the tutorial welcome on Home. Starting it enters gameplay.
+6. Guide the player through spawning, merging, and completing the tutorial order. Preserve tutorial progress across sessions; completed tutorials do not replay.
+7. On returning Home after the tutorial, offer café naming if the profile still needs a name. Keep the permanent-name confirmation.
+8. Allow automatic cash offers after tutorial completion, when no blocking screen is open. Explicit energy-reward requests still use the existing advertising privacy checks.
 
 ## Problems found and fixed
 
 | Finding | Change |
 | --- | --- |
-| Automatic ad/privacy prompts and cash offers could interrupt the first tutorial; a Home interstitial could interrupt its return transition. | Automatic offers now require a ready, completed tutorial and an unobstructed screen. |
+| Automatic ad/privacy prompts and cash offers could interrupt the first tutorial; a Home interstitial could interrupt its return transition. | Privacy choices now follow Analytics during startup, before sign-in. Automatic cash offers and interstitial eligibility require a ready, completed tutorial and an unobstructed screen. |
 | The tutorial welcome card left surrounding Home controls clickable. | Added a raycast-blocking dimmer and a modal input lease. Both are released on dismissal or disable. Stale Start clicks are rejected. |
 | Welcome/naming eligibility did not explicitly reject every pending cloud restore/choice state. | Shared onboarding eligibility now prioritizes pending restore and cloud decisions. Naming refreshes when that eligibility changes. |
 | The welcome could remain visible alongside another blocking modal. | It yields to other modal owners and returns when they close, if still eligible. |

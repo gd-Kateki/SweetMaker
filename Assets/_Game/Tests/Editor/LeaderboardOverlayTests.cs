@@ -59,6 +59,22 @@ public sealed class LeaderboardOverlayTests
     private static void Mark(GameObject root) => Find("HomeOverlayVisibility").GetMethod("Attach").Invoke(null,new object[]{root});
 
     [Test]
+    public void SceneAuthoredLauncherReplacesFallbackAndHidesForBlockingOverlays()
+    {
+        var root = Make("Movable leaderboard button");
+        var authored = root.AddComponent(Find("HomeLeaderboardButton"));
+        Call(authored, "Awake");
+        Late();
+        Assert.IsFalse(Launcher.gameObject.activeSelf, "The old launcher must not duplicate the scene button.");
+        Assert.AreEqual(1f, root.GetComponent<CanvasGroup>().alpha);
+        var owner = Make("Blocking modal").AddComponent(Find("CafeProfileUI"));
+        Acquire(owner);
+        Late();
+        Assert.AreEqual(0f, root.GetComponent<CanvasGroup>().alpha);
+        Assert.IsFalse(root.GetComponent<Button>().interactable);
+    }
+
+    [Test]
     public void LauncherStartsHiddenAndOnlyAppearsOnUnobstructedHome()
     {
         Assert.IsFalse(Launcher.gameObject.activeSelf);

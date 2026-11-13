@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -14,6 +15,33 @@ public enum StartupPrivacyWelcomeScreen
 
 public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
 {
+    private Coroutine advertisingRoutine;
+    private Action advertisingContinuation;
+
+    public bool EnsureAdvertisingBefore(Action continuation)
+    {
+        if (AdvertisingPrivacy.Resolved && !PlayerPrivacyUI.AdvertisingOpen) return true;
+        advertisingContinuation = continuation;
+        if (advertisingRoutine == null) advertisingRoutine = StartCoroutine(CompleteAdvertisingChoices());
+        return false;
+    }
+
+    private IEnumerator CompleteAdvertisingChoices()
+    {
+        while (isActiveAndEnabled)
+        {
+            if (AdvertisingPrivacy.Resolved && !PlayerPrivacyUI.AdvertisingOpen)
+            {
+                advertisingRoutine = null;
+                var next = advertisingContinuation;
+                advertisingContinuation = null;
+                next?.Invoke();
+                yield break;
+            }
+            if (!PlayerPrivacyUI.AdvertisingOpen && PlayerPrivacyUI.ShowAdvertising()) Hide();
+            yield return null;
+        }
+    }
     private const string MainBakerySceneName = "MainBakery";
     private const string MainCanvasName = "MainCanvas";
     private const string WelcomeSceneName = "Welcome";
@@ -169,6 +197,9 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (advertisingRoutine != null) StopCoroutine(advertisingRoutine);
+        advertisingRoutine = null;
+        advertisingContinuation = null;
         Hide();
         LifecycleEnded?.Invoke();
     }
@@ -400,8 +431,7 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
                 "performance. Unity Analytics may process device information, " +
                 "installation identifiers, IP addresses, and session events. " +
                 "You can change this choice later in Settings.\n\n" +
-                "Advertising is not currently active in Dessert Merge Cafe. " +
-                "No advertising SDK or advertising consent is integrated. " +
+                "Advertising preferences are requested separately after this choice. " +
                 "When Analytics is turned off, the SDK may send events already " +
                 "buffered.",
             out allowAnalyticsButton,
@@ -542,14 +572,14 @@ public sealed class StartupPrivacyWelcomeUI : MonoBehaviour
         signInButton = CreateButton(
             screen.transform,
             "GoogleSignInButton",
-            "Sign in with Google Play",
+            string.Empty,
             font,
             new Vector2(0.12f, 0.65f),
             new Vector2(0.88f, 0.75f));
         guestButton = CreateButton(
             screen.transform,
             "GuestPlayButton",
-            "Guest Play",
+            string.Empty,
             font,
             new Vector2(0.12f, 0.50f),
             new Vector2(0.88f, 0.60f));

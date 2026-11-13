@@ -108,6 +108,16 @@ Hierarchy paths above omit separator parents for readability; use
 
 ## Runtime UI templates
 
+Player-facing progression wording is **Prestige**. Existing code/save field names
+retain their identifiers for compatibility. Table dessert rows show icons and
+available/required quantities without tiers; table headings and availability
+badges remain in their authored positions.
+
+The collection panel retains its artwork and controls. Its new **CollectionBounds**
+parent preserves the existing screen margins, and an **AspectRatioFitter** on
+CollectionPanel fits the whole UI to the background sprite's proportions. Adjust
+the bounds to move/resize the screen without stretching its artwork.
+
 ### Edit from the scene Hierarchy
 
 Each scene now has **UI Designs (Editor Only)**. Expand an entry to access its
@@ -139,6 +149,39 @@ hierarchy. Repeated collection rows use the linked source prefabs under
 
 The live bakery Energy HUD is at **MainCanvas → TopBar → EnergyHUD**. Edit its
 placement in the scene and its shared appearance in the `EnergyHUD` visual design.
+Both bakery and gameplay HUDs now contain a scene-authored **EnergyPlus** child.
+It is visible before Play Mode and wired by EnergyHudUI at runtime; do not add
+an extra button listener manually. The + offers the existing 50-energy rewarded ad.
+The same energy offer opens when the player taps the Oven with zero energy.
+Edit EnergyPlus and its children directly in each scene. Its scene-authored
+artwork, button colours, size and position take priority over the shared HUD
+design. Startup wires the ad action without replacing your custom visuals.
+
+To edit sign-in, open MainBakery or Welcome and expand **UI Designs (Editor Only)
+→ StartupWelcome**. Select the StartupWelcome entry and click **Preview sign-in
+options** or **Preview Analytics screen**. Expand its linked visual to edit
+**WelcomeScreen** (Google Play, Guest Play, retry/help controls) or
+**PrivacyScreen** (analytics). Use **Save design to game** on the entry to apply
+changes to the shared UI. The ordinary **Preview this UI** now opens sign-in by
+default. Runtime startup ordering and button actions remain controlled by the game.
+Google/Guest button captions are supplied by the artwork, so their generated text
+labels stay empty. Sign-in child layouts use proportional anchors to retain the
+authored arrangement across canvas resolutions and safe areas.
+
+After a collection reward is claimed, its status label moves into the former
+Claim button area on the right. Unclaimed rewards retain their original status
+and button positions.
+
+The live Home buttons are **MainCanvas → TopBar → Cafe Button** and
+**MainCanvas → TopBar → Leaderboards Button**. Both are visible in the Editor.
+Move/resize their RectTransforms and save MainBakery; those scene positions are
+used during play. The Café controller reuses its assigned button, and the
+leaderboard controller hides its fallback launcher when the scene button exists.
+The leaderboard scene button follows the existing overlay/input blocking rules.
+
+For the full screens, select **UI Designs (Editor Only) → CafeProfilePanel** or
+**Leaderboards**, then click **Preview this UI**; the panel is now revealed and
+framed automatically. Move the inner panel/controls, then **Save design to game**.
 
 To rebuild missing entries after adding scenes/designs, use **Tools → Sweet Maker
 → UI → Add Scene UI Designs**. Existing entries and their overrides are preserved.

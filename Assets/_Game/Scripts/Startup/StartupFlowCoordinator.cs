@@ -23,6 +23,7 @@ namespace SweetMerge.Startup
         private readonly Func<bool> hasPrivacyChoice;
         private readonly Func<bool, bool> persistAnalyticsChoice;
         private readonly Func<bool, Task<bool>> authenticateGoogle;
+        private readonly Func<Action, bool> ensureAdvertising;
 
         private bool subscribed;
         private bool initialized;
@@ -62,7 +63,8 @@ namespace SweetMerge.Startup
                     granted),
                 restore => AuthenticateWithGoogle(
                     authentication,
-                    restore))
+                    restore),
+                continuation => view.EnsureAdvertisingBefore(continuation))
         {
             if (consentProvider == null)
                 throw new ArgumentNullException(nameof(consentProvider));
@@ -76,6 +78,17 @@ namespace SweetMerge.Startup
             Func<bool> hasPrivacyChoice,
             Func<bool, bool> persistAnalyticsChoice,
             Func<bool, Task<bool>> authenticateGoogle)
+            : this(flow, view, hasPrivacyChoice, persistAnalyticsChoice, authenticateGoogle, null)
+        {
+        }
+
+        public StartupFlowCoordinator(
+            StartupFlowMachine flow,
+            StartupPrivacyWelcomeUI view,
+            Func<bool> hasPrivacyChoice,
+            Func<bool, bool> persistAnalyticsChoice,
+            Func<bool, Task<bool>> authenticateGoogle,
+            Func<Action, bool> ensureAdvertising)
         {
             this.flow = flow ??
                 throw new ArgumentNullException(nameof(flow));
@@ -87,6 +100,7 @@ namespace SweetMerge.Startup
                 throw new ArgumentNullException(nameof(persistAnalyticsChoice));
             this.authenticateGoogle = authenticateGoogle ??
                 throw new ArgumentNullException(nameof(authenticateGoogle));
+            this.ensureAdvertising = ensureAdvertising;
         }
 
         public bool Initialize()
@@ -392,6 +406,10 @@ namespace SweetMerge.Startup
         {
             if (disposed)
                 return;
+
+            // Sign-in, cached authentication and guest continuation follow ad choices.
+            if (privacyChoiceCompleted && ensureAdvertising != null &&
+                !ensureAdvertising(HandleCurrentState)) return;
 
             switch (flow.State)
             {
