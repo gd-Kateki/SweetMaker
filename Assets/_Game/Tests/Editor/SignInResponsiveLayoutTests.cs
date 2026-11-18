@@ -20,7 +20,9 @@ public sealed class SignInResponsiveLayoutTests
             var welcome = all.Single(t => t.name == "WelcomeScreen");
             var google = all.Single(t => t.name == "GoogleSignInButton");
             var guest = all.Single(t => t.name == "GuestPlayButton");
-            Assert.Greater(google.anchorMin.y, guest.anchorMax.y, "Sign-in choices must not overlap.");
+            bool separated = google.anchorMax.x <= guest.anchorMin.x || guest.anchorMax.x <= google.anchorMin.x ||
+                google.anchorMax.y <= guest.anchorMin.y || guest.anchorMax.y <= google.anchorMin.y;
+            Assert.IsTrue(separated, "Sign-in choices must not overlap in either orientation.");
             foreach (var button in new[] { google, guest })
             {
                 Assert.Less(button.offsetMin.sqrMagnitude, .0001f, "Allow subpixel RectTransform rounding.");

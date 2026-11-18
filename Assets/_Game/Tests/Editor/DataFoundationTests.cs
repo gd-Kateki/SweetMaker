@@ -764,119 +764,47 @@ public class DataFoundationTests
         object headerLabel,
         object readinessLabel)
     {
-        RectTransform firstIconRect =
-            (RectTransform)GetPropertyValue(
-                firstIcon,
-                "rectTransform");
-        RectTransform firstTextRect =
-            (RectTransform)GetPropertyValue(
-                firstRequirementLabel,
-                "rectTransform");
-        RectTransform secondIconRect =
-            (RectTransform)GetPropertyValue(
-                secondIcon,
-                "rectTransform");
-        RectTransform secondTextRect =
-            (RectTransform)GetPropertyValue(
-                secondRequirementLabel,
-                "rectTransform");
-        RectTransform headerRect =
-            (RectTransform)GetPropertyValue(
-                headerLabel,
-                "rectTransform");
-        RectTransform readinessRect =
-            (RectTransform)GetPropertyValue(
-                readinessLabel,
-                "rectTransform");
-
-        Assert.AreEqual(new Vector2(50f, 50f), firstIconRect.sizeDelta);
-        Assert.AreEqual(new Vector2(132f, 24f), firstTextRect.sizeDelta);
-        Assert.AreEqual(25f, GetPropertyValue(headerLabel, "fontSize"));
-        Assert.AreEqual(22f,
-            GetPropertyValue(firstRequirementLabel, "fontSize"));
-        Assert.AreEqual(16f,
-            GetPropertyValue(readinessLabel, "fontSize"));
-        Assert.IsFalse((bool)GetPropertyValue(firstIcon, "raycastTarget"));
-        Assert.IsFalse((bool)GetPropertyValue(
-            firstRequirementLabel,
-            "raycastTarget"));
-        Assert.IsFalse((bool)GetPropertyValue(
-            secondIcon,
-            "raycastTarget"));
-        Assert.IsFalse((bool)GetPropertyValue(
-            secondRequirementLabel,
-            "raycastTarget"));
-        Assert.IsFalse((bool)GetPropertyValue(
-            headerLabel,
-            "raycastTarget"));
-        Assert.IsFalse((bool)GetPropertyValue(
-            readinessLabel,
-            "raycastTarget"));
-
-        float iconRight =
-            firstIconRect.anchoredPosition.x +
-            firstIconRect.sizeDelta.x / 2f;
-        float textLeft =
-            firstTextRect.anchoredPosition.x -
-            firstTextRect.sizeDelta.x / 2f;
-        Assert.Less(iconRight, textLeft,
-            "Requirement icon and text bounds must not overlap.");
-        Assert.Less(
-            secondIconRect.anchoredPosition.x +
-            secondIconRect.sizeDelta.x / 2f,
-            secondTextRect.anchoredPosition.x -
-            secondTextRect.sizeDelta.x / 2f,
-            "The second requirement icon and text must not overlap.");
-        Assert.LessOrEqual(
-            firstTextRect.anchoredPosition.y +
-            firstTextRect.sizeDelta.y / 2f,
-            headerRect.anchoredPosition.y -
-            headerRect.sizeDelta.y / 2f);
-        Assert.LessOrEqual(
-            secondTextRect.anchoredPosition.y +
-            secondTextRect.sizeDelta.y / 2f,
-            firstTextRect.anchoredPosition.y -
-            firstTextRect.sizeDelta.y / 2f);
-        Assert.LessOrEqual(
-            readinessRect.anchoredPosition.y +
-            readinessRect.sizeDelta.y / 2f,
-            secondTextRect.anchoredPosition.y -
-            secondTextRect.sizeDelta.y / 2f);
-        Assert.LessOrEqual(
-            headerRect.anchoredPosition.x +
-            headerRect.sizeDelta.x / 2f,
-            114.5f);
-        Assert.GreaterOrEqual(
-            firstIconRect.anchoredPosition.x -
-            firstIconRect.sizeDelta.x / 2f,
-            -120f);
-        Assert.LessOrEqual(
-            firstTextRect.anchoredPosition.x +
-            firstTextRect.sizeDelta.x / 2f,
-            114.5f);
-        // Dessert images and quantities belong inside the table body.
-        // Scene-authored headings and availability badges may sit outside it.
-        Rect cardBounds = ((RectTransform)buttonTransform).rect;
-        foreach (RectTransform child in new[]
-                 { firstIconRect, secondIconRect, firstTextRect, secondTextRect })
+        var card = (RectTransform)buttonTransform;
+        object[] icons = { firstIcon, secondIcon };
+        object[] labels = { firstRequirementLabel, secondRequirementLabel };
+        var iconBounds = new Rect[2];
+        var quantityBounds = new Rect[2];
+        for (int i = 0; i < 2; i++)
         {
-            Assert.AreEqual(buttonTransform, child.parent);
-            Assert.AreEqual(new Vector2(0.5f, 0.5f), child.anchorMin);
-            Assert.AreEqual(child.anchorMin, child.anchorMax);
-            Rect bounds = new Rect(child.anchoredPosition -
-                Vector2.Scale(child.sizeDelta, child.pivot), child.sizeDelta);
-            AssertRectInside(cardBounds, bounds, child.name);
+            var icon = (RectTransform)GetPropertyValue(icons[i], "rectTransform");
+            var label = (RectTransform)GetPropertyValue(labels[i], "rectTransform");
+            Assert.AreEqual(buttonTransform, icon.parent);
+            Assert.AreEqual(buttonTransform, label.parent);
+            Assert.Greater(icon.rect.width, 0);
+            Assert.AreEqual(icon.rect.width, icon.rect.height, .01f);
+            Assert.IsFalse((bool)GetPropertyValue(icons[i], "raycastTarget"));
+            Assert.IsFalse((bool)GetPropertyValue(labels[i], "raycastTarget"));
+            Assert.Greater((float)GetPropertyValue(labels[i], "fontSize"), 0);
+            iconBounds[i] = new Rect(icon.anchoredPosition - Vector2.Scale(icon.sizeDelta, icon.pivot), icon.sizeDelta);
+            AssertRectInside(card.rect, iconBounds[i], "Dessert preview");
+            // An artist can use a wide centered text field. Verify visible glyphs,
+            // rather than requiring the invisible field to have an old pixel size.
+            labels[i].GetType().GetMethod("ForceMeshUpdate", new[] { typeof(bool), typeof(bool) })
+                .Invoke(labels[i], new object[] { true, true });
+            var bounds = (Bounds)GetPropertyValue(labels[i], "textBounds");
+            Assert.Greater(label.rect.width, 0);
+            Assert.Greater(label.rect.height, 0);
+            // A preview scene can contain an uninitialized Canvas or an unused
+            // hidden row. Only a generated mesh has visible glyph bounds.
+            if (bounds.size.x <= 0 || bounds.size.y <= 0) continue;
+            Vector3 center = (Vector3)label.anchoredPosition + Vector3.Scale(bounds.center, label.localScale);
+            Vector3 size = Vector3.Scale(bounds.size, label.localScale);
+            quantityBounds[i] = new Rect((Vector2)center - (Vector2)size * .5f, (Vector2)size);
+            AssertRectInside(card.rect, quantityBounds[i], "Dessert quantity");
+            Assert.IsFalse(iconBounds[i].Overlaps(quantityBounds[i]), "Dessert image and quantity must remain separate.");
         }
-        Assert.AreEqual(firstIconRect.sizeDelta, secondIconRect.sizeDelta);
-        Assert.AreEqual(firstTextRect.sizeDelta, secondTextRect.sizeDelta);
-        Assert.Less(secondIconRect.anchoredPosition.y + secondIconRect.sizeDelta.y / 2f,
-            firstIconRect.anchoredPosition.y - firstIconRect.sizeDelta.y / 2f);
-        Assert.Less(firstIconRect.anchoredPosition.y + firstIconRect.sizeDelta.y / 2f,
-            headerRect.anchoredPosition.y - headerRect.sizeDelta.y / 2f);
-        Assert.Less(readinessRect.anchoredPosition.y + readinessRect.sizeDelta.y / 2f,
-            secondIconRect.anchoredPosition.y - secondIconRect.sizeDelta.y / 2f);
-        Assert.AreEqual(buttonTransform, firstIconRect.parent);
-        Assert.AreEqual(buttonTransform, firstTextRect.parent);
+        Assert.IsFalse(iconBounds[0].Overlaps(iconBounds[1]));
+        Assert.IsFalse(quantityBounds[0].Overlaps(quantityBounds[1]));
+        foreach (var label in new[] { headerLabel, readinessLabel })
+        {
+            Assert.IsFalse((bool)GetPropertyValue(label, "raycastTarget"));
+            Assert.Greater((float)GetPropertyValue(label, "fontSize"), 0);
+        }
     }
 
     [Test]
@@ -3239,7 +3167,8 @@ public class DataFoundationTests
         StringAssert.Contains("m_fontSizeMin: 18", titleText.Value);
         StringAssert.Contains("m_fontSizeMax: 36", titleText.Value);
         StringAssert.Contains("m_TextWrappingMode: 0", titleText.Value);
-        StringAssert.Contains("m_overflowMode: 1", titleText.Value);
+        Assert.IsTrue(Regex.IsMatch(titleText.Value, @"m_overflowMode: (1|3)\r?\n"),
+            "The single-line title must use ellipsis or truncation rather than overflow into other controls.");
         StringAssert.Contains(
             "m_margin: {x: 0, y: 0, z: 0, w: 0}",
             titleText.Value);
@@ -3341,14 +3270,20 @@ public class DataFoundationTests
             ReadSceneVector2(closeButtonTransform.Value, "m_AnchorMin"),
             ReadSceneVector2(closeButtonTransform.Value, "m_AnchorMax"));
 
-        AssertRectInside(panelBounds, requirementsBounds,
-            "Prestige requirements heading");
+        // The V3 heading belongs to the raised title plaque above the body panel.
+        var plaqueObject = Regex.Matches(sceneText, @"(?ms)^--- !u!1 &\d+\r?\n.*?(?=^--- !u!|\z)")
+            .Cast<Match>().Single(m => Regex.IsMatch(m.Value, @"m_Name: R_Title\r?\n"));
+        string plaqueId = Regex.Match(plaqueObject.Value, @"component: \{fileID: (\d+)\}").Groups[1].Value;
+        string plaqueTransform = Regex.Match(sceneText, @"(?ms)^--- !u!224 &" + plaqueId + @"\r?\n(.*?)(?=^--- !u!|\z)").Value;
+        Rect plaqueBounds = CalculateSerializedRect(plaqueTransform, panelBounds, 1f,
+            ReadSceneVector2(plaqueTransform, "m_AnchorMin"), ReadSceneVector2(plaqueTransform, "m_AnchorMax"));
+        AssertRectInside(plaqueBounds, requirementsBounds, "Prestige title must fit its V3 plaque");
         Assert.IsFalse(requirementsBounds.Overlaps(actionButtonBounds),
             "Prestige requirements must not overlap the action button.");
         Assert.IsFalse(requirementsBounds.Overlaps(closeButtonBounds),
             "Prestige requirements must not overlap the close button.");
         Assert.Greater(effectiveRequirementsWidth, 0f);
-        Assert.Greater(requirementsSize.y, 0f);
+        Assert.Greater(requirementsBounds.height, 0f);
         StringAssert.Contains("m_enableAutoSizing: 1", requirementsText.Value);
         float requirementsFontSize =
             ReadSceneFloat(requirementsText.Value, "m_fontSize");

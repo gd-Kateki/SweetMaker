@@ -32,6 +32,21 @@ public sealed class CollectionAspectTests
             Assert.AreEqual(ratio, panel.rect.width / panel.rect.height, .001f);
             Assert.LessOrEqual(panel.rect.width, width + .1f);
             Assert.LessOrEqual(panel.rect.height, height + .1f);
+            var content = panel.GetComponentsInChildren<RectTransform>(true).Single(t => t.name == "CatalogContent");
+            var grid = content.GetComponent<GridLayoutGroup>();
+            var scroll = content.parent.GetComponent<ScrollRect>();
+            Assert.IsNotNull(scroll.verticalScrollbar, "Use the reference scrollbar to expose the remaining discoveries.");
+            Assert.AreEqual(Scrollbar.Direction.BottomToTop, scroll.verticalScrollbar.direction);
+            Assert.IsNotNull(scroll.verticalScrollbar.handleRect);
+            Assert.IsNotNull(content.GetComponents<Component>().SingleOrDefault(c => c != null && c.GetType().Name == "CollectionReferenceGrid"));
+            content.SendMessage("OnRectTransformDimensionsChange", SendMessageOptions.DontRequireReceiver);
+            Assert.AreEqual(3, grid.constraintCount);
+            Assert.AreEqual(218f / 236f, grid.cellSize.x / grid.cellSize.y, .001f);
+            float occupiedWidth = grid.cellSize.x * 3 + grid.spacing.x * 2 + grid.padding.horizontal;
+            Assert.LessOrEqual(occupiedWidth, content.rect.width + .1f, "Portrait tiles must fit without horizontal clipping.");
+            float occupiedHeight = grid.cellSize.y * 2 + grid.spacing.y + grid.padding.vertical;
+            Assert.LessOrEqual(occupiedHeight, ((RectTransform)content.parent).rect.height + .1f,
+                "The reference's two complete rows must fit without cutting off rounded card bottoms.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }
     }

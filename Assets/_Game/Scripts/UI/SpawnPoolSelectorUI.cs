@@ -192,7 +192,9 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
         }
 
         selectionPanelTitle.text = "Select Oven Tier";
-        closeButtonLabel.text = "X";
+        selectionPanelTitle.color = new Color(.24f, .14f, .08f, 1f);
+        // The authored close artwork already contains its cross.
+        closeButtonLabel.text = string.Empty;
         authoredPanelScale = selectionPanelRect.localScale;
         hasCapturedPanelScale = true;
         CaptureScreenLayout();
@@ -296,6 +298,7 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
         string selectedPoolId = dessertSpawner.SelectedSpawnPoolId;
         int selectedIndex = IndexOfPool(selectedPoolId);
         selectorText.text = $"OVEN TIER {selectedIndex + 1}  v";
+        selectorText.color = new Color(.24f, .14f, .08f, 1f);
 
         for (int i = 0; i < PoolCount; i++)
         {
@@ -310,14 +313,12 @@ public sealed class SpawnPoolSelectorUI : MonoBehaviour
                 $"Oven Tier {i + 1}\n" +
                 $"Dessert T{firstTier}-T{highestTier}\n" +
                 (isSelected ? "Selected" : isUnlocked ? "Available" : "Locked");
-            tierCardLabels[i].color = isSelected
-                ? new Color(0.24f, 0.14f, 0.08f, 1f)
-                : Color.white;
+            tierCardLabels[i].color = new Color(0.24f, 0.14f, 0.08f, 1f);
             tierCardBackgrounds[i].color = isSelected
-                ? new Color(0.94f, 0.69f, 0.31f, 1f)
+                ? new Color(1f, 0.91f, 0.54f, 1f)
                 : isUnlocked
-                    ? new Color(0.59f, 0.36f, 0.20f, 1f)
-                    : new Color(0.32f, 0.29f, 0.27f, 1f);
+                    ? Color.white
+                    : new Color(0.72f, 0.70f, 0.65f, 1f);
         }
     }
 

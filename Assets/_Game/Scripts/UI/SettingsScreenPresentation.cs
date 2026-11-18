@@ -97,10 +97,14 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
             }
             titlePlate.SetAsFirstSibling();
             var plateRect = (RectTransform)titlePlate;
-            plateRect.anchorMin = plateRect.anchorMax = new Vector2(0,1); plateRect.pivot = new Vector2(0,1);
-            plateRect.anchoredPosition = new Vector2(24,-20); plateRect.sizeDelta = new Vector2(360,110);
+            plateRect.anchorMin = plateRect.anchorMax = new Vector2(.5f,1); plateRect.pivot = new Vector2(.5f,1);
+            plateRect.anchoredPosition = new Vector2(0,-12); plateRect.sizeDelta = new Vector2(360,110);
             var image = titlePlate.GetComponent<Image>(); image.sprite = titlePlateSprite;
             image.type = Image.Type.Sliced; image.color = Color.white; image.raycastTarget = false;
+            var heading = titleText.rectTransform;
+            heading.anchorMin = heading.anchorMax = new Vector2(.5f,1); heading.pivot = new Vector2(.5f,1);
+            heading.anchoredPosition = new Vector2(0,-24); heading.sizeDelta = new Vector2(320,72);
+            titleText.alignment = TextAlignmentOptions.Center;
         }
         var close = closeButtonImage.rectTransform;
         close.anchorMin = close.anchorMax = new Vector2(1, 1);
