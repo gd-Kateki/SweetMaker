@@ -6,7 +6,7 @@ public sealed class CampaignCompletionUI : MonoBehaviour
 {
     private const string CelebrationMessage =
         "<size=54><b>Campaign Complete!</b></size>\n\n" +
-        "<size=42><color=#FFD176>Eternal Dragon's Dessert</color></size>\n\n" +
+        "<size=42><color=#6C3596>Eternal Dragon's Dessert</color></size>\n\n" +
         "<size=28>Congratulations! You've completed the Sweet Merge campaign.</size>";
 
     private const string PendingMessage =

@@ -4375,7 +4375,7 @@ public class DataFoundationTests
             blockerImage.Value);
         StringAssert.Contains("m_RaycastTarget: 1", blockerImage.Value);
         StringAssert.Contains("m_IsActive: 0", overlay.Value);
-        StringAssert.Contains("m_SizeDelta: {x: 750, y: 650}",
+        StringAssert.Contains("m_SizeDelta: {x: 750, y: 900}",
             panel.Value);
 
         MatchCollection canvasChildren = Regex.Matches(
@@ -4399,14 +4399,28 @@ public class DataFoundationTests
         Assert.Greater(campaignOverlayIndex, orderOverlayIndex,
             "The campaign celebration must render above the order details overlay.");
 
-        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 155}",
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 85}",
             requirements.Value);
-        StringAssert.Contains("m_SizeDelta: {x: 680, y: 210}",
+        StringAssert.Contains("m_SizeDelta: {x: 680, y: 300}",
             requirements.Value);
         StringAssert.Contains("m_AnchoredPosition: {x: 0, y: 370}",
             title.Value);
-        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -125}",
+        StringAssert.Contains("m_AnchoredPosition: {x: 0, y: -330}",
             confirm.Value);
+        Vector2 modalSize = ReadSceneVector2(panel.Value, "m_SizeDelta");
+        Rect modalBounds = new Rect(-modalSize * .5f, modalSize);
+        Rect requirementsBounds = CalculateSerializedRect(requirements.Value, modalBounds, 1,
+            ReadSceneVector2(requirements.Value, "m_AnchorMin"), ReadSceneVector2(requirements.Value, "m_AnchorMax"));
+        string rewardBlock = ReadSceneBlock(scene, 224, 1636991024);
+        Rect rewardBounds = CalculateSerializedRect(rewardBlock, modalBounds, 1,
+            ReadSceneVector2(rewardBlock, "m_AnchorMin"), ReadSceneVector2(rewardBlock, "m_AnchorMax"));
+        Rect actionBounds = CalculateSerializedRect(confirm.Value, modalBounds, 1,
+            ReadSceneVector2(confirm.Value, "m_AnchorMin"), ReadSceneVector2(confirm.Value, "m_AnchorMax"));
+        AssertRectInside(modalBounds, requirementsBounds, "Order requirements");
+        AssertRectInside(modalBounds, rewardBounds, "Order reward");
+        AssertRectInside(modalBounds, actionBounds, "Order confirmation");
+        Assert.IsFalse(requirementsBounds.Overlaps(rewardBounds), "Dessert rows must not overlap their reward.");
+        Assert.IsFalse(rewardBounds.Overlaps(actionBounds), "Reward and confirmation must remain separate.");
         StringAssert.Contains("m_Father: {fileID: 1504059926}",
             title.Value);
         StringAssert.Contains("m_Father: {fileID: 1504059926}",

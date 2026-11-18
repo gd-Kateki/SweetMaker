@@ -20,7 +20,7 @@ sign-in actions, privacy choices and reward delivery remain controlled by the ga
 | First analytics choice | Help_Improve_Dessert_Cafe | StartupWelcome.prefab → SafeArea → PrivacyScreen |
 | Analytics settings prompt | Help_Improve_Dessert_Cafe | Resources/UI/VisualTemplates/AnalyticsPrompt.prefab |
 | Loading / development loading | Loading_Screen / Loading | Resources/UI/VisualTemplates/StartupLoading.prefab and DevelopmentLoading.prefab |
-| My Café | Shared cream panel from Help_Improve_Dessert_Cafe / _0005_Main_Screen | Resources/UI/VisualTemplates/CafeProfilePanel.prefab; launcher remains in MainBakery TopBar |
+| My Café | Shared V3 sliced gold frame, flat statistics section / _0005_Main_Screen | Resources/UI/VisualTemplates/CafeProfilePanel.prefab; launcher remains in MainBakery TopBar |
 | Settings | Settings_Screen / Settings | Resources/UI/VisualTemplates/SettingsArtwork.prefab (previous V3 pass retained) |
 | Upgrades | Shop_Upgrade / _0000_Shop_Upgrade | Assets/_Game/Prefabs/UI/UpgradeScreen.prefab and UpgradeCard.prefab (previous V3 pass retained) |
 
@@ -43,9 +43,9 @@ alone does not change the shared resource.
 - Collection claimed states and the player's selected Oven tier keep their
   existing behavior. Dessert sprites and quantities remain supplied by gameplay.
 - Custom EnergyPlus artwork and its children are deliberately preserved.
-- Leaderboards, tutorials, cloud decisions and privacy-age variants have no
-  separate supplied V3 reference composition. Their existing editable layouts
-  remain; matching older sprites are upgraded where available.
+- Leaderboards, tutorials, cloud decisions and privacy-age variants now reuse
+  the shared V3 artwork. Their integration and editing locations are documented
+  in `REMAINING_UI_V3.md`; they have no separate supplied reference composition.
 
 `V3UiReferenceEditor` is a manual migration tool, never an import/play-time
 restyler. Do not rerun **Apply V3 Reference Artwork** after making your own

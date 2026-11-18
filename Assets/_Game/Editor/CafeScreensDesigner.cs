@@ -113,7 +113,7 @@ internal static class CafeScreensDesigner
             {
                 var label=new GameObject("Text",typeof(RectTransform),typeof(TextMeshProUGUI)); label.transform.SetParent(row.transform,false);
                 Position((RectTransform)label.transform,i==0?.025f:.57f,.08f,i==0?.55f:.975f,.92f);
-                var text=label.GetComponent<TMP_Text>(); Text(text,20,26,i==0); text.text=i==0?"#1  Your Café (You)":"$8,500\nRebirth 2"; text.alignment=i==0?TextAlignmentOptions.MidlineLeft:TextAlignmentOptions.MidlineRight;
+                var text=label.GetComponent<TMP_Text>(); Text(text,20,26,i==0); text.text=i==0?"#1  Your Café (You)":"$8,500\nPrestige 2"; text.alignment=i==0?TextAlignmentOptions.MidlineLeft:TextAlignmentOptions.MidlineRight;
                 label.AddComponent<EditableUIVisual>().targetPath="Text:"+i;
             }
             PrefabUtility.SaveAsPrefabAsset(row,Folder+"LeaderboardRow.prefab");
@@ -147,7 +147,7 @@ internal static class CafeScreensDesigner
                     else
                     {
                         var entries=root.GetComponentsInChildren<RectTransform>(true).Single(t=>t.name=="Entries");
-                        for(int i=0;i<5;i++){var row=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"LeaderboardRow.prefab"),entries);var labels=row.GetComponentsInChildren<TMP_Text>();labels[0].text="#"+(i+1)+"  "+(i==1?"Moonlight Café (You)":"Café "+(i+1));labels[1].text="$"+((5-i)*8500).ToString("N0")+"\nRebirth "+(5-i);row.GetComponent<Image>().color=i==1?new Color(.85f,.94f,.88f):Color.white;}
+                        for(int i=0;i<5;i++){var row=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"LeaderboardRow.prefab"),entries);var labels=row.GetComponentsInChildren<TMP_Text>();labels[0].text="#"+(i+1)+"  "+(i==1?"Moonlight Café (You)":"Café "+(i+1));labels[1].text="$"+((5-i)*8500).ToString("N0")+"\nPrestige "+(5-i);row.GetComponent<Image>().color=i==1?new Color(.85f,.94f,.88f):Color.white;}
                     }
                     foreach(var t in root.GetComponentsInChildren<Transform>(true))t.gameObject.layer=31;
                     var camera=cameraObject.GetComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);camera.orthographic=true;camera.orthographicSize=640;camera.cullingMask=1<<31;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.16f,.10f,.23f);camera.targetTexture=target;root.GetComponent<Canvas>().worldCamera=camera;

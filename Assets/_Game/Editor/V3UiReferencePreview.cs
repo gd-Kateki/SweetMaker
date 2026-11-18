@@ -17,7 +17,7 @@ internal static class V3UiReferencePreview
         try
         {
             GraphicsSettings.defaultRenderPipeline=null;QualitySettings.renderPipeline=null;
-            foreach(string mode in new[]{"MainBakery","Collection","Game","Prestige","Recycle","Dropdown","CafeNaming"})RenderOne(mode);
+            foreach(string mode in new[]{"MainBakery","Collection","Game","Prestige","Recycle","Dropdown","CafeNaming","OrderDetails","Campaign"})RenderOne(mode);
         }
         finally{GraphicsSettings.defaultRenderPipeline=pipeline;QualitySettings.renderPipeline=quality;}
     }
@@ -37,9 +37,9 @@ internal static class V3UiReferencePreview
             foreach(var c in root.GetComponentsInChildren<Canvas>(true))c.overrideSorting=false;
             if(mode!="CafeNaming")
             {
-                foreach(string name in new[]{"CollectionOverlay","RebirthBackdrop","RebirthPanel","RecycleConfirmationOverlay","OvenTierSelectionPanel","OrderDetailsOverlay","OrderDetailsInputBlocker","SettingsOverlay","UpgradeScreen"})
+                foreach(string name in new[]{"CollectionOverlay","RebirthBackdrop","RebirthPanel","RecycleConfirmationOverlay","OvenTierSelectionPanel","OrderDetailsOverlay","OrderDetailsInputBlocker","SettingsOverlay","UpgradeScreen","CampaignCompletionOverlay"})
                 {var t=Find(root,name);if(t!=null)t.gameObject.SetActive(false);}
-                foreach(string name in mode=="Collection"?new[]{"CollectionOverlay"}:mode=="Prestige"?new[]{"RebirthBackdrop","RebirthPanel"}:mode=="Recycle"?new[]{"RecycleConfirmationOverlay"}:mode=="Dropdown"?new[]{"OvenTierSelectionPanel"}:new string[0])
+                foreach(string name in mode=="Collection"?new[]{"CollectionOverlay"}:mode=="Prestige"?new[]{"RebirthBackdrop","RebirthPanel"}:mode=="Recycle"?new[]{"RecycleConfirmationOverlay"}:mode=="Dropdown"?new[]{"OvenTierSelectionPanel"}:mode=="OrderDetails"?new[]{"OrderDetailsOverlay","OrderDetailsInputBlocker"}:mode=="Campaign"?new[]{"CampaignCompletionOverlay"}:new string[0])
                 {var t=Find(root,name);if(t!=null)t.gameObject.SetActive(true);}
                 if(!home)
                 {

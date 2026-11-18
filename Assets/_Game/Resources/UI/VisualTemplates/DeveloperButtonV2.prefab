@@ -67,8 +67,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 795a88873a836dc45bd46dba92088958, type: 2}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -76,7 +76,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 2
 --- !u!114 &4829809767729675509
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -96,11 +96,11 @@ MonoBehaviour:
   copyImageColor: 1
   copyButtonStyle: 1
   buttonColors:
-    m_NormalColor: {r: 0.23, g: 0.12, b: 0.36, a: 1}
-    m_HighlightedColor: {r: 0.3686, g: 0.2784, b: 0.47520003, a: 1}
-    m_PressedColor: {r: 0.184, g: 0.096, b: 0.28800002, a: 1}
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 1, g: 1, b: 1, a: 1}
+    m_PressedColor: {r: 0.85, g: 0.84, b: 0.8, a: 1}
     m_SelectedColor: {r: 0.3686, g: 0.2784, b: 0.47520003, a: 1}
-    m_DisabledColor: {r: 0.13, g: 0.16, b: 0.22, a: 0.7}
+    m_DisabledColor: {r: 0.65, g: 0.63, b: 0.6, a: 0.8}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.08
   buttonSprites:
@@ -185,8 +185,8 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
-  m_enableVertexGradient: 1
+  m_fontColor: {r: 0.25, g: 0.16, b: 0.12, a: 1}
+  m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
     topLeft: {r: 0.8784314, g: 0.77254903, b: 1, a: 1}
@@ -207,7 +207,7 @@ MonoBehaviour:
   m_fontWeight: 400
   m_enableAutoSizing: 1
   m_fontSizeMin: 18
-  m_fontSizeMax: 28
+  m_fontSizeMax: 26
   m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -241,7 +241,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 12, y: 4, z: 12, w: 8}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
