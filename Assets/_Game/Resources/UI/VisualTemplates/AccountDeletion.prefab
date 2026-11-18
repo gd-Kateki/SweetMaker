@@ -543,10 +543,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 6157841443812372098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.44}
-  m_AnchorMax: {x: 1, y: 0.89}
+  m_AnchorMin: {x: 0.1, y: 0.44}
+  m_AnchorMax: {x: 0.9, y: 0.89}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -84, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6209736992881433921
 CanvasRenderer:
@@ -714,10 +714,10 @@ RectTransform:
   - {fileID: 8205807130616314272}
   m_Father: {fileID: 6157841443812372098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.10000001}
-  m_AnchorMax: {x: 1, y: 0.18}
+  m_AnchorMin: {x: 0.1, y: 0.10000001}
+  m_AnchorMax: {x: 0.9, y: 0.18}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -84, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6281453934919861684
 CanvasRenderer:
@@ -756,7 +756,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 2
+  m_PixelsPerUnitMultiplier: 3
 --- !u!114 &3365598974839992168
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -823,10 +823,10 @@ RectTransform:
   - {fileID: 6960988657059348401}
   m_Father: {fileID: 6157841443812372098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.32}
-  m_AnchorMax: {x: 1, y: 0.39999998}
+  m_AnchorMin: {x: 0.1, y: 0.32}
+  m_AnchorMax: {x: 0.9, y: 0.39999998}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -84, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6416405004169833417
 CanvasRenderer:
@@ -865,7 +865,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 2
+  m_PixelsPerUnitMultiplier: 3
 --- !u!114 &87838314111265078
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1507,10 +1507,10 @@ RectTransform:
   - {fileID: 5308163484338253303}
   m_Father: {fileID: 6157841443812372098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.21000002}
-  m_AnchorMax: {x: 1, y: 0.29000002}
+  m_AnchorMin: {x: 0.1, y: 0.21000002}
+  m_AnchorMax: {x: 0.9, y: 0.29000002}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -84, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1246559362567401934
 CanvasRenderer:
@@ -1549,7 +1549,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 2
+  m_PixelsPerUnitMultiplier: 3
 --- !u!114 &8108049414403216932
 MonoBehaviour:
   m_ObjectHideFlags: 0
