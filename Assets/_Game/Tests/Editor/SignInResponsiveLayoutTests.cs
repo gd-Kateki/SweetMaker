@@ -23,8 +23,8 @@ public sealed class SignInResponsiveLayoutTests
             Assert.Greater(google.anchorMin.y, guest.anchorMax.y, "Sign-in choices must not overlap.");
             foreach (var button in new[] { google, guest })
             {
-                Assert.AreEqual(Vector2.zero, button.offsetMin);
-                Assert.AreEqual(Vector2.zero, button.offsetMax);
+                Assert.Less(button.offsetMin.sqrMagnitude, .0001f, "Allow subpixel RectTransform rounding.");
+                Assert.Less(button.offsetMax.sqrMagnitude, .0001f, "Allow subpixel RectTransform rounding.");
                 Assert.GreaterOrEqual(button.anchorMin.x, 0);
                 Assert.LessOrEqual(button.anchorMax.x, 1);
                 Assert.Greater(button.rect.width, 0);

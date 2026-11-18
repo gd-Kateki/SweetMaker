@@ -15,6 +15,10 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
     [SerializeField] private Slider sfxVolumeSlider;
     [Header("Editable appearance — use a sprite with nine-slice borders")]
     [SerializeField] private Sprite panelSprite;
+    [SerializeField] private Sprite toggleTrackSprite;
+    [SerializeField] private Sprite toggleKnobSprite;
+    [SerializeField] private Sprite titlePlateSprite;
+    [SerializeField] private bool closeArtworkContainsIcon;
     [SerializeField] private Color panelColor = new Color(0.97f, 0.94f, 0.99f);
     [SerializeField] private Color cardColor = Color.white;
     [SerializeField] private Color accentColor = new Color(0.43f, 0.22f, 0.62f);
@@ -83,6 +87,21 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
         titleText.alignment = TextAlignmentOptions.MidlineLeft;
         var plaque = panelRectTransform.Find("SettingsTitlePlaque");
         if (plaque != null) plaque.gameObject.SetActive(false);
+        if (titlePlateSprite != null)
+        {
+            var titlePlate = panelRectTransform.Find("V3SettingsTitlePlate");
+            if (titlePlate == null)
+            {
+                titlePlate = new GameObject("V3SettingsTitlePlate", typeof(RectTransform), typeof(Image)).transform;
+                titlePlate.SetParent(panelRectTransform, false);
+            }
+            titlePlate.SetAsFirstSibling();
+            var plateRect = (RectTransform)titlePlate;
+            plateRect.anchorMin = plateRect.anchorMax = new Vector2(0,1); plateRect.pivot = new Vector2(0,1);
+            plateRect.anchoredPosition = new Vector2(24,-20); plateRect.sizeDelta = new Vector2(360,110);
+            var image = titlePlate.GetComponent<Image>(); image.sprite = titlePlateSprite;
+            image.type = Image.Type.Sliced; image.color = Color.white; image.raycastTarget = false;
+        }
         var close = closeButtonImage.rectTransform;
         close.anchorMin = close.anchorMax = new Vector2(1, 1);
         close.pivot = new Vector2(1, 1);
@@ -90,7 +109,7 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
         close.sizeDelta = new Vector2(76, 76);
         Surface(closeButtonImage, accentColor);
         var closeLabel = closeButtonImage.GetComponentInChildren<TMP_Text>(true);
-        if (closeLabel != null) { closeLabel.text = "×"; StyleText(closeLabel, 48, true); closeLabel.color = Color.white; closeLabel.alignment = TextAlignmentOptions.Center; }
+        if (closeLabel != null) { closeLabel.text = closeArtworkContainsIcon ? string.Empty : "×"; StyleText(closeLabel, 48, true); closeLabel.color = Color.white; closeLabel.alignment = TextAlignmentOptions.Center; }
 
         var viewport = contentRectTransform.parent as RectTransform;
         viewport.anchorMin = Vector2.zero; viewport.anchorMax = Vector2.one;
@@ -148,6 +167,8 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
         contentRectTransform.sizeDelta = new Vector2(0, next + 12);
         lastChildCount = contentRectTransform.childCount;
         lastServiceSections = ServiceSections();
+        // Reapply the artist's design if late-created account/privacy sections required a layout pass.
+        if (GetComponent<EditableUIView>() != null) EditableUIView.Attach(gameObject, "SettingsArtwork");
     }
 
     private int ServiceSections() =>
@@ -238,7 +259,7 @@ public sealed class SettingsScreenPresentation : MonoBehaviour
         toggle.anchorMin = toggle.anchorMax = new Vector2(1, 1); toggle.pivot = new Vector2(1, 1);
         toggle.anchoredPosition = new Vector2(-32, -top - 8); toggle.sizeDelta = new Vector2(144, 64);
         var visual = toggle.GetComponent<SettingsToggleVisual>();
-        if (visual != null) visual.ApplyCompactAppearance(panelSprite);
+        if (visual != null) visual.ApplyCompactAppearance(panelSprite, toggleTrackSprite, toggleKnobSprite);
     }
 
     private void Heading(string name, float top, string value)

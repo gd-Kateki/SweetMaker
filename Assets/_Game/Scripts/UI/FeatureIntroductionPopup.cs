@@ -1,6 +1,7 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using SweetMerge.Profile;
@@ -129,7 +130,7 @@ public sealed class FeatureIntroductionPopup : MonoBehaviour
 
     private void Update()
     {
-        if (isDisplayed && Input.GetKeyDown(KeyCode.Escape))
+        if (isDisplayed && Keyboard.current?.escapeKey.wasPressedThisFrame == true)
             DismissWithoutAcknowledgement();
     }
 

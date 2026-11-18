@@ -2104,7 +2104,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 8838427646707104255, guid: 0cba314dd4b18b8418e17dc40220f43a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2683,7 +2683,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: -8189203694832356727, guid: efa8c6c2cab22e14e91e5b0d34ea2315, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3064,6 +3064,81 @@ MonoBehaviour:
   openButton: {fileID: 1694940154}
   closeButton: {fileID: 2117529019}
   spawnPoolSelector: {fileID: 0}
+--- !u!1 &915692249
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 915692250}
+  - component: {fileID: 915692252}
+  - component: {fileID: 915692251}
+  m_Layer: 0
+  m_Name: V3SettingsTitlePlate
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &915692250
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 915692249}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 9200000000000000041}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 24, y: -20}
+  m_SizeDelta: {x: 360, y: 110}
+  m_Pivot: {x: 0, y: 1}
+--- !u!114 &915692251
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 915692249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 4542774034356269388, guid: 51bb8a6b9f4c7664e9038a8e2f66f6fa, type: 3}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &915692252
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 915692249}
+  m_CullTransparentMesh: 1
 --- !u!1001 &935503128
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3223,7 +3298,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 8820037596666261028, guid: fa1acf360bde2714e8b88f7e440ea0dd, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4514,7 +4589,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: -3785507209392203160, guid: e2aada18b5473ab4d8ba40993e4ca0c2, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11679,6 +11754,7 @@ GameObject:
   - component: {fileID: 9200000000000000042}
   - component: {fileID: 9200000000000000043}
   - component: {fileID: 9200000000000000600}
+  - component: {fileID: 9200000000000000601}
   m_Layer: 0
   m_Name: SettingsPanel
   m_TagString: Untagged
@@ -11698,6 +11774,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 915692250}
   - {fileID: 9200000000000000051}
   - {fileID: 9200000000000000061}
   - {fileID: 9200000000000000071}
@@ -11721,14 +11798,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.97, g: 0.94, b: 0.99, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 5856762989701713786, guid: db4915f9b1168444a9ed505adacce478, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11779,10 +11856,10 @@ RectTransform:
   m_Father: {fileID: 9200000000000000041}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -44, y: -24}
-  m_SizeDelta: {x: -152, y: 72}
-  m_Pivot: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 42, y: -30}
+  m_SizeDelta: {x: 320, y: 72}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &9200000000000000052
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11837,8 +11914,8 @@ MonoBehaviour:
   m_fontSizeMin: 20
   m_fontSizeMax: 48
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 4096
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -11935,16 +12012,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.43, g: 0.22, b: 0.62, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 193919316100044067, guid: 799ddb25edf11e64685f51fc296ffb68, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -11982,10 +12059,10 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.96, g: 0.96, b: 0.96, a: 1}
-    m_PressedColor: {r: 0.78, g: 0.78, b: 0.78, a: 1}
+    m_HighlightedColor: {r: 1, g: 1, b: 1, a: 1}
+    m_PressedColor: {r: 0.86, g: 0.82, b: 0.9, a: 1}
     m_SelectedColor: {r: 0.96, g: 0.96, b: 0.96, a: 1}
-    m_DisabledColor: {r: 0.78, g: 0.78, b: 0.78, a: 0.5}
+    m_DisabledColor: {r: 0.65, g: 0.62, b: 0.67, a: 1}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
@@ -12061,7 +12138,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\xD7"
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -12071,7 +12148,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12510,14 +12587,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.32, g: 0.64, b: 0.45, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 6616833125504691804, guid: 072b92084018e9245a6aab0a3df1281a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -12640,9 +12717,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: -8429112307510067671, guid: 5d8e79fb18eb3ff45b480456c6e4104f, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -12712,14 +12789,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.84, g: 0.79, b: 0.9, a: 1}
+  m_Color: {r: 0.65, g: 0.55, b: 0.72, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 5607921865850061127, guid: c07c584408112ef429d4f31603ec61ff, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -12874,14 +12951,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.43, g: 0.22, b: 0.62, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 5607921865850061127, guid: c07c584408112ef429d4f31603ec61ff, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -12949,16 +13026,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.43, g: 0.22, b: 0.62, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: -4364584394080107995, guid: 4cf6b0fcdbd5a5142934460c71c478ce, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -13054,7 +13131,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -13178,14 +13255,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.32, g: 0.64, b: 0.45, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 6616833125504691804, guid: 072b92084018e9245a6aab0a3df1281a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -13260,9 +13337,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: -8429112307510067671, guid: 5d8e79fb18eb3ff45b480456c6e4104f, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -13380,14 +13457,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.32, g: 0.64, b: 0.45, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 6616833125504691804, guid: 072b92084018e9245a6aab0a3df1281a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -13462,9 +13539,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: -8429112307510067671, guid: 5d8e79fb18eb3ff45b480456c6e4104f, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -13582,14 +13659,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.56, g: 0.53, b: 0.61, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
+  m_Sprite: {fileID: 6616833125504691804, guid: 072b92084018e9245a6aab0a3df1281a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -13664,9 +13741,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: -8429112307510067671, guid: 5d8e79fb18eb3ff45b480456c6e4104f, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -13797,7 +13874,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -13934,7 +14011,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14071,7 +14148,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14208,7 +14285,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14482,7 +14559,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14619,7 +14696,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14893,7 +14970,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15167,7 +15244,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4282853686
-  m_fontColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15256,8 +15333,8 @@ MonoBehaviour:
   stateLabel: {fileID: 9200000000000000512}
   onKnobPosition: {x: 42, y: 0}
   offKnobPosition: {x: -42, y: 0}
-  onTrackColor: {r: 0.32, g: 0.64, b: 0.45, a: 1}
-  offTrackColor: {r: 0.56, g: 0.53, b: 0.61, a: 1}
+  onTrackColor: {r: 1, g: 1, b: 1, a: 1}
+  offTrackColor: {r: 0.66, g: 0.62, b: 0.7, a: 1}
   knobColor: {r: 1, g: 1, b: 1, a: 1}
   onLabelColor: {r: 1, g: 1, b: 1, a: 1}
   offLabelColor: {r: 1, g: 1, b: 1, a: 1}
@@ -15280,8 +15357,8 @@ MonoBehaviour:
   stateLabel: {fileID: 9200000000000000522}
   onKnobPosition: {x: 42, y: 0}
   offKnobPosition: {x: -42, y: 0}
-  onTrackColor: {r: 0.32, g: 0.64, b: 0.45, a: 1}
-  offTrackColor: {r: 0.56, g: 0.53, b: 0.61, a: 1}
+  onTrackColor: {r: 1, g: 1, b: 1, a: 1}
+  offTrackColor: {r: 0.66, g: 0.62, b: 0.7, a: 1}
   knobColor: {r: 1, g: 1, b: 1, a: 1}
   onLabelColor: {r: 1, g: 1, b: 1, a: 1}
   offLabelColor: {r: 1, g: 1, b: 1, a: 1}
@@ -15304,8 +15381,8 @@ MonoBehaviour:
   stateLabel: {fileID: 9200000000000000532}
   onKnobPosition: {x: 42, y: 0}
   offKnobPosition: {x: -42, y: 0}
-  onTrackColor: {r: 0.32, g: 0.64, b: 0.45, a: 1}
-  offTrackColor: {r: 0.56, g: 0.53, b: 0.61, a: 1}
+  onTrackColor: {r: 1, g: 1, b: 1, a: 1}
+  offTrackColor: {r: 0.66, g: 0.62, b: 0.7, a: 1}
   knobColor: {r: 1, g: 1, b: 1, a: 1}
   onLabelColor: {r: 1, g: 1, b: 1, a: 1}
   offLabelColor: {r: 1, g: 1, b: 1, a: 1}
@@ -15328,8 +15405,8 @@ MonoBehaviour:
   stateLabel: {fileID: 9200000000000000542}
   onKnobPosition: {x: 42, y: 0}
   offKnobPosition: {x: -42, y: 0}
-  onTrackColor: {r: 0.32, g: 0.64, b: 0.45, a: 1}
-  offTrackColor: {r: 0.56, g: 0.53, b: 0.61, a: 1}
+  onTrackColor: {r: 1, g: 1, b: 1, a: 1}
+  offTrackColor: {r: 0.66, g: 0.62, b: 0.7, a: 1}
   knobColor: {r: 1, g: 1, b: 1, a: 1}
   onLabelColor: {r: 1, g: 1, b: 1, a: 1}
   offLabelColor: {r: 1, g: 1, b: 1, a: 1}
@@ -15400,7 +15477,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15537,7 +15614,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15674,7 +15751,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15811,7 +15888,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15900,12 +15977,30 @@ MonoBehaviour:
   closeButtonImage: {fileID: 9200000000000000062}
   contentRectTransform: {fileID: 9200000000000000081}
   sfxVolumeSlider: {fileID: 9200000000000000134}
-  panelSprite: {fileID: 21300000, guid: a92bc3f4418a75e4f92fbffaa236bda4, type: 3}
-  panelColor: {r: 0.97, g: 0.94, b: 0.99, a: 1}
+  panelSprite: {fileID: 5856762989701713786, guid: db4915f9b1168444a9ed505adacce478, type: 3}
+  toggleTrackSprite: {fileID: 6616833125504691804, guid: 072b92084018e9245a6aab0a3df1281a, type: 3}
+  toggleKnobSprite: {fileID: -8429112307510067671, guid: 5d8e79fb18eb3ff45b480456c6e4104f, type: 3}
+  titlePlateSprite: {fileID: 4542774034356269388, guid: 51bb8a6b9f4c7664e9038a8e2f66f6fa, type: 3}
+  closeArtworkContainsIcon: 1
+  panelColor: {r: 1, g: 1, b: 1, a: 1}
   cardColor: {r: 1, g: 1, b: 1, a: 1}
   accentColor: {r: 0.43, g: 0.22, b: 0.62, a: 1}
-  textColor: {r: 0.21, g: 0.16, b: 0.28, a: 1}
+  textColor: {r: 0.24, g: 0.14, b: 0.13, a: 1}
   maximumPanelWidth: 1000
+--- !u!114 &9200000000000000601
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9200000000000000040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c3b95e30c6014847916a905a4eadbac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SweetMerge.UI.Customization::EditableUIView
+  templateKey: SettingsArtwork
+  includeNestedViews: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

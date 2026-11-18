@@ -95,6 +95,14 @@ public sealed class FeatureIntroductionPopupTests
     }
 
     [Test]
+    public void VisiblePopupUpdateSupportsInputSystemOnlyProjects()
+    {
+        Configure("Upgrades");
+        Assert.That(Invoke(popup, "Show"), Is.True);
+        Assert.DoesNotThrow(() => InvokePrivate(popup, "Update"));
+    }
+
+    [Test]
     public void GotItFiresOnlyTheGotItEventAndDismissesPopup()
     {
         int displayedCount = 0;

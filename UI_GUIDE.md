@@ -4,6 +4,24 @@ Updated 13 November 2026.
 
 ## Where to start
 
+Upgrades uses `UI V3/Shop_Upgrade`, following `References/_0000_Shop_Upgrade.png`:
+a gold frame/title plaque, cream scrolling cards, green purchase buttons, and the
+red cancel icon. Both scenes use the same `UpgradeScreen.prefab` and nested
+`UpgradeCard.prefab`. Use **Tools → Sweet Maker → UI → Edit Upgrade UI** or
+**Edit Upgrade Card**, or select the existing UpgradeScreen instance in a scene.
+All six upgrade definitions, prices, lock/max-level behavior and button actions
+remain connected. `SU_RowSlice.asset` reuses a cream row region of the supplied
+`SU_Backplate.png` texture so the six scrolling cards do not overlap four static
+background plates. No replacement bitmap is generated.
+
+Settings now uses the artwork in `Assets/_Game/Art/UI_Assets/UI V3/Settings_Screen/`:
+gold backplate/title, cream section plates, red close button, and pink toggle/slider
+elements. The shared editable design remains `SettingsArtwork.prefab`, used by
+both MainBakery and Game. Open **Tools → Sweet Maker → UI → Edit Settings UI** or
+select **UI Designs (Editor Only) → SettingsArtwork** in either scene.
+The close icon is supplied by its sprite; its generated × caption stays empty.
+Existing settings actions, values, account/cloud sections and scrolling are retained.
+
 - **All generated designs:** Tools → Sweet Maker → UI Library. Search the 30
   visual prefabs, open one in Prefab Mode and edit without Play Mode. The same
   window links to the preview tools for existing scene panels.
